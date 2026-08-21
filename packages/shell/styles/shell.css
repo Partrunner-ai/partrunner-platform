@@ -1,0 +1,1059 @@
+/**
+ * @partrunner/shell — component styles.
+ *
+ * Consumes ONLY the semantic variables from theme.css. No Tailwind required,
+ * so it renders identically under Tailwind v3, v4, or none. Scoped under the
+ * `pr-` prefix to avoid clashing with host-app utilities.
+ */
+
+.pr-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--pr-bg);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, 'Barlow', 'Inter', system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.pr-shell *,
+.pr-shell *::before,
+.pr-shell *::after,
+.pr-global-header *,
+.pr-global-header *::before,
+.pr-global-header *::after {
+  box-sizing: border-box;
+}
+
+/* ---- Sidebar ---- */
+.pr-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--pr-nav-width);
+  padding: 20px 14px;
+  background: var(--pr-sidebar-bg);
+  border-right: 1px solid var(--pr-sidebar-border);
+  transition: width 200ms var(--pr-ease);
+  z-index: 40;
+}
+.pr-sidebar[data-collapsed='true'] {
+  width: var(--pr-nav-rail-width);
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.pr-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 16px;
+  margin-bottom: 8px;
+  color: var(--pr-sidebar-fg);
+}
+/* The brand block returns to the configured hub. It is an anchor, so the link
+   reset is explicit — the sidebar must not inherit a UA underline
+   or visited colour. */
+a.pr-sidebar__brand {
+  text-decoration: none;
+  border-radius: var(--pr-radius-md);
+  transition: opacity 150ms var(--pr-ease);
+}
+a.pr-sidebar__brand:hover {
+  opacity: 0.72;
+}
+a.pr-sidebar__brand:focus-visible {
+  outline: 2px solid var(--pr-sidebar-active-bg);
+  outline-offset: 2px;
+}
+/* `currentColor` is what makes a white-on-yellow mark unexpressible. The mark
+   deliberately does NOT set its own colour: inside the sidebar it inherits from
+   `.pr-sidebar__brand`, and on a login screen it inherits that surface's ink
+   instead. Pinning it to `--pr-sidebar-fg` made it unusable anywhere else. */
+.pr-brand-mark {
+  display: block;
+  flex-shrink: 0;
+}
+.pr-sidebar[data-collapsed='true'] .pr-sidebar__brand {
+  justify-content: center;
+  padding: 0 0 16px;
+}
+.pr-sidebar[data-collapsed='true'] .pr-sidebar__brand-copy {
+  display: none;
+}
+.pr-sidebar__brand-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.pr-sidebar__brand-sub {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--pr-sidebar-fg-muted);
+  margin-top: 2px;
+}
+
+/* Sections can carry a one-line hint under their label. */
+.pr-nav__section-description {
+  margin: -2px 0 6px;
+  padding: 0 var(--pr-nav-item-px);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--pr-sidebar-fg-muted);
+}
+.pr-sidebar[data-collapsed='true'] .pr-nav__section-description {
+  display: none;
+}
+
+.pr-nav {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+/* The nav keeps a narrower bar than the 8px global one — it is a 4px-wide rail beside content,
+   where the standard width crowds the labels. Colour comes from the same tokens as everything
+   else; these were hardcoded `rgb(26 26 26 / 18%)`, a dark thumb that vanished in dark mode. */
+.pr-nav::-webkit-scrollbar {
+  width: 4px;
+}
+.pr-nav::-webkit-scrollbar-thumb {
+  background: var(--pr-scrollbar-thumb);
+  border-radius: 999px;
+}
+.pr-nav:hover::-webkit-scrollbar-thumb {
+  background: var(--pr-scrollbar-thumb-hover);
+}
+.pr-nav__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pr-nav-item-gap);
+}
+.pr-nav__label {
+  padding: 0 12px 4px;
+  font-size: var(--pr-nav-section-label-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--pr-sidebar-fg-muted);
+}
+.pr-sidebar[data-collapsed='true'] .pr-nav__label {
+  display: none;
+}
+
+.pr-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: var(--pr-nav-item-py) var(--pr-nav-item-px);
+  border: 0;
+  border-radius: var(--pr-radius-nav-item);
+  background: transparent;
+  /* A group toggle is a <button>, which inherits neither font nor alignment. */
+  font: inherit;
+  font-size: var(--pr-nav-label-size);
+  font-weight: 500;
+  text-align: left;
+  color: var(--pr-sidebar-fg);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms var(--pr-ease), color 150ms var(--pr-ease);
+}
+.pr-nav__item:hover {
+  background: var(--pr-sidebar-hover-bg);
+}
+.pr-nav__item:focus-visible {
+  outline: 2px solid var(--pr-sidebar-active-bg);
+  outline-offset: 1px;
+}
+.pr-nav__item[data-active='true'] {
+  background: var(--pr-sidebar-active-bg);
+  color: var(--pr-sidebar-active-fg);
+  font-weight: 600;
+}
+/* A group whose child is active is emphasized, not filled: the filled pill has
+   to keep meaning "this is the page you are on". */
+.pr-nav__toggle[data-active='true'] {
+  background: var(--pr-sidebar-hover-bg);
+  color: var(--pr-sidebar-fg);
+  font-weight: 600;
+}
+.pr-nav__item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The token, not the `size` prop, is authoritative for glyph size. */
+.pr-nav__item > svg {
+  width: var(--pr-nav-icon-size);
+  height: var(--pr-nav-icon-size);
+  flex-shrink: 0;
+}
+.pr-nav__children .pr-nav__item > svg {
+  width: calc(var(--pr-nav-icon-size) - 2px);
+  height: calc(var(--pr-nav-icon-size) - 2px);
+}
+.pr-nav__badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--pr-sidebar-hover-bg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.pr-nav__item[data-active='true'] .pr-nav__badge {
+  background: rgba(255, 255, 255, 0.22);
+}
+/* The chevron is furniture, not a nav glyph — it keeps its own size. */
+.pr-nav__item > svg.pr-nav__chevron {
+  width: 13px;
+  height: 13px;
+}
+.pr-nav__chevron {
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: transform 180ms var(--pr-ease);
+}
+.pr-nav__toggle[aria-expanded='true'] .pr-nav__chevron {
+  transform: rotate(90deg);
+}
+.pr-nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pr-nav-item-gap);
+}
+.pr-nav__children {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pr-nav-item-gap);
+  padding-left: var(--pr-nav-child-indent);
+  padding-bottom: 4px;
+}
+.pr-nav__children[hidden] {
+  display: none;
+}
+.pr-nav__children .pr-nav__item {
+  font-size: calc(var(--pr-nav-label-size) - 1px);
+  padding-top: calc(var(--pr-nav-item-py) - 2px);
+  padding-bottom: calc(var(--pr-nav-item-py) - 2px);
+}
+
+/* ---- Drill navigation (Nexus) ---- */
+.pr-shell[data-variant='drill'] .pr-nav {
+  gap: 0;
+}
+.pr-drill__landing,
+.pr-drill__detail,
+.pr-drill__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pr-nav-item-gap);
+}
+.pr-drill__divider {
+  height: 1px;
+  margin: 10px 8px;
+  background: var(--pr-sidebar-border);
+}
+.pr-drill__section {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px var(--pr-nav-item-px);
+  border: 0;
+  border-radius: var(--pr-radius-nav-item);
+  background: transparent;
+  color: var(--pr-sidebar-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--pr-ease),
+    color 150ms var(--pr-ease),
+    transform 150ms var(--pr-ease);
+}
+.pr-drill__section:hover {
+  background: var(--pr-sidebar-hover-bg);
+}
+.pr-drill__section:active {
+  transform: scale(0.96);
+}
+.pr-drill__section:focus-visible,
+.pr-drill__back:focus-visible {
+  outline: 2px solid var(--pr-sidebar-active-bg);
+  outline-offset: 1px;
+}
+.pr-drill__tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--pr-radius-md);
+  /* The sidebar stays yellow in both themes. Keep each product hue vivid while
+     anchoring the glyph with enough dark ink to remain clear on the brand
+     surface. The split pastel gradient adds energy without turning into glare. */
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--pr-tile-fg, var(--pr-sidebar-fg)) 30%, white),
+    color-mix(in srgb, var(--pr-tile-fg, var(--pr-sidebar-fg)) 20%, white)
+  );
+  color: color-mix(
+    in srgb,
+    var(--pr-tile-fg, var(--pr-sidebar-fg)) 72%,
+    var(--pr-sidebar-fg)
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--pr-tile-fg, var(--pr-sidebar-fg)) 35%, white),
+    0 4px 10px color-mix(in srgb, var(--pr-tile-fg, var(--pr-sidebar-fg)) 22%, transparent),
+    0 1px 2px rgba(26, 22, 18, 0.12);
+}
+.pr-drill__tile-icon > svg {
+  stroke-width: 2;
+}
+.pr-drill__section-copy,
+.pr-drill__header-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.pr-drill__section-label,
+.pr-drill__title {
+  overflow: hidden;
+  color: var(--pr-sidebar-fg);
+  font-size: var(--pr-nav-label-size);
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-drill__section-meta,
+.pr-drill__description {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--pr-sidebar-fg-muted);
+  font-size: 11px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+.pr-drill__section-meta {
+  white-space: nowrap;
+}
+.pr-drill__section-chevron {
+  flex-shrink: 0;
+  opacity: 0.62;
+}
+.pr-drill__back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: var(--pr-radius-nav-item);
+  background: transparent;
+  color: var(--pr-sidebar-fg-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pr-drill__back:hover {
+  background: var(--pr-sidebar-hover-bg);
+  color: var(--pr-sidebar-fg);
+}
+.pr-drill__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 4px 0 9px;
+  padding: 11px;
+  overflow: hidden;
+  border: 1px solid var(--pr-sidebar-border);
+  border-radius: var(--pr-radius-lg);
+  background: color-mix(in srgb, var(--pr-sidebar-hover-bg) 68%, transparent);
+}
+.pr-drill__header .pr-drill__tile-icon {
+  width: 48px;
+  height: 48px;
+}
+.pr-drill__header .pr-drill__tile-icon > svg {
+  width: 26px;
+  height: 26px;
+}
+.pr-drill__title {
+  font-size: 14px;
+  font-weight: 750;
+}
+.pr-drill__description {
+  white-space: normal;
+}
+.pr-sidebar[data-collapsed='true'] .pr-nav__item {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.pr-sidebar[data-collapsed='true'] .pr-nav__item-label,
+.pr-sidebar[data-collapsed='true'] .pr-nav__badge,
+.pr-sidebar[data-collapsed='true'] .pr-nav__chevron {
+  display: none;
+}
+
+/* ── Collapsed drill rail ──
+   The rail keeps section tiles and hides surrounding copy while preserving
+   icon-only navigation. */
+.pr-sidebar[data-collapsed='true'] .pr-drill__section {
+  justify-content: center;
+  min-height: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+.pr-sidebar[data-collapsed='true'] .pr-drill__section-copy,
+.pr-sidebar[data-collapsed='true'] .pr-drill__section-chevron,
+.pr-sidebar[data-collapsed='true'] .pr-drill__header-copy,
+.pr-sidebar[data-collapsed='true'] .pr-drill__back span {
+  display: none;
+}
+.pr-sidebar[data-collapsed='true'] .pr-drill__header {
+  justify-content: center;
+  padding: 8px;
+  margin: 0 0 8px;
+}
+.pr-sidebar[data-collapsed='true'] .pr-drill__back {
+  align-self: center;
+  padding: 6px;
+}
+.pr-sidebar[data-collapsed='true'] .pr-drill__divider {
+  margin-left: 12px;
+  margin-right: 12px;
+}
+/* 44px tiles do not fit a 68px rail once padding is counted. */
+.pr-sidebar[data-collapsed='true'] .pr-drill__tile-icon,
+.pr-sidebar[data-collapsed='true'] .pr-drill__header .pr-drill__tile-icon {
+  width: 38px;
+  height: 38px;
+}
+.pr-sidebar[data-collapsed='true'] .pr-drill__header .pr-drill__tile-icon > svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pr-sidebar__primary {
+  padding: 0 2px 10px;
+}
+.pr-sidebar[data-collapsed='true'] .pr-sidebar__primary {
+  padding-left: 0;
+  padding-right: 0;
+}
+.pr-sidebar__footer {
+  padding: 8px 2px;
+  border-top: 1px solid var(--pr-sidebar-border);
+  font-size: 12px;
+  color: var(--pr-sidebar-fg-muted);
+}
+
+.pr-sidebar__spacer {
+  display: none;
+}
+.pr-sidebar__collapse {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--pr-radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pr-sidebar-fg-muted);
+  cursor: pointer;
+  transition: background-color 150ms var(--pr-ease);
+}
+.pr-sidebar__collapse:hover {
+  background: var(--pr-sidebar-hover-bg);
+}
+.pr-sidebar[data-collapsed='true'] .pr-sidebar__collapse {
+  justify-content: center;
+}
+.pr-sidebar[data-collapsed='true'] .pr-sidebar__collapse span {
+  display: none;
+}
+
+/* Mobile drawer trigger owned by the shell. Wide screens never show it. */
+.pr-sidebar__trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--pr-radius-nav-item);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  cursor: pointer;
+}
+.pr-sidebar__trigger:hover {
+  background: var(--pr-bg);
+  color: var(--pr-fg);
+}
+.pr-sidebar__backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  border: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+/* ---- Main + topbar ---- */
+.pr-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pr-topbar,
+.pr-global-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 64px;
+  flex-shrink: 0;
+  padding: 0 32px;
+  background: color-mix(in srgb, var(--pr-surface) 95%, transparent);
+  border-bottom: 1px solid var(--pr-border);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.pr-global-header {
+  font-family: var(--pr-font-body, 'Barlow', 'Inter', system-ui, sans-serif);
+}
+.pr-topbar__spacer {
+  flex: 1;
+}
+.pr-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pr-topbar__divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--pr-border);
+}
+.pr-global-header__start {
+  min-width: 0;
+  overflow: hidden;
+}
+.pr-global-header__spacer {
+  flex: 1;
+}
+.pr-global-header__controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.pr-global-header__divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 6px;
+  background: var(--pr-border);
+}
+.pr-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Icon button (topbar) ---- */
+.pr-iconbtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  width: 44px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--pr-radius-md);
+  color: var(--pr-fg-muted);
+  cursor: pointer;
+  transition: background-color 150ms var(--pr-ease), color 150ms var(--pr-ease);
+}
+.pr-iconbtn:hover {
+  background: var(--pr-border);
+  color: var(--pr-fg);
+}
+.pr-iconbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-locale-toggle {
+  width: 44px;
+  font-family: var(--pr-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* ---- App launcher ---- */
+.pr-launcher {
+  position: relative;
+}
+.pr-launcher__popover {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8px;
+  width: 288px;
+  padding: 12px;
+  background: var(--pr-elevated);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-lg);
+  box-shadow: var(--pr-shadow-elevated);
+  z-index: 50;
+  animation: pr-popover-in 150ms var(--pr-ease);
+}
+.pr-launcher__title {
+  padding: 0 4px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pr-fg-muted);
+}
+.pr-launcher__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+.pr-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--pr-radius-lg);
+  text-align: center;
+  text-decoration: none;
+  color: var(--pr-fg);
+  transition: background-color 150ms var(--pr-ease);
+}
+.pr-app:hover {
+  background: var(--pr-bg);
+}
+.pr-app[data-current='true'] {
+  background: rgba(253, 210, 56, 0.15);
+  box-shadow: inset 0 0 0 1px var(--pr-accent);
+  cursor: default;
+}
+.pr-app[data-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+.pr-app__tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  width: 44px;
+  border-radius: var(--pr-radius-lg);
+  background: var(--pr-tile-bg, var(--pr-border));
+  color: var(--pr-tile-fg, var(--pr-fg));
+}
+.pr-app__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pr-fg);
+}
+
+/* ---- User menu ---- */
+.pr-usermenu {
+  position: relative;
+}
+.pr-usermenu__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px 6px 6px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--pr-fg);
+  transition: background-color 150ms var(--pr-ease);
+}
+.pr-usermenu[data-compact='true'] .pr-usermenu__trigger {
+  padding: 6px;
+}
+.pr-usermenu__trigger:hover {
+  background: var(--pr-border);
+}
+.pr-usermenu__trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-usermenu__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+  border-radius: 999px;
+  background: var(--pr-accent);
+  color: var(--pr-accent-ink);
+  font-size: 13px;
+  font-weight: 700;
+  object-fit: cover;
+}
+.pr-usermenu__name {
+  font-size: 14px;
+  font-weight: 600;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-usermenu__popover {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8px;
+  min-width: 220px;
+  padding: 8px;
+  background: var(--pr-elevated);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md);
+  box-shadow: var(--pr-shadow-elevated);
+  z-index: 50;
+  animation: pr-popover-in 150ms var(--pr-ease);
+}
+.pr-usermenu__header {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--pr-border);
+  margin-bottom: 4px;
+}
+.pr-usermenu__email {
+  font-size: 12px;
+  color: var(--pr-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-usermenu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--pr-radius-sm);
+  font-size: 14px;
+  color: var(--pr-fg);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms var(--pr-ease);
+}
+.pr-usermenu__item:hover {
+  background: var(--pr-bg);
+}
+.pr-usermenu__item:focus-visible {
+  outline: none;
+  box-shadow: inset var(--pr-focus-ring);
+}
+.pr-usermenu__item[data-danger='true'] {
+  color: var(--pr-danger);
+}
+
+/* ---- Global notifications ---- */
+.pr-notifications {
+  position: relative;
+}
+.pr-notifications__popover {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  width: min(380px, calc(100vw - 24px));
+  margin-top: 8px;
+  overflow: hidden;
+  background: var(--pr-elevated);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-lg);
+  box-shadow: var(--pr-shadow-elevated);
+  z-index: 50;
+  animation: pr-popover-in 150ms var(--pr-ease);
+}
+.pr-notifications__header {
+  min-height: 52px;
+  padding: 10px 12px 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--pr-border);
+}
+.pr-notifications__header h2 {
+  margin: 0;
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+}
+.pr-notifications__mark-all {
+  min-height: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--pr-radius-sm);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pr-notifications__mark-all:hover {
+  background: var(--pr-bg);
+  color: var(--pr-fg);
+}
+.pr-notifications__list {
+  max-height: min(420px, calc(100vh - 180px));
+  overflow-y: auto;
+}
+.pr-notifications__item {
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--pr-border);
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms var(--pr-ease);
+}
+.pr-notifications__item:hover,
+.pr-notifications__item:focus-visible {
+  background: var(--pr-bg);
+}
+.pr-notifications__item:focus-visible {
+  outline: none;
+  box-shadow: inset var(--pr-focus-ring);
+}
+.pr-notifications__item:disabled {
+  cursor: default;
+}
+.pr-notifications__item-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+.pr-notifications__item-title {
+  font-size: 13px;
+  font-weight: 650;
+}
+.pr-notifications__item-body {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--pr-fg-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.pr-notifications__item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pr-fg-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.pr-notifications__item-meta span + time::before {
+  content: '·';
+  margin-right: 8px;
+}
+.pr-notifications__empty {
+  margin: 0;
+  padding: 28px 20px;
+  color: var(--pr-fg-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.pr-notifications__footer {
+  min-height: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pr-info);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.pr-notifications__footer:hover {
+  background: var(--pr-bg);
+}
+
+/* ---- Notification count ---- */
+.pr-badge-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* White misses text contrast on the base danger tone, especially in dark
+     mode. Darken this compact count locally without changing either token's
+     meaning for buttons and status badges. */
+  background: color-mix(in srgb, var(--pr-danger) 75%, black);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pr-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 720px) {
+  /* Narrow screens get an off-canvas DRAWER, not a squeezed icon rail. A rail of
+     unlabelled glyphs is the worst of both worlds on a phone: it still eats
+     width, and nothing in it says what it does. Labels stay, the panel slides. */
+  .pr-sidebar,
+  .pr-sidebar[data-collapsed='true'] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(280px, 82vw);
+    padding-right: 14px;
+    padding-left: 14px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 200ms var(--pr-ease);
+    box-shadow: none;
+  }
+  .pr-sidebar[data-mobile-open='true'] {
+    transform: translateX(0);
+    box-shadow: 0 0 40px -8px rgba(0, 0, 0, 0.4);
+  }
+  /* Collapsed is a desktop preference; inside the drawer it must not apply. */
+  .pr-sidebar[data-collapsed='true'] .pr-sidebar__brand-copy,
+  .pr-sidebar[data-collapsed='true'] .pr-nav__item-label,
+  .pr-sidebar[data-collapsed='true'] .pr-nav__badge,
+  .pr-sidebar[data-collapsed='true'] .pr-nav__chevron,
+  .pr-sidebar[data-collapsed='true'] .pr-sidebar__collapse span {
+    display: revert;
+  }
+  .pr-sidebar[data-collapsed='true'] .pr-nav__item,
+  .pr-sidebar[data-collapsed='true'] .pr-sidebar__brand,
+  .pr-sidebar[data-collapsed='true'] .pr-sidebar__collapse {
+    justify-content: flex-start;
+    padding-left: var(--pr-nav-item-px);
+    padding-right: var(--pr-nav-item-px);
+  }
+  .pr-sidebar__trigger,
+  .pr-sidebar__backdrop {
+    display: flex;
+  }
+  .pr-sidebar__collapse {
+    display: none;
+  }
+  .pr-topbar,
+  .pr-global-header {
+    height: 56px;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .pr-global-header__controls {
+    gap: 0;
+  }
+  .pr-global-header__divider {
+    display: none;
+  }
+  .pr-usermenu__name,
+  .pr-usermenu__trigger > svg {
+    display: none;
+  }
+  .pr-usermenu__trigger {
+    padding: 6px;
+  }
+  .pr-launcher__popover {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+  .pr-notifications__popover {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-launcher__popover,
+  .pr-usermenu__popover,
+  .pr-notifications__popover {
+    animation: none;
+  }
+}
+
+.pr-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

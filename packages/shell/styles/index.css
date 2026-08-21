@@ -1,0 +1,3 @@
+/* Convenience: import both the theme tokens and the component styles at once. */
+@import './theme.css';
+@import './shell.css';

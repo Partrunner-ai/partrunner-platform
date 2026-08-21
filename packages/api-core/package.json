@@ -1,0 +1,96 @@
+{
+  "name": "@partrunner-ai/api-core",
+  "version": "1.0.0",
+  "description": "Framework-agnostic Node backend primitives shared by PartRunner apps: Nexus DB access, structured logging, audit trail, feature flags, maintenance mode and pagination. Vercel HTTP adapters live under the ./vercel subpath.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "TRADEMARKS.md"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./vercel": {
+      "import": {
+        "types": "./dist/vercel.d.ts",
+        "default": "./dist/vercel.js"
+      },
+      "require": {
+        "types": "./dist/vercel.d.cts",
+        "default": "./dist/vercel.cjs"
+      }
+    },
+    "./auth": {
+      "import": {
+        "types": "./dist/auth.d.ts",
+        "default": "./dist/auth.js"
+      },
+      "require": {
+        "types": "./dist/auth.d.cts",
+        "default": "./dist/auth.cjs"
+      }
+    },
+    "./week": {
+      "import": {
+        "types": "./dist/week.d.ts",
+        "default": "./dist/week.js"
+      },
+      "require": {
+        "types": "./dist/week.d.cts",
+        "default": "./dist/week.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": ">=2.0.0",
+    "@vercel/node": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@vercel/node": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.90.1",
+    "@types/node": "^22.10.2",
+    "@vercel/node": "^5.5.24",
+    "vitest": "^3.2.7",
+    "bcryptjs": "^2.4.3",
+    "@types/bcryptjs": "^2.4.6"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Partrunner-ai/partrunner-platform.git",
+    "directory": "packages/api-core"
+  },
+  "homepage": "https://github.com/Partrunner-ai/partrunner-platform/tree/main/packages/api-core#readme",
+  "bugs": {
+    "url": "https://github.com/Partrunner-ai/partrunner-platform/issues"
+  }
+}

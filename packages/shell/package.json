@@ -1,0 +1,82 @@
+{
+  "name": "@partrunner-ai/shell",
+  "version": "2.0.0",
+  "description": "Standardized PartRunner staff shell, global header, app launcher, preferences, and user controls.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "styles",
+    "README.md",
+    "LICENSE",
+    "TRADEMARKS.md"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./preferences": {
+      "import": {
+        "types": "./dist/preferences.d.ts",
+        "default": "./dist/preferences.js"
+      },
+      "require": {
+        "types": "./dist/preferences.d.cts",
+        "default": "./dist/preferences.cjs"
+      }
+    },
+    "./theme.css": "./styles/theme.css",
+    "./shell.css": "./styles/shell.css",
+    "./styles.css": "./styles/index.css"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup && node scripts/sync-theme.mjs",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist styles/theme.css .turbo"
+  },
+  "dependencies": {
+    "@partrunner-ai/app-registry": "workspace:*"
+  },
+  "peerDependencies": {
+    "lucide-react": ">=0.312.0",
+    "react": "^18.2.0 || ^19.0.0",
+    "react-dom": "^18.2.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@partrunner-ai/tokens": "workspace:*",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "jsdom": "^26.1.0",
+    "lucide-react": "^0.460.0",
+    "vitest": "^3.2.7"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Partrunner-ai/partrunner-platform.git",
+    "directory": "packages/shell"
+  },
+  "homepage": "https://github.com/Partrunner-ai/partrunner-platform/tree/main/packages/shell#readme",
+  "bugs": {
+    "url": "https://github.com/Partrunner-ai/partrunner-platform/issues"
+  }
+}

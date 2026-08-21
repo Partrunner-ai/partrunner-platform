@@ -1,0 +1,3200 @@
+/* @partrunner-ai/ui — L1 primitives.
+ *
+ * Plain CSS over the `--pr-*` scale, not Tailwind utilities. Consumers span
+ * Tailwind v3 and v4, and shipping utilities would force each host to scan
+ * node_modules and agree on a major. This works in both, and with no Tailwind.
+ *
+ * Import a theme alongside it (`@partrunner-ai/tokens/nexus.css`), or the shell's
+ * `styles.css`, which already carries one.
+ *
+ * Keep these rules unlayered. Tailwind v3 treats third-party rules inside
+ * `@layer components` as purgeable candidates, and plain unlayered resets also
+ * outrank layered component rules. Unlayered class selectors beat element resets;
+ * consumer utilities imported later still win when specificity is equal.
+ */
+
+/* A scoped reset makes package geometry independent from Tailwind Preflight or
+   whatever reset a host app happens to use. `:where` keeps specificity at zero,
+   so an intentional consumer override can still win. */
+:where([class^='pr-'], [class*=' pr-']),
+:where([class^='pr-'], [class*=' pr-'])::before,
+:where([class^='pr-'], [class*=' pr-'])::after {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ───────────────────────── Button ───────────────────────── */
+
+.pr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  /* The Crystal field/button step (14px), per the v2 spec: buttons share the
+     input radius, not the chip radius. */
+  border-radius: var(--pr-radius-md, 0.5rem);
+  font-family: var(--pr-font-body, inherit);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 40px;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    border-color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease),
+    transform 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease);
+}
+
+.pr-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+
+.pr-btn:not(.pr-btn--static):active:not(:disabled):not([aria-disabled='true']) {
+  transform: scale(0.96);
+}
+
+/* `disabled` for buttons, `aria-disabled` for the asChild anchor case, which
+   cannot carry `disabled` at all. */
+.pr-btn:disabled,
+.pr-btn[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.pr-btn--block {
+  width: 100%;
+}
+
+.pr-btn__spinner {
+  animation: pr-btn-spin 900ms linear infinite;
+}
+
+@keyframes pr-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-btn {
+    transition: none;
+  }
+  .pr-btn__spinner {
+    animation-duration: 2400ms;
+  }
+}
+
+/* sizes */
+.pr-btn--xs {
+  height: 40px;
+  padding: 0 12px;
+  font-size: 12px;
+  gap: 6px;
+}
+.pr-btn--sm {
+  height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+  gap: 6px;
+}
+.pr-btn--md {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+.pr-btn--lg {
+  height: 48px;
+  padding: 0 20px;
+  font-size: 16px;
+}
+.pr-btn--icon {
+  height: 40px;
+  width: 40px;
+  padding: 0;
+}
+
+/* variants */
+/* The Crystal v2 CTA: the brand sweep with its own elevation. The flat accent
+   stays underneath as the painted fallback for engines without the gradient. */
+.pr-btn--primary {
+  background: var(--pr-accent);
+  background-image: var(--pr-accent-gradient);
+  color: var(--pr-accent-ink);
+  border-color: transparent;
+  box-shadow: var(--pr-shadow-accent);
+}
+/* The deepened glow excludes :focus-visible so the focus indicator survives a
+   pointer resting on the control — the hover shadow would otherwise win on
+   specificity and replace the ring with an unfocusable-looking glow. */
+.pr-btn--primary:hover:not(:focus-visible):not(:disabled):not([aria-disabled='true']) {
+  box-shadow: var(--pr-shadow-accent-lg);
+}
+/* `:not(:active)` keeps the base press scale(0.96) in charge during a click —
+   this rule comes later in the sheet and would otherwise out-cascade it. */
+.pr-btn--primary:not(.pr-btn--static):hover:not(:active):not(:disabled):not([aria-disabled='true']) {
+  transform: translateY(-1px);
+}
+.pr-btn--primary:focus-visible {
+  box-shadow: 0 0 0 2px var(--pr-surface), 0 0 0 4px var(--pr-accent-ink);
+}
+.pr-btn--primary:disabled,
+.pr-btn--primary[aria-disabled='true'] {
+  background-image: none;
+  box-shadow: none;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pr-btn--primary:not(.pr-btn--static):hover:not(:active):not(:disabled):not([aria-disabled='true']) {
+    transform: none;
+  }
+}
+
+.pr-btn--secondary {
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  border-color: var(--pr-border);
+}
+.pr-btn--secondary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--pr-elevated);
+  border-color: var(--pr-border-strong);
+}
+
+.pr-btn--outline {
+  background: transparent;
+  color: var(--pr-fg);
+  border-color: var(--pr-border-strong);
+}
+.pr-btn--outline:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--pr-surface);
+}
+
+.pr-btn--ghost {
+  background: transparent;
+  color: var(--pr-fg-muted);
+}
+.pr-btn--ghost:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+}
+
+/* A button that reads as a link: no fill and no padding of its own, underlined on
+   hover. It remains a button because it performs an action; use `asChild` when
+   the rendered control is a link. */
+.pr-btn--link {
+  background: transparent;
+  color: var(--pr-fg-muted);
+  height: auto;
+  padding: 0;
+  text-underline-offset: 4px;
+}
+.pr-btn--link:hover:not(:disabled):not([aria-disabled='true']) {
+  background: transparent;
+  color: var(--pr-fg);
+  text-decoration: underline;
+}
+
+/* Frosted treatment expressed through semantic surfaces so it follows the
+   active theme rather than hardcoding a light fill. */
+.pr-btn--glass {
+  background: color-mix(in srgb, var(--pr-surface) 80%, transparent);
+  color: var(--pr-fg);
+  border-color: color-mix(in srgb, var(--pr-surface) 70%, transparent);
+  backdrop-filter: blur(12px);
+}
+.pr-btn--glass:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--pr-surface);
+}
+
+.pr-btn--danger {
+  background: var(--pr-danger);
+  color: var(--pr-danger-fg);
+}
+.pr-btn--danger:hover:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(0.94);
+}
+
+.pr-btn--success {
+  background: var(--pr-success);
+  color: var(--pr-danger-fg);
+}
+.pr-btn--success:hover:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(0.94);
+}
+
+/* ───────────────────────── Badge ───────────────────────── */
+
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-family: var(--pr-font-body, inherit);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.pr-badge--neutral {
+  background: var(--pr-bg);
+  color: var(--pr-fg-muted);
+  box-shadow: inset 0 0 0 1px var(--pr-border);
+}
+/* `md` is identical to the base rule; xs and sm add compact options without
+   resizing existing badges. */
+.pr-badge--xs { padding: 2px 8px; font-size: 10px; }
+.pr-badge--sm { padding: 2px 10px; font-size: 11px; }
+.pr-badge--md { padding: 3px 8px; font-size: 11.5px; }
+
+/* Transparent, tone carried by the border. `currentColor` so it follows whichever
+   tone set the text, instead of needing a rule per tone. */
+.pr-badge--outline {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+/* The dot inherits the tone's text colour for the same reason. */
+.pr-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.pr-badge--yellow {
+  background: var(--pr-tone-yellow-bg);
+  color: var(--pr-tone-yellow-fg);
+}
+.pr-badge--blue {
+  background: var(--pr-tone-blue-bg);
+  color: var(--pr-tone-blue-fg);
+}
+.pr-badge--amber {
+  background: var(--pr-tone-amber-bg);
+  color: var(--pr-tone-amber-fg);
+}
+.pr-badge--purple {
+  background: var(--pr-tone-purple-bg);
+  color: var(--pr-tone-purple-fg);
+}
+.pr-badge--green {
+  background: var(--pr-tone-green-bg);
+  color: var(--pr-tone-green-fg);
+}
+.pr-badge--rose {
+  background: var(--pr-tone-rose-bg);
+  color: var(--pr-tone-rose-fg);
+}
+
+/* Status tones tint the scale's semantic colours rather than inventing new ones. */
+.pr-badge--danger {
+  background: color-mix(in srgb, var(--pr-danger) 14%, transparent);
+  color: var(--pr-danger);
+}
+.pr-badge--success {
+  background: color-mix(in srgb, var(--pr-success) 14%, transparent);
+  color: var(--pr-success);
+}
+.pr-badge--warning {
+  background: color-mix(in srgb, var(--pr-warning) 14%, transparent);
+  color: var(--pr-warning);
+}
+.pr-badge--info {
+  background: color-mix(in srgb, var(--pr-info) 14%, transparent);
+  color: var(--pr-info);
+}
+
+.pr-badge--solid.pr-badge--danger {
+  background: var(--pr-danger);
+  color: var(--pr-danger-fg);
+}
+.pr-badge--solid.pr-badge--success {
+  background: var(--pr-success);
+  color: var(--pr-danger-fg);
+}
+.pr-badge--solid.pr-badge--warning {
+  background: var(--pr-warning);
+  color: var(--pr-accent-ink);
+}
+.pr-badge--solid.pr-badge--info {
+  background: var(--pr-info);
+  color: var(--pr-danger-fg);
+}
+.pr-badge--solid.pr-badge--neutral {
+  background: var(--pr-fg-muted);
+  color: var(--pr-surface);
+  box-shadow: none;
+}
+
+/* ───────────────────────── Dialog ───────────────────────── */
+
+.pr-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.pr-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.pr-dialog__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: calc(100vh - 40px);
+  /* `elevated`, not `surface`: a dialog sits above the page, and on a dark
+     theme a shadow cannot express that — only lightness can. */
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  border: 1px solid var(--pr-border);
+  /* Modals sit at the top of the Crystal shape scale (28px). */
+  border-radius: var(--pr-radius-xl, 1rem);
+  box-shadow: var(--pr-shadow-elevated);
+  font-family: var(--pr-font-body, inherit);
+}
+
+.pr-dialog__panel:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-shadow-elevated), var(--pr-focus-ring);
+}
+
+.pr-dialog__panel--sm { max-width: 380px; }
+.pr-dialog__panel--md { max-width: 520px; }
+.pr-dialog__panel--lg { max-width: 720px; }
+.pr-dialog__panel--xl { max-width: 960px; }
+/* The widest sizes provide room for tables and other dense dialog content. */
+.pr-dialog__panel--2xl { max-width: 1120px; }
+.pr-dialog__panel--4xl { max-width: 1320px; }
+
+/* A custom header owns its own padding and layout; the dialog only keeps it from
+   scrolling with the body. */
+.pr-dialog__header--custom {
+  display: block;
+  padding: 0;
+}
+
+.pr-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 20px 12px;
+}
+
+.pr-dialog__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.pr-dialog__title {
+  margin: 0;
+  font-family: var(--pr-font-body, inherit);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pr-fg);
+  text-wrap: balance;
+}
+
+.pr-dialog__description {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--pr-fg-muted);
+  text-wrap: pretty;
+}
+
+.pr-dialog__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  width: 40px;
+  border: none;
+  border-radius: var(--pr-radius-sm, 0.5rem);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  cursor: pointer;
+}
+.pr-dialog__close:hover { background: var(--pr-surface); color: var(--pr-fg); }
+.pr-dialog__close:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+
+.pr-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 20px 20px;
+  font-size: 14px;
+}
+
+.pr-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--pr-border);
+}
+
+/* Compound dialogs keep behavior and chrome in the package while letting apps
+   compose their own body. The legacy Dialog above uses the same layer and stays
+   visually stable for existing consumers. */
+.pr-dialog__panel--compound {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  animation: pr-dialog-enter 160ms var(--pr-ease, ease) both;
+}
+.pr-dialog__header--compound {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 44px 0 0;
+}
+.pr-dialog__footer--compound {
+  padding: 16px 0 0;
+}
+.pr-dialog__close--floating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.pr-alert-dialog__panel { max-width: 440px; }
+.pr-alert-dialog__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pr-alert-dialog__title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--pr-fg);
+  text-wrap: balance;
+}
+.pr-alert-dialog__description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--pr-fg-muted);
+  text-wrap: pretty;
+}
+.pr-alert-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+.pr-alert-dialog__media {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg-muted);
+}
+
+/* ───────────────────────── Sheet ───────────────────────── */
+
+.pr-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.pr-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+.pr-sheet__panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(100%, 420px);
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  padding: 24px;
+  overflow-y: auto;
+  border-radius: 0;
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  border: 0 solid var(--pr-border);
+  box-shadow: var(--pr-shadow-elevated);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-sheet__panel[data-side='right'] {
+  inset: 0 0 0 auto;
+  border-left-width: 1px;
+  animation: pr-sheet-enter-right 200ms var(--pr-ease, ease) both;
+}
+.pr-sheet__panel[data-side='left'] {
+  inset: 0 auto 0 0;
+  border-right-width: 1px;
+  animation: pr-sheet-enter-left 200ms var(--pr-ease, ease) both;
+}
+.pr-sheet__panel[data-side='top'],
+.pr-sheet__panel[data-side='bottom'] {
+  left: 0;
+  width: 100%;
+  height: auto;
+  max-height: min(80vh, 720px);
+}
+.pr-sheet__panel[data-side='top'] {
+  top: 0;
+  border-bottom-width: 1px;
+  animation: pr-sheet-enter-top 200ms var(--pr-ease, ease) both;
+}
+.pr-sheet__panel[data-side='bottom'] {
+  bottom: 0;
+  border-top-width: 1px;
+  animation: pr-sheet-enter-bottom 200ms var(--pr-ease, ease) both;
+}
+.pr-sheet__panel[data-width='sm'] { width: min(100%, 340px); }
+.pr-sheet__panel[data-width='md'] { width: min(100%, 420px); }
+.pr-sheet__panel[data-width='lg'] { width: min(100%, 560px); }
+.pr-sheet__panel[data-width='xl'] { width: min(100%, 720px); }
+.pr-sheet__panel[data-width='full'] { width: 100%; }
+.pr-sheet__panel[data-side='top'],
+.pr-sheet__panel[data-side='bottom'] { width: 100%; }
+.pr-sheet__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 44px;
+}
+.pr-sheet__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pr-fg);
+  text-wrap: balance;
+}
+.pr-sheet__description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--pr-fg-muted);
+  text-wrap: pretty;
+}
+.pr-sheet__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--pr-border);
+}
+.pr-sheet__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pr-radius-sm, 0.5rem);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  cursor: pointer;
+}
+.pr-sheet__close:hover { background: var(--pr-surface); color: var(--pr-fg); }
+.pr-sheet__close:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+
+@keyframes pr-dialog-enter {
+  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes pr-sheet-enter-right { from { transform: translateX(24px); opacity: 0; } }
+@keyframes pr-sheet-enter-left { from { transform: translateX(-24px); opacity: 0; } }
+@keyframes pr-sheet-enter-top { from { transform: translateY(-24px); opacity: 0; } }
+@keyframes pr-sheet-enter-bottom { from { transform: translateY(24px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-dialog__panel--compound,
+  .pr-sheet__panel { animation: none; }
+}
+
+@media (max-width: 639px) {
+  .pr-dialog { padding: 12px; }
+  .pr-dialog__panel--compound { padding: 20px; }
+  .pr-alert-dialog__footer { flex-direction: column-reverse; }
+}
+
+/* ───────────────────────── Input ───────────────────────── */
+
+.pr-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-field--block { display: flex; width: 100%; }
+
+.pr-label,
+.pr-field__label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--pr-fg-muted);
+}
+.pr-label__required { color: var(--pr-danger); }
+
+/* `.pr-input` is the same field with nothing around it — see Input.tsx for when it
+   is used. The shared declarations are stated once so the two cannot drift. */
+.pr-field__control,
+.pr-input {
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  transition: border-color 160ms var(--pr-ease, ease);
+}
+.pr-field__control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pr-field__control--sm, .pr-input--sm { height: 40px; padding: 0 10px; }
+.pr-field__control--md, .pr-input--md { height: 40px; padding: 0 12px; }
+.pr-field__control--lg, .pr-input--lg { height: 46px; padding: 0 14px; }
+
+.pr-field__control:focus-within,
+.pr-input:focus,
+.pr-input:focus-visible {
+  border-color: var(--pr-accent-strong);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  box-shadow: var(--pr-focus-ring);
+  outline: none;
+}
+
+.pr-input {
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  color: var(--pr-fg);
+  outline: none;
+  min-width: 0;
+}
+.pr-input--block { width: 100%; }
+.pr-input::placeholder { color: var(--pr-fg-faint); }
+.pr-input:disabled { cursor: not-allowed; opacity: 0.6; }
+.pr-input[aria-invalid='true'] { border-color: var(--pr-danger); }
+
+.pr-field--invalid .pr-field__control { border-color: var(--pr-danger); }
+.pr-field--disabled .pr-field__control { opacity: 0.6; }
+
+.pr-field__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 14px;
+}
+.pr-field__input:focus-visible {
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+.pr-field__input::placeholder { color: var(--pr-fg-faint); }
+.pr-field__input:disabled { cursor: not-allowed; }
+
+/* ───────────────────── File Dropzone ───────────────────── */
+
+.pr-file-dropzone-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(100%, 420px);
+  min-width: 0;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-file-dropzone-field--block { display: flex; width: 100%; }
+
+.pr-file-dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+  min-height: 160px;
+  padding: 24px;
+  overflow: hidden;
+  border: 1px dashed var(--pr-border-strong);
+  border-radius: var(--pr-radius-lg);
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    border-color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease);
+}
+.pr-file-dropzone:hover:not([data-state='disabled']):not([data-state='invalid']) {
+  border-color: var(--pr-accent-strong);
+}
+.pr-file-dropzone:has(.pr-file-dropzone__input:focus-visible) {
+  border-color: var(--pr-accent-strong);
+  box-shadow: var(--pr-focus-ring);
+  outline: none;
+}
+.pr-file-dropzone[data-state='drag-active'] {
+  background: var(--pr-tone-yellow-bg);
+  border-color: var(--pr-tone-yellow-border);
+  border-style: solid;
+}
+.pr-file-dropzone[data-state='invalid'] { border-color: var(--pr-danger); }
+.pr-file-dropzone[data-state='disabled'] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pr-file-dropzone__input {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.pr-file-dropzone__input:disabled { cursor: not-allowed; }
+
+.pr-file-dropzone__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.pr-file-dropzone__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--pr-radius-md);
+  background: var(--pr-tone-yellow-bg);
+  color: var(--pr-tone-yellow-fg);
+  box-shadow: inset 0 0 0 1px var(--pr-tone-yellow-border);
+}
+.pr-file-dropzone__browse {
+  color: var(--pr-fg);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.pr-file-dropzone__description {
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.pr-file-dropzone__files {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+.pr-file-dropzone__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: var(--pr-radius-md);
+  background: var(--pr-elevated);
+  color: var(--pr-fg-muted);
+  box-shadow: inset 0 0 0 1px var(--pr-border);
+}
+.pr-file-dropzone__file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--pr-fg);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-file-dropzone__file-size {
+  margin-left: auto;
+  color: var(--pr-fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pr-file-dropzone-field__message {
+  margin: 0;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.pr-file-dropzone-field__message--error { color: var(--pr-danger); }
+
+@media (max-width: 480px) {
+  .pr-file-dropzone { padding: 20px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-file-dropzone { transition: none; }
+}
+
+/* ─────────────────────── Select ─────────────────────── */
+
+/* The box is the same box as the Input's, stated once so a select and a text field
+   sitting next to each other in a form cannot drift apart. */
+.pr-select { display: inline-flex; flex-direction: column; gap: 6px; font-family: var(--pr-font-body, inherit); }
+.pr-select--block { display: flex; width: 100%; }
+
+.pr-select__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  transition: border-color 160ms var(--pr-ease, ease);
+}
+.pr-select__control--sm { height: 40px; }
+.pr-select__control--md { height: 40px; }
+.pr-select__control--lg { height: 46px; }
+
+.pr-select__control:focus-within {
+  border-color: var(--pr-accent-strong);
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-field--invalid .pr-select__control { border-color: var(--pr-danger); }
+.pr-select--disabled .pr-select__control { opacity: 0.6; }
+
+.pr-select__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  /* Room for the chevron on the right; the native arrow is removed because it sits
+     at a different offset per platform and would double up with ours. */
+  padding: 0 34px 0 12px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 14px;
+  appearance: none;
+  cursor: pointer;
+}
+.pr-select__input:focus-visible {
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+.pr-select__input:disabled { cursor: not-allowed; }
+/* An unchosen placeholder should read as placeholder text, not as a value. */
+.pr-select__input:has(option[value='']:checked) { color: var(--pr-fg-faint); }
+
+/* The open menu is drawn by the browser, but it takes its ink and paper from the
+   element: the `background: transparent` above leaves Chrome painting the popup
+   on its own white sheet while the options keep `--pr-fg`, which in dark mode is
+   near-white text on white. Stating the pair per option is what carries the theme
+   into the popup — Chrome on Windows/Linux honors it; macOS draws a system menu
+   that ignores it and is legible either way. */
+.pr-select__input option,
+.pr-select__input optgroup {
+  background-color: var(--pr-surface);
+  color: var(--pr-fg);
+}
+/* Only the empty-value placeholder, to mirror exactly what the `:has()` rule above
+   scopes. Every other disabled option keeps the normal ink and takes the dimming
+   the UA already applies — two dimmings compound into something unreadable, and a
+   Select whose value happens to be disabled would read as an unfilled field. */
+.pr-select__input option[value='']:disabled { color: var(--pr-fg-faint); }
+
+.pr-select__chevron {
+  position: absolute;
+  right: 10px;
+  color: var(--pr-fg-faint);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────── Rich Select ─────────────────────── */
+
+.pr-rich-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 180px;
+  padding: 0 12px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  font: inherit;
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition-property: border-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--pr-ease, ease);
+}
+.pr-rich-select__trigger--sm,
+.pr-rich-select__trigger--md { min-height: 40px; }
+.pr-rich-select__trigger--lg { min-height: 46px; }
+.pr-rich-select__trigger--block { width: 100%; }
+.pr-rich-select__trigger:hover:not(:disabled) { border-color: var(--pr-border-strong); }
+.pr-rich-select__trigger:focus-visible,
+.pr-rich-select__trigger--open {
+  outline: none;
+  border-color: var(--pr-accent-strong);
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-rich-select__trigger[aria-invalid='true'] { border-color: var(--pr-danger); }
+.pr-rich-select__trigger:disabled { cursor: not-allowed; opacity: 0.6; }
+
+.pr-rich-select__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-rich-select__value--placeholder { color: var(--pr-fg-faint); }
+.pr-rich-select__chevron {
+  flex: 0 0 auto;
+  color: var(--pr-fg-faint);
+  transition: transform 160ms var(--pr-ease, ease);
+}
+.pr-rich-select__trigger--open .pr-rich-select__chevron { transform: rotate(180deg); }
+
+.pr-rich-select__content {
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-elevated), inset 0 0 0 1px var(--pr-border);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-rich-select__search-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--pr-border);
+  color: var(--pr-fg-faint);
+}
+.pr-rich-select__search-shell:focus-within {
+  box-shadow: inset 0 -2px 0 var(--pr-accent-strong);
+}
+.pr-rich-select__search {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 14px;
+  appearance: none;
+}
+.pr-rich-select__search::-webkit-search-cancel-button { display: none; }
+.pr-rich-select__search::placeholder { color: var(--pr-fg-faint); }
+.pr-rich-select__search:focus-visible { outline: none; box-shadow: none; }
+
+.pr-rich-select__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  outline: none;
+}
+.pr-rich-select__group:not(:has(.pr-rich-select__item:not([hidden]))) { display: none; }
+.pr-rich-select__label {
+  padding: 8px 8px 4px;
+  color: var(--pr-fg-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pr-rich-select__separator {
+  height: 1px;
+  margin: 4px;
+  background: var(--pr-border);
+}
+.pr-rich-select__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px;
+  border-radius: var(--pr-radius-sm, 0.625rem);
+  color: var(--pr-fg);
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.pr-rich-select__item[hidden] { display: none; }
+.pr-rich-select__item[data-highlighted],
+.pr-rich-select__item:hover:not([data-disabled]) { background: var(--pr-surface); }
+.pr-rich-select__item[data-state='checked'] { font-weight: 650; }
+.pr-rich-select__item[data-disabled] { cursor: not-allowed; opacity: 0.5; }
+.pr-rich-select__item-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.pr-rich-select__indicator {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--pr-accent-strong);
+}
+.pr-rich-select__empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  text-wrap: pretty;
+}
+
+/* ───────────────────── Calendar / DatePicker ───────────────────── */
+
+.pr-calendar {
+  width: min(100%, 348px);
+  padding: 12px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-lg, 1rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-sm);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-calendar[aria-disabled='true'] { opacity: 0.62; }
+
+.pr-calendar__header {
+  display: grid;
+  grid-template-columns: 40px 40px minmax(0, 1fr) 40px 40px;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.pr-calendar__month {
+  min-width: 0;
+  margin: 0;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+.pr-calendar__nav,
+.pr-calendar__action {
+  display: inline-flex;
+  min-width: 40px;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--pr-radius-sm, 0.625rem);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  font: inherit;
+  cursor: pointer;
+  transition-property: background-color, color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: var(--pr-ease, ease);
+}
+.pr-calendar__nav:hover:not(:disabled),
+.pr-calendar__action:hover:not(:disabled) {
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+}
+.pr-calendar__nav:focus-visible,
+.pr-calendar__action:focus-visible,
+.pr-calendar__day:focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-calendar__nav:disabled,
+.pr-calendar__action:disabled { cursor: not-allowed; opacity: 0.42; }
+
+.pr-calendar__grid { outline: none; }
+.pr-calendar__weekdays,
+.pr-calendar__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+.pr-calendar__weekdays { margin-bottom: 2px; }
+.pr-calendar__weekday {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: var(--pr-fg-faint);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  user-select: none;
+}
+.pr-calendar__days { display: grid; gap: 2px; }
+.pr-calendar__day,
+.pr-calendar__day-placeholder {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--pr-radius-sm, 0.625rem);
+}
+.pr-calendar__day {
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition-property: background-color, color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: var(--pr-ease, ease);
+}
+.pr-calendar__day:hover:not(:disabled):not([data-selected]) { background: var(--pr-elevated); }
+.pr-calendar__day[data-outside] { color: var(--pr-fg-faint); opacity: 0.62; }
+.pr-calendar__day[data-today] { box-shadow: inset 0 0 0 2px var(--pr-accent-strong); }
+.pr-calendar__day[data-selected] {
+  background: color-mix(in srgb, var(--pr-accent) 24%, transparent);
+  color: var(--pr-fg);
+}
+.pr-calendar[data-mode='single'] .pr-calendar__day[data-selected],
+.pr-calendar__day[data-range-start],
+.pr-calendar__day[data-range-end] {
+  background: var(--pr-accent);
+  color: var(--pr-accent-ink);
+  font-weight: 700;
+}
+.pr-calendar__day[data-range-middle] { border-radius: var(--pr-radius-xs, 0.375rem); }
+.pr-calendar__day:disabled { cursor: not-allowed; opacity: 0.35; }
+.pr-calendar__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--pr-border);
+}
+.pr-calendar__action {
+  padding: 0 10px;
+  color: var(--pr-fg-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.pr-date-picker { display: inline-flex; min-width: 0; }
+.pr-date-picker--block { display: flex; width: 100%; }
+.pr-date-picker__trigger {
+  display: inline-flex;
+  min-width: 190px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  font: inherit;
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition-property: border-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--pr-ease, ease);
+}
+.pr-date-picker--block .pr-date-picker__trigger { width: 100%; }
+.pr-date-picker__trigger--sm,
+.pr-date-picker__trigger--md { min-height: 40px; }
+.pr-date-picker__trigger--lg { min-height: 46px; }
+.pr-date-picker__trigger:hover:not(:disabled) { border-color: var(--pr-border-strong); }
+.pr-date-picker__trigger:focus-visible,
+.pr-date-picker__trigger--open {
+  outline: none;
+  border-color: var(--pr-accent-strong);
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-date-picker__trigger[aria-invalid='true'] { border-color: var(--pr-danger); }
+.pr-date-picker__trigger:disabled { cursor: not-allowed; opacity: 0.6; }
+.pr-date-picker__trigger[data-placeholder] .pr-date-picker__value { color: var(--pr-fg-faint); }
+.pr-date-picker__icon,
+.pr-date-picker__chevron { flex: 0 0 auto; color: var(--pr-fg-faint); }
+.pr-date-picker__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-date-picker__range-separator { margin: 0 5px; color: var(--pr-fg-faint); }
+.pr-date-picker__chevron { transition: transform 160ms var(--pr-ease, ease); }
+.pr-date-picker__trigger--open .pr-date-picker__chevron { transform: rotate(180deg); }
+
+.pr-date-picker__content {
+  z-index: 60;
+  width: min(348px, calc(100vw - 16px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--pr-radius-lg, 1rem);
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-elevated), inset 0 0 0 1px var(--pr-border);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-date-picker__content .pr-calendar {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pr-field__affix {
+  display: inline-flex;
+  align-items: center;
+  color: var(--pr-fg-faint);
+  flex-shrink: 0;
+}
+
+.pr-field__message { margin: 0; font-size: 12px; color: var(--pr-fg-muted); }
+.pr-field__message--error { color: var(--pr-danger); }
+
+/* ─────────────────────── Textarea ─────────────────────── */
+
+.pr-textarea {
+  display: block;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  transition:
+    border-color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease);
+}
+.pr-textarea--sm { min-height: 80px; }
+.pr-textarea--md { min-height: 104px; }
+.pr-textarea--lg { min-height: 132px; }
+.pr-textarea--block { width: 100%; }
+.pr-textarea::placeholder { color: var(--pr-fg-faint); }
+.pr-textarea:focus-visible {
+  border-color: var(--pr-accent-strong);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  box-shadow: var(--pr-focus-ring);
+  outline: none;
+}
+.pr-textarea:disabled { cursor: not-allowed; opacity: 0.6; }
+.pr-textarea[aria-invalid='true'] { border-color: var(--pr-danger); }
+
+/* ─────────────────── Selection controls ─────────────────── */
+
+/* The native input remains the source of form, keyboard, checked and disabled
+   behaviour. The label supplies a dependable 40px target around the smaller
+   visual control, so apps never have to rebuild the interaction layer. */
+.pr-choice {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 0;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+  cursor: pointer;
+}
+
+.pr-choice__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pr-choice__visual {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--pr-border-strong);
+  background: var(--pr-surface);
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    border-color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease);
+}
+
+.pr-choice--checkbox .pr-choice__visual { border-radius: 5px; }
+.pr-choice--radio .pr-choice__visual { border-radius: 999px; }
+
+.pr-choice__mark {
+  display: block;
+  opacity: 0;
+  transition:
+    opacity 120ms var(--pr-ease, ease),
+    transform 120ms var(--pr-ease, ease);
+}
+
+.pr-choice--checkbox .pr-choice__mark {
+  width: 6px;
+  height: 11px;
+  margin-top: -2px;
+  border: solid var(--pr-accent-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0.7);
+}
+
+.pr-choice--radio .pr-choice__mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pr-accent-ink);
+  transform: scale(0.7);
+}
+
+.pr-choice--checkbox .pr-choice__input:checked + .pr-choice__visual,
+.pr-choice--checkbox .pr-choice__input[aria-checked='mixed'] + .pr-choice__visual,
+.pr-choice--radio .pr-choice__input:checked + .pr-choice__visual {
+  border-color: var(--pr-accent-strong);
+  background: var(--pr-accent);
+}
+
+.pr-choice--checkbox .pr-choice__input:checked + .pr-choice__visual .pr-choice__mark,
+.pr-choice--radio .pr-choice__input:checked + .pr-choice__visual .pr-choice__mark {
+  opacity: 1;
+  transform: rotate(45deg) scale(1);
+}
+
+.pr-choice--radio .pr-choice__input:checked + .pr-choice__visual .pr-choice__mark {
+  transform: scale(1);
+}
+
+.pr-choice--checkbox .pr-choice__input[aria-checked='mixed'] + .pr-choice__visual .pr-choice__mark {
+  width: 10px;
+  height: 2px;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pr-accent-ink);
+  opacity: 1;
+  transform: none;
+}
+
+.pr-choice--switch .pr-choice__visual {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--pr-border);
+}
+
+.pr-choice--switch .pr-choice__mark {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--pr-surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    transform 160ms var(--pr-ease, ease);
+}
+
+.pr-choice--switch .pr-choice__input:checked + .pr-choice__visual {
+  border-color: var(--pr-accent-strong);
+  background: var(--pr-accent);
+}
+
+.pr-choice--switch .pr-choice__input:checked + .pr-choice__visual .pr-choice__mark {
+  background: var(--pr-accent-ink);
+  transform: translateX(16px);
+}
+
+.pr-choice__input:focus-visible {
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+
+.pr-choice__input:focus-visible + .pr-choice__visual {
+  outline: none;
+  border-color: var(--pr-accent-strong);
+  box-shadow: var(--pr-focus-ring);
+}
+
+.pr-choice--invalid .pr-choice__visual { border-color: var(--pr-danger); }
+.pr-choice--disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pr-choice__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 1px;
+}
+.pr-choice__label { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.pr-choice__required,
+.pr-choice-group__required { margin-left: 3px; color: var(--pr-danger); }
+.pr-choice__message,
+.pr-choice-group__message { margin: 0; color: var(--pr-fg-muted); font-size: 12px; line-height: 1.4; }
+.pr-choice__message--error,
+.pr-choice-group__message--error { color: var(--pr-danger); }
+
+.pr-choice-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-choice-group__legend { margin: 0; padding: 0; font-size: 14px; font-weight: 600; }
+.pr-choice-group__message { margin-top: 4px; }
+.pr-choice-group__options { display: flex; margin-top: 4px; }
+.pr-choice-group__options--vertical { flex-direction: column; }
+.pr-choice-group__options--horizontal { flex-flow: row wrap; column-gap: 24px; }
+.pr-choice-group--disabled { opacity: 0.6; }
+.pr-choice-group--disabled .pr-choice { opacity: 1; }
+
+/* ─────────────────── Validation summary ─────────────────── */
+
+.pr-validation-summary {
+  padding: 16px;
+  border: 1px solid var(--pr-danger);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-tone-rose-bg);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-validation-summary:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+.pr-validation-summary__title { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.35; }
+.pr-validation-summary__list { margin: 8px 0 0; padding: 0; list-style: none; }
+.pr-validation-summary__item { margin: 0; }
+.pr-validation-summary__link {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  color: var(--pr-danger);
+  font-size: 14px;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pr-validation-summary__link:hover { color: var(--pr-fg); }
+.pr-validation-summary__link:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+.pr-validation-summary__field { margin-right: 4px; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-choice__visual,
+  .pr-choice__mark,
+  .pr-choice--switch .pr-choice__mark { transition: none; }
+}
+
+/* ───────────────────────── Tabs ───────────────────────── */
+
+.pr-tabs {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-tabs--horizontal { flex-direction: column; }
+.pr-tabs--vertical { flex-direction: row; align-items: flex-start; }
+
+.pr-tabs__list {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 4px;
+  overflow-x: auto;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  color: var(--pr-fg-muted);
+}
+.pr-tabs__list--default {
+  background: var(--pr-surface);
+  box-shadow: inset 0 0 0 1px var(--pr-border);
+}
+.pr-tabs__list--line {
+  gap: 4px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--pr-border);
+}
+.pr-tabs--vertical .pr-tabs__list {
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 160px;
+  overflow: visible;
+}
+.pr-tabs--vertical .pr-tabs__list--line {
+  box-shadow: inset -1px 0 0 var(--pr-border);
+}
+
+.pr-tabs__trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--pr-radius-sm, 0.5rem);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease),
+    transform 120ms var(--pr-ease, ease);
+}
+.pr-tabs--vertical .pr-tabs__trigger { width: 100%; justify-content: flex-start; }
+.pr-tabs__trigger:hover:not(:disabled) { color: var(--pr-fg); }
+.pr-tabs__list--default .pr-tabs__trigger:hover:not(:disabled) {
+  background: var(--pr-elevated);
+}
+.pr-tabs__list--default .pr-tabs__trigger[data-state='active'] {
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-card);
+}
+.pr-tabs__list--line .pr-tabs__trigger[data-state='active'] { color: var(--pr-fg); }
+.pr-tabs__trigger:active:not(:disabled) { transform: scale(0.96); }
+.pr-tabs__trigger:focus-visible {
+  z-index: 1;
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-tabs__trigger:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.pr-tabs__list--line .pr-tabs__trigger::after {
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--pr-accent-strong);
+  content: '';
+  opacity: 0;
+  transform: scaleX(0.25);
+  transition:
+    opacity 160ms var(--pr-ease, ease),
+    transform 160ms var(--pr-ease, ease);
+}
+.pr-tabs__list--line .pr-tabs__trigger[data-state='active']::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.pr-tabs--vertical .pr-tabs__list--line .pr-tabs__trigger::after {
+  top: 8px;
+  right: 0;
+  bottom: 8px;
+  left: auto;
+  width: 2px;
+  height: auto;
+  transform: scaleY(0.25);
+}
+.pr-tabs--vertical .pr-tabs__list--line .pr-tabs__trigger[data-state='active']::after {
+  transform: scaleY(1);
+}
+
+.pr-tabs__content {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  color: var(--pr-fg);
+  font-size: 14px;
+  outline: none;
+}
+.pr-tabs__content:focus-visible {
+  border-radius: var(--pr-radius-sm, 0.5rem);
+  box-shadow: var(--pr-focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-tabs__trigger,
+  .pr-tabs__trigger::after { transition: none; }
+}
+
+@media (max-width: 639px) {
+  .pr-tabs--vertical { flex-direction: column; }
+  .pr-tabs--vertical .pr-tabs__list {
+    flex-direction: row;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .pr-tabs--vertical .pr-tabs__list--line {
+    box-shadow: inset 0 -1px 0 var(--pr-border);
+  }
+  .pr-tabs--vertical .pr-tabs__trigger { width: auto; justify-content: center; }
+  .pr-tabs--vertical .pr-tabs__list--line .pr-tabs__trigger::after {
+    top: auto;
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    height: 2px;
+    transform: scaleX(0.25);
+  }
+  .pr-tabs--vertical .pr-tabs__list--line .pr-tabs__trigger[data-state='active']::after {
+    transform: scaleX(1);
+  }
+}
+
+/* ─────────────────── Navigation tabs ─────────────────── */
+
+.pr-navigation-tabs {
+  min-width: 0;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-navigation-tabs__list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 41px;
+  margin: 0;
+  padding: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--pr-border);
+  list-style: none;
+  scroll-padding-inline: 8px;
+}
+.pr-navigation-tabs__list::after {
+  flex: 0 0 1px;
+  content: '';
+}
+.pr-navigation-tabs__item { flex: 0 0 auto; }
+.pr-navigation-tabs__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--pr-radius-sm, 0.5rem) var(--pr-radius-sm, 0.5rem) 0 0;
+  color: var(--pr-fg-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  scroll-margin-inline: 4px;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease),
+    transform 120ms var(--pr-ease, ease);
+}
+.pr-navigation-tabs__link:hover {
+  background: color-mix(in srgb, var(--pr-surface) 70%, var(--pr-tone-yellow-bg));
+  color: var(--pr-fg);
+}
+.pr-navigation-tabs__link[data-state='active'] {
+  background: color-mix(in srgb, var(--pr-surface) 70%, var(--pr-tone-yellow-bg));
+  color: var(--pr-fg);
+}
+.pr-navigation-tabs__link::after {
+  position: absolute;
+  right: 8px;
+  bottom: -5px;
+  left: 8px;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: var(--pr-accent-strong);
+  content: '';
+  opacity: 0;
+  transform: scaleX(0.25);
+  transition:
+    opacity 160ms var(--pr-ease, ease),
+    transform 160ms var(--pr-ease, ease);
+}
+.pr-navigation-tabs__link[data-state='active']::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.pr-navigation-tabs__link:active { transform: scale(0.96); }
+.pr-navigation-tabs__link:focus-visible {
+  z-index: 1;
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-navigation-tabs__label { min-width: 0; }
+.pr-navigation-tabs__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--pr-tone-yellow-border);
+  border-radius: 999px;
+  background: var(--pr-tone-yellow-bg);
+  color: var(--pr-tone-yellow-fg);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pr-navigation-tabs__badge[data-loading] {
+  width: 28px;
+  color: transparent;
+  animation: pr-skeleton-pulse 1600ms var(--pr-ease, ease) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-navigation-tabs__link,
+  .pr-navigation-tabs__link::after,
+  .pr-navigation-tabs__badge[data-loading] { transition: none; animation: none; }
+}
+
+/* ───────────────────────── Card ───────────────────────── */
+
+.pr-card {
+  position: relative;
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  border: 1px solid var(--pr-border);
+  /* The Crystal card step (18px), distinct from radius-md so fields and cards
+     can be tuned apart. */
+  border-radius: var(--pr-radius-card, 0.75rem);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-card--raised { background: var(--pr-elevated); box-shadow: var(--pr-shadow-elevated); }
+/* Softer than `raised`: the card stays on `surface` and only lifts off the page.
+   `raised` already carries a shadow, so the two do not stack. */
+.pr-card--shadow { box-shadow: var(--pr-shadow-card); }
+
+/* The amount is published as a variable so a bleeding body can cancel exactly it,
+   rather than hardcoding 16px and silently going wrong at `sm` and `lg`. */
+.pr-card--pad-sm { --pr-card-pad: 12px; padding: var(--pr-card-pad); }
+.pr-card--pad-md { --pr-card-pad: 16px; padding: var(--pr-card-pad); }
+.pr-card--pad-lg { --pr-card-pad: 24px; padding: var(--pr-card-pad); }
+
+.pr-card--interactive { cursor: pointer; transition: border-color 160ms var(--pr-ease, ease); }
+.pr-card--interactive:hover { border-color: var(--pr-border-strong); }
+.pr-card--interactive:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+
+/* A gradient composes the semantic surface with its tone tint. Without a tone,
+   `.pr-card--gradient` alone does nothing. */
+.pr-card--gradient.pr-card--yellow {
+  background-image: linear-gradient(140deg, var(--pr-surface) 0%, var(--pr-tone-yellow-bg) 100%);
+  background-color: var(--pr-surface);
+}
+.pr-card--gradient.pr-card--blue {
+  background-image: linear-gradient(140deg, var(--pr-surface) 0%, var(--pr-tone-blue-bg) 100%);
+  background-color: var(--pr-surface);
+}
+.pr-card--gradient.pr-card--amber {
+  background-image: linear-gradient(140deg, var(--pr-surface) 0%, var(--pr-tone-amber-bg) 100%);
+  background-color: var(--pr-surface);
+}
+.pr-card--gradient.pr-card--purple {
+  background-image: linear-gradient(140deg, var(--pr-surface) 0%, var(--pr-tone-purple-bg) 100%);
+  background-color: var(--pr-surface);
+}
+.pr-card--gradient.pr-card--green {
+  background-image: linear-gradient(140deg, var(--pr-surface) 0%, var(--pr-tone-green-bg) 100%);
+  background-color: var(--pr-surface);
+}
+.pr-card--gradient.pr-card--rose {
+  background-image: linear-gradient(140deg, var(--pr-surface) 0%, var(--pr-tone-rose-bg) 100%);
+  background-color: var(--pr-surface);
+}
+
+/* Tinted cards, over the same tone pairs Badge uses. The existing borderless
+   treatment remains the default; `toneBorder` opts into the matched outline
+   below without changing any current consumer. */
+.pr-card--yellow {
+  background: var(--pr-tone-yellow-bg);
+  border-color: transparent;
+}
+.pr-card--blue {
+  background: var(--pr-tone-blue-bg);
+  border-color: transparent;
+}
+.pr-card--amber {
+  background: var(--pr-tone-amber-bg);
+  border-color: transparent;
+}
+.pr-card--purple {
+  background: var(--pr-tone-purple-bg);
+  border-color: transparent;
+}
+.pr-card--green {
+  background: var(--pr-tone-green-bg);
+  border-color: transparent;
+}
+.pr-card--rose {
+  background: var(--pr-tone-rose-bg);
+  border-color: transparent;
+}
+
+/* Glass derives its translucency from the current surface instead of literal
+   white, so it rotates with the theme. The solid declaration is the safe
+   fallback for engines without color-mix; blur still remains package-owned. */
+.pr-card--glass {
+  background: var(--pr-surface);
+  background: var(--pr-glass-bg);
+  border-color: var(--pr-glass-border);
+  /* Cards blur at half the chrome amount: the full `--pr-glass-blur` (24px)
+     belongs to floating chrome; an in-page card reads better at 12px. */
+  -webkit-backdrop-filter: blur(calc(var(--pr-glass-blur, 24px) / 2)) saturate(120%);
+  backdrop-filter: blur(calc(var(--pr-glass-blur, 24px) / 2)) saturate(120%);
+}
+
+/* A toned glass card mixes the semantic tint into the translucent surface. */
+.pr-card--glass.pr-card--yellow {
+  background: color-mix(in srgb, var(--pr-surface) 72%, var(--pr-tone-yellow-bg));
+}
+.pr-card--glass.pr-card--blue {
+  background: color-mix(in srgb, var(--pr-surface) 72%, var(--pr-tone-blue-bg));
+}
+.pr-card--glass.pr-card--amber {
+  background: color-mix(in srgb, var(--pr-surface) 72%, var(--pr-tone-amber-bg));
+}
+.pr-card--glass.pr-card--purple {
+  background: color-mix(in srgb, var(--pr-surface) 72%, var(--pr-tone-purple-bg));
+}
+.pr-card--glass.pr-card--green {
+  background: color-mix(in srgb, var(--pr-surface) 72%, var(--pr-tone-green-bg));
+}
+.pr-card--glass.pr-card--rose {
+  background: color-mix(in srgb, var(--pr-surface) 72%, var(--pr-tone-rose-bg));
+}
+
+.pr-card--tone-border.pr-card--yellow { border-color: var(--pr-tone-yellow-border); }
+.pr-card--tone-border.pr-card--blue { border-color: var(--pr-tone-blue-border); }
+.pr-card--tone-border.pr-card--amber { border-color: var(--pr-tone-amber-border); }
+.pr-card--tone-border.pr-card--purple { border-color: var(--pr-tone-purple-border); }
+.pr-card--tone-border.pr-card--green { border-color: var(--pr-tone-green-border); }
+.pr-card--tone-border.pr-card--rose { border-color: var(--pr-tone-rose-border); }
+
+.pr-card__header { display: flex; align-items: flex-start; gap: 12px; }
+.pr-card__heading { flex: 1; min-width: 0; }
+/* The shared card hierarchy uses 16px titles and 14px descriptions. */
+.pr-card__title {
+  margin: 0;
+  /* Bebas Neue is the display face and starts at 24px in the identity guide.
+     Compact UI subheadings stay on Barlow instead of shrinking the brand face. */
+  font-family: var(--pr-font-body, inherit);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.pr-card__description { margin: 4px 0 0; font-size: 14px; color: var(--pr-fg-muted); text-wrap: pretty; }
+.pr-card__actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+/* The body owns its separation from the header, not its own padding — the Card
+   already pads. `:first-child` so a Card with only content is not pushed down. */
+.pr-card__content { margin-top: 12px; }
+.pr-card__content:first-child { margin-top: 0; }
+/* Runs the body to the card's edges while the header keeps its inset. For a body that
+   is its own bounded surface — a table, a chart — where the card's padding reads as a
+   gap around something that should meet the border.
+   `--pr-card-pad` falls back to 0, so on a card with `padding="none"` this is a no-op
+   instead of pulling the body outside the card. */
+.pr-card__content--bleed {
+  margin-inline: calc(-1 * var(--pr-card-pad, 0px));
+  margin-bottom: calc(-1 * var(--pr-card-pad, 0px));
+}
+/* The card clips its corners, so a bled table's own corners cannot poke past the
+   border radius. */
+.pr-card:has(> .pr-card__content--bleed) { overflow: hidden; }
+
+/* ─────────────────── Spinner / EmptyState ─────────────────── */
+
+.pr-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The base carries no `color`. `tone="inherit"` therefore emits nothing, leaving the
+   spinner to take the containing colour — and, because this CSS is unlayered, leaving a
+   Tailwind `text-*` utility free to win. Declaring `currentColor` here would look
+   equivalent and would instead outrank that utility. */
+.pr-spinner { display: inline-flex; align-items: center; }
+.pr-spinner--muted { color: var(--pr-fg-muted); }
+.pr-spinner__icon { animation: pr-btn-spin 900ms linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pr-spinner__icon { animation-duration: 2400ms; }
+}
+
+.pr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 24px;
+  text-align: center;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  width: 44px;
+  border-radius: 999px;
+  background: var(--pr-bg);
+  color: var(--pr-fg-faint);
+  box-shadow: inset 0 0 0 1px var(--pr-border);
+}
+.pr-empty__title { margin: 4px 0 0; font-size: 14px; font-weight: 650; color: var(--pr-fg); }
+.pr-empty__description {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 14px;
+  color: var(--pr-fg-muted);
+  text-wrap: pretty;
+}
+.pr-empty__action { margin-top: 8px; }
+
+
+/* ─────────────────────── Combobox ─────────────────────── */
+
+/* The trigger and the clear button are siblings, so the wrapper is what looks like
+   a field and the clear sits on top of the trigger's right edge. */
+.pr-combobox { position: relative; display: inline-flex; font-family: var(--pr-font-body, inherit); }
+.pr-combobox--block { display: flex; width: 100%; }
+
+.pr-combobox__trigger {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 34px 0 12px;
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms var(--pr-ease, ease);
+}
+.pr-combobox--has-clear .pr-combobox__trigger { padding-right: 72px; }
+.pr-combobox__trigger:hover:not(:disabled) { border-color: var(--pr-border-strong); }
+.pr-combobox__trigger--open,
+.pr-combobox__trigger:focus-visible {
+  outline: none;
+  border-color: var(--pr-accent-strong);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-combobox__trigger:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pr-combobox__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-combobox__value--empty { color: var(--pr-fg-faint); }
+.pr-combobox__chevron { flex-shrink: 0; color: var(--pr-fg-faint); }
+
+.pr-combobox__clear {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  color: var(--pr-fg-faint);
+  cursor: pointer;
+}
+.pr-combobox__clear:hover { color: var(--pr-danger); }
+.pr-combobox__clear:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+
+.pr-combobox__menu {
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pr-elevated);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  box-shadow: var(--pr-shadow-elevated);
+}
+.pr-combobox__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--pr-border);
+  color: var(--pr-fg-faint);
+}
+.pr-combobox__search:focus-within {
+  box-shadow: inset 0 -2px 0 var(--pr-accent-strong);
+}
+.pr-combobox__search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 14px;
+}
+.pr-combobox__search input:focus-visible {
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+.pr-combobox__search input::placeholder { color: var(--pr-fg-faint); }
+
+.pr-combobox__list { overflow-y: auto; padding: 4px 0; }
+.pr-combobox__note { margin: 0; padding: 8px 12px; font-size: 13px; color: var(--pr-fg-muted); }
+
+.pr-combobox__option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+/* Keyboard and pointer share one highlight, so arrowing down looks the same as
+   hovering rather than producing two competing states. */
+.pr-combobox__option--active,
+.pr-combobox__option:hover { background: var(--pr-surface); }
+.pr-combobox__option:focus-visible {
+  border-radius: 0;
+  box-shadow: inset 0 0 0 2px var(--pr-accent);
+  outline: none;
+}
+.pr-combobox__option[aria-selected='true'] { font-weight: 650; }
+.pr-combobox__option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ─────────────────────── MultiSelect ─────────────────────── */
+
+.pr-multiselect { position: relative; display: inline-flex; font-family: var(--pr-font-body, inherit); }
+.pr-multiselect--block { display: flex; width: 100%; }
+.pr-multiselect--filter { min-width: 110px; max-width: 220px; }
+.pr-multiselect--filter.pr-multiselect--block { max-width: none; }
+
+.pr-multiselect__trigger {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 10px;
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  color: var(--pr-fg);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 160ms var(--pr-ease, ease);
+}
+.pr-multiselect__trigger:hover:not([aria-disabled='true']) { border-color: var(--pr-border-strong); }
+.pr-multiselect--filter .pr-multiselect__trigger {
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.pr-multiselect--filter .pr-multiselect__trigger--active {
+  background: var(--pr-tone-yellow-bg);
+  border-color: var(--pr-tone-yellow-border);
+  color: var(--pr-fg);
+  font-weight: 650;
+}
+.pr-multiselect__trigger--open,
+.pr-multiselect__trigger:focus-visible {
+  outline: none;
+  border-color: var(--pr-accent-strong);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-multiselect__trigger--disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* One line, always: chips clip rather than wrapping and pushing the form around. */
+.pr-multiselect__chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.pr-multiselect__placeholder { color: var(--pr-fg-faint); }
+.pr-multiselect__summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-multiselect__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 0 0 10px;
+  background: var(--pr-elevated);
+  border-radius: var(--pr-radius-sm, 0.5rem);
+  font-size: 12px;
+  font-weight: 500;
+}
+.pr-multiselect__chip--count { flex-shrink: 0; font-weight: 650; padding: 2px 8px; }
+.pr-multiselect__chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-multiselect__chip-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--pr-fg-faint);
+  cursor: pointer;
+}
+.pr-multiselect__chip-remove:hover { color: var(--pr-danger); }
+.pr-multiselect__chip-remove:disabled { color: inherit; cursor: not-allowed; }
+.pr-multiselect__chip-remove:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); border-radius: 999px; }
+
+.pr-multiselect__chevron { flex-shrink: 0; color: var(--pr-fg-faint); }
+
+.pr-multiselect__menu {
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pr-elevated);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  box-shadow: var(--pr-shadow-elevated);
+}
+.pr-multiselect__menu--filter {
+  min-width: 192px;
+  max-width: min(280px, calc(100vw - 16px));
+}
+.pr-multiselect__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--pr-border);
+  color: var(--pr-fg-faint);
+}
+.pr-multiselect__search:focus-within {
+  box-shadow: inset 0 -2px 0 var(--pr-accent-strong);
+}
+.pr-multiselect__search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 14px;
+}
+.pr-multiselect__search input:focus-visible {
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+.pr-multiselect__search input::placeholder { color: var(--pr-fg-faint); }
+
+.pr-multiselect__list { overflow-y: auto; padding: 4px 0; }
+.pr-multiselect__note { margin: 0; padding: 8px 12px; font-size: 13px; color: var(--pr-fg-muted); }
+
+.pr-multiselect__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.pr-multiselect__option:hover { background: var(--pr-surface); }
+.pr-multiselect__menu--filter .pr-multiselect__option { font-size: 12px; }
+.pr-multiselect__option--clear { box-shadow: inset 0 -1px 0 var(--pr-border); }
+.pr-multiselect__option:focus-visible {
+  border-radius: 0;
+  box-shadow: inset 0 0 0 2px var(--pr-accent);
+  outline: none;
+}
+.pr-multiselect__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 1px solid var(--pr-border-strong);
+  border-radius: 4px;
+  color: var(--pr-accent-ink);
+}
+.pr-multiselect__check--on { background: var(--pr-accent); border-color: var(--pr-accent-strong); }
+.pr-multiselect__option-leading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pr-multiselect__option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------------------------------
+   Table
+
+   Supports clickable rows and an optional sticky first column while preserving
+   native table structure. Sorting, selection, and pagination remain explicit
+   higher-level composition.
+   --------------------------------------------------------------------------- */
+.pr-table__shell {
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  overflow: hidden;
+}
+.pr-table__shell--bare {
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.pr-table__scroll {
+  overflow-x: auto;
+  /* The thin themed scrollbar is inherited from `:root`; nothing table-specific is needed. */
+}
+.pr-table__scroll--compound {
+  overflow-y: hidden;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-surface);
+  box-shadow: inset 0 0 0 1px var(--pr-border);
+}
+.pr-table__scroll:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--pr-accent);
+}
+/* Capped height: the body scrolls vertically under a pinned header. */
+.pr-table__scroll--capped {
+  overflow-y: auto;
+  /* Breathing room between the last row and the scroll floor. Without it the final row sits
+     flush against the rounded edge and reads as clipped rather than as the end of the list. */
+  scroll-padding-block-end: 4px;
+}
+.pr-table--sticky-header .pr-table__th,
+.pr-table--sticky-header thead th {
+  position: sticky;
+  top: 0;
+  /* The header is opaque or the rows show through it as they pass under. It reads
+     the surface token rather than inheriting, because `bare` tables sit directly on
+     the page and would otherwise pin a transparent strip. */
+  background: var(--pr-surface);
+  /* Above sticky cells in the body, so the two do not fight at the top-left corner
+     when a table pins both a header row and its first column. */
+  z-index: 2;
+}
+.pr-table--sticky-header.pr-table--sticky-first .pr-table__th:first-child,
+.pr-table--sticky-header.pr-table--sticky-first thead th:first-child {
+  z-index: 3;
+}
+/* `border-collapse: collapse` drops the borders of sticky cells — the border belongs
+   to the collapsed grid, which scrolls away with the body. A shadow is painted by the
+   cell itself, so it travels with it. */
+.pr-table--sticky-header .pr-table__th,
+.pr-table--sticky-header thead th {
+  box-shadow: inset 0 -1px 0 var(--pr-border);
+}
+.pr-table {
+  width: 100%;
+  border-collapse: collapse;
+  caption-side: bottom;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-table__header .pr-table__row:first-child { border-top: 0; }
+.pr-table__footer {
+  border-top: 1px solid var(--pr-border);
+  background: color-mix(in srgb, var(--pr-border) 50%, transparent);
+  color: var(--pr-fg);
+  font-weight: 600;
+}
+.pr-table__footer .pr-table__row { border-top: 0; }
+.pr-table__caption {
+  padding: 12px 16px;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  text-align: left;
+  text-wrap: pretty;
+}
+.pr-table__th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pr-fg-muted);
+  background: color-mix(in srgb, var(--pr-border) 50%, transparent);
+  white-space: nowrap;
+}
+.pr-table__td {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--pr-fg);
+  transition: background-color 0.16s var(--pr-ease, ease);
+}
+.pr-table__row {
+  border-top: 1px solid var(--pr-border);
+}
+.pr-table__row--clickable {
+  cursor: pointer;
+}
+.pr-table__row--clickable:hover .pr-table__td,
+.pr-table__row--clickable:focus-visible .pr-table__td {
+  background: var(--pr-elevated);
+}
+.pr-table__row[data-state='selected'] .pr-table__td,
+.pr-table__row[aria-expanded='true'] .pr-table__td {
+  background: var(--pr-tone-yellow-bg);
+}
+.pr-table__row--clickable:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--pr-accent);
+}
+.pr-table__row--clickable[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pr-table__cell--start { text-align: left; }
+.pr-table__cell--center { text-align: center; }
+/* Numbers line up on the right, and tabular figures stop them dancing as they
+   change — a money column that shifts width on every poll is unreadable. */
+.pr-table__cell--end {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-table__hint {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--pr-border);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pr-fg-muted);
+}
+
+/* The sticky column needs an opaque background of its own, or the scrolling
+   cells show through it. */
+.pr-table--sticky-first .pr-table__td:first-child,
+.pr-table--sticky-first .pr-table__th:first-child {
+  position: sticky;
+  left: 0;
+  box-shadow: 6px 0 8px -8px rgb(0 0 0 / 0.28);
+}
+.pr-table--sticky-first .pr-table__th:first-child {
+  z-index: 2;
+  background: color-mix(in srgb, var(--pr-border) 50%, var(--pr-surface));
+}
+.pr-table--sticky-first .pr-table__td:first-child {
+  z-index: 1;
+  background: var(--pr-surface);
+}
+.pr-table--sticky-first .pr-table__row--clickable:hover .pr-table__td:first-child {
+  background: var(--pr-elevated);
+}
+.pr-table--sticky-first .pr-table__row[data-state='selected'] .pr-table__td:first-child,
+.pr-table--sticky-first .pr-table__row[aria-expanded='true'] .pr-table__td:first-child {
+  background: var(--pr-tone-yellow-bg);
+}
+
+.pr-table__loading-spinner {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 0;
+}
+.pr-table__skeleton {
+  padding: 8px 0 12px;
+}
+.pr-table__skeleton-row {
+  display: flex;
+  gap: 16px;
+  padding: 10px 16px;
+}
+.pr-table__skeleton-cell {
+  flex: 1;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--pr-border);
+  animation: pr-table-pulse 1.4s ease-in-out infinite;
+}
+@keyframes pr-table-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pr-table__skeleton-cell { animation: none; }
+}
+
+@media (min-width: 640px) {
+  .pr-table__hint { display: none; }
+  .pr-table--sticky-first .pr-table__th:first-child,
+  .pr-table--sticky-first .pr-table__td:first-child {
+    position: static;
+    box-shadow: none;
+  }
+}
+@media (max-width: 639px) {
+  .pr-table__cell--desktop { display: none; }
+  .pr-table--sticky-first { min-width: 720px; }
+}
+
+/* Compact table density for a breakdown nested inside a summary card. */
+.pr-table--compact .pr-table__th {
+  padding: 6px 8px;
+  font-size: 10px;
+}
+.pr-table--compact .pr-table__td {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+/* ─────────────────────── Dropdown menu ─────────────────────── */
+
+/* Only the native trigger needs a type reset. An `asChild` control keeps its own
+   typography declarations completely untouched, including declarations emitted in
+   a consumer's CSS layer (unlayered package CSS outranks every layered utility). */
+.pr-menu__trigger--raw {
+  font: inherit;
+  font-family: var(--pr-font-body, inherit);
+}
+
+.pr-menu__content {
+  /* Above the rich-select popup's 60: a menu is the thing most often opened from
+     inside another popup's row, and it has to land on top of it. */
+  z-index: 62;
+  display: flex;
+  min-width: 180px;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-elevated), inset 0 0 0 1px var(--pr-border);
+  font-family: var(--pr-font-body, inherit);
+  outline: none;
+}
+
+.pr-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px;
+  border-radius: var(--pr-radius-sm, 0.625rem);
+  color: var(--pr-fg);
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition-property: background-color, color;
+  transition-duration: 120ms;
+  transition-timing-function: var(--pr-ease, ease);
+}
+/* Rows take real DOM focus, so hover and keyboard land on one highlight — arrowing
+   down has to look identical to moving the mouse or the two disagree on screen. */
+.pr-menu__item:hover:not([data-disabled]),
+.pr-menu__item:focus-visible {
+  outline: none;
+  background: var(--pr-surface);
+}
+.pr-menu__item[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* The same tint Badge uses for the danger tone, not a solid fill: `--pr-danger-fg`
+   is the copy colour that sits *on* solid danger, so using it over a tint inverts
+   the contrast it was picked for. The row keeps `--pr-danger` as its text. */
+.pr-menu__item--destructive { color: var(--pr-danger); }
+.pr-menu__item--destructive:hover:not([data-disabled]),
+.pr-menu__item--destructive:focus-visible {
+  background: color-mix(in srgb, var(--pr-danger) 14%, transparent);
+}
+.pr-menu__item-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.pr-menu__item-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--pr-fg-faint);
+}
+.pr-menu__item--destructive .pr-menu__item-icon { color: currentColor; }
+/* Reserved whether or not the row is ticked, so checking one does not shift the
+   labels of every row next to it. */
+.pr-menu__indicator {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--pr-accent-strong);
+}
+.pr-menu__item--checkbox[data-state='checked'] { font-weight: 650; }
+.pr-menu__label {
+  padding: 8px 8px 4px;
+  color: var(--pr-fg-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pr-menu__separator {
+  height: 1px;
+  margin: 4px;
+  background: var(--pr-border);
+}
+/* Not `display: contents` — several browsers drop the accessibility role of a
+   contents box, which would make the group it exists to announce disappear. */
+.pr-menu__group { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-menu__item { transition: none; }
+}
+
+/* ─────────────────────── Popover ─────────────────────── */
+
+/* Same raw-only contract as the menu trigger. Applying this shorthand to a composed
+   child resets its size, weight and line-height; zero specificity is insufficient
+   when the consumer's declarations live in a CSS layer. */
+.pr-popover__trigger--raw {
+  font: inherit;
+  font-family: var(--pr-font-body, inherit);
+}
+
+.pr-popover__content {
+  z-index: 62;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-elevated), inset 0 0 0 1px var(--pr-border);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  outline: none;
+}
+/* Padding lives on a modifier, not on the base rule, for the same reason `Card`
+   splits it out: `padding="none"` has to emit *no class at all* rather than
+   `padding: 0`.
+   These rules are unlayered so they beat a consumer's Tailwind utility — which sits
+   in `@layer utilities` — at any specificity. That is deliberate for the surface
+   itself, but it means a base `padding` here cannot be turned off from the call site:
+   `className="p-0"` loses, silently, and a list panel gets 12px of inset it did not
+   ask for. Absence composes; zero fights. */
+.pr-popover__content--pad-md { padding: 12px; }
+.pr-popover__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.pr-popover__title {
+  margin: 0;
+  color: var(--pr-fg);
+  /* Under 24px stays on the body face, same rule as card and dialog titles. */
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  font-weight: 650;
+}
+.pr-popover__description {
+  margin: 0;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  text-wrap: pretty;
+}
+
+/* ─────────────────────── Pagination ─────────────────────── */
+
+.pr-pagination {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-pagination__summary {
+  min-width: 0;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.pr-pagination__controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+.pr-pagination__controls .pr-btn { min-width: 40px; }
+
+@media (max-width: 479px) {
+  .pr-pagination { gap: 12px; }
+  .pr-pagination__controls .pr-btn {
+    width: 40px;
+    padding-inline: 0;
+  }
+  .pr-pagination__button-label { display: none; }
+}
+
+/* ─────────────────────── Separator ─────────────────────── */
+
+.pr-separator {
+  flex: 0 0 auto;
+  background: var(--pr-border);
+  border: 0;
+}
+.pr-separator--horizontal {
+  width: 100%;
+  height: 1px;
+}
+/* `align-self: stretch` rather than a height: every use of this is a divider between
+   toolbar controls, and the rule should be as tall as whatever sits beside it. */
+.pr-separator--vertical {
+  width: 1px;
+  align-self: stretch;
+  min-height: 1em;
+}
+
+/* ─────────────────────── Skeleton ─────────────────────── */
+
+.pr-skeleton {
+  background: var(--pr-border);
+  border-radius: var(--pr-radius-sm, 0.625rem);
+  animation: pr-skeleton-pulse 1600ms var(--pr-ease, ease) infinite;
+}
+.pr-skeleton--block { min-height: 16px; }
+.pr-skeleton--text {
+  height: 0.85em;
+  border-radius: 4px;
+}
+.pr-skeleton--circle {
+  border-radius: 50%;
+  aspect-ratio: 1;
+}
+.pr-skeleton__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pr-skeleton--text[data-last] { width: 60%; }
+
+@keyframes pr-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* A placeholder that never resolves is worse than a static one: it is a permanent
+   animation on a page a user may be stuck on. Reduced motion gets the mid tone. */
+@media (prefers-reduced-motion: reduce) {
+  .pr-skeleton {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* ─────────────────────── Tooltip ─────────────────────── */
+
+.pr-tooltip {
+  /* Above menus and popovers: a tooltip on a control inside one of them is the
+     last thing drawn and must not be covered by the surface it belongs to. */
+  z-index: 70;
+  max-width: 280px;
+  padding: 6px 10px;
+  border-radius: var(--pr-radius-sm, 0.625rem);
+  /* Inverted against the page rather than sitting on `elevated`. A hint has to read
+     as an annotation over the UI, not as another panel of it, and inverting is the
+     one treatment that stays legible in both modes without a second value. */
+  background: var(--pr-fg);
+  color: var(--pr-bg);
+  box-shadow: var(--pr-shadow-elevated);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+  pointer-events: none;
+}
+
+/* ─────────────────────── Stepper ─────────────────────── */
+
+.pr-stepper__list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pr-stepper__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The connector between steps: a quiet line that warms up once crossed. */
+.pr-stepper__step + .pr-stepper__step::before {
+  content: '';
+  flex: 1 0 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--pr-border);
+}
+/* A connector is crossed exactly when the step before it is done. */
+.pr-stepper__step--done + .pr-stepper__step::before {
+  background: var(--pr-accent);
+}
+
+/* 40px like every other interactive control in the package — the dot doubles
+   as a button when the wizard allows revisiting, and a target must not shrink
+   depending on whether it happens to be clickable today. */
+.pr-stepper__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: 1px solid var(--pr-border);
+  border-radius: 999px;
+  background: var(--pr-surface);
+  color: var(--pr-fg-faint);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    border-color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease);
+}
+
+.pr-stepper__step--done .pr-stepper__dot {
+  background: var(--pr-accent);
+  border-color: transparent;
+  color: var(--pr-accent-ink);
+  box-shadow: var(--pr-glow-accent-sm);
+}
+button.pr-stepper__dot { cursor: pointer; }
+button.pr-stepper__dot:hover { box-shadow: var(--pr-glow-accent); }
+button.pr-stepper__dot:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+
+/* Inverted against the page (fg/bg), not painted in `accent-ink`: accent-ink
+   is fixed across modes and vanishes on a dark surface (1.04:1). */
+.pr-stepper__step--current .pr-stepper__dot {
+  background: var(--pr-fg);
+  border-color: transparent;
+  color: var(--pr-bg);
+}
+
+.pr-stepper__label {
+  font-family: var(--pr-font-body, inherit);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pr-fg-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pr-stepper__step--current .pr-stepper__label {
+  color: var(--pr-fg);
+  font-weight: 600;
+}
+.pr-stepper__step--done .pr-stepper__label { color: var(--pr-fg-muted); }
+
+/* On narrow viewports only the current label stays visible, but the others
+   collapse to visually-hidden — NOT display:none — so every dot keeps its
+   step name in the accessibility tree. */
+@media (max-width: 639px) {
+  .pr-stepper__step:not(.pr-stepper__step--current) .pr-stepper__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* ─────────────────────── ProgressDots ─────────────────────── */
+
+.pr-progress-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-progress-dots__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pr-border-strong);
+  transition:
+    width 200ms var(--pr-ease, ease),
+    background-color 200ms var(--pr-ease, ease);
+}
+.pr-progress-dots__dot--done { background: var(--pr-accent); }
+.pr-progress-dots__dot--current {
+  width: 24px;
+  background: var(--pr-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-progress-dots__dot { transition: none; }
+}
+
+/* ─────────────────────── OtpInput ─────────────────────── */
+
+.pr-otp {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.pr-otp__box {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  border: 1px solid var(--pr-border);
+  /* Same radius step as .pr-input — an OTP is a field, not a chip. */
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-mono, monospace);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition:
+    border-color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease);
+}
+.pr-otp__box:focus {
+  outline: none;
+  border-color: var(--pr-accent);
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-otp__box:disabled {
+  opacity: 0.55;
+  background: var(--pr-bg);
+}
+.pr-otp--invalid .pr-otp__box { border-color: var(--pr-danger); }
+
+/* Anti-zoom: iOS zooms into any input under 16px. */
+@media (max-width: 639px) {
+  .pr-otp__box { font-size: 16px; }
+}
+
+/* ─────────────────────── Progress ─────────────────────── */
+
+.pr-progress-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pr-progress-ring__track { stroke: var(--pr-border); }
+.pr-progress-ring__value {
+  transition: stroke-dashoffset 500ms var(--pr-ease, ease);
+}
+.pr-progress-ring__label {
+  position: absolute;
+  font-family: var(--pr-font-body, inherit);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--pr-fg);
+}
+
+.pr-progress-bar {
+  display: block;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--pr-border);
+  overflow: hidden;
+}
+.pr-progress-bar--xs { height: 2px; }
+.pr-progress-bar--sm { height: 4px; }
+.pr-progress-bar--md { height: 6px; }
+.pr-progress-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pr-accent);
+  transition: width 500ms var(--pr-ease, ease);
+}
+.pr-progress-bar--complete .pr-progress-bar__fill { background: var(--pr-success); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-progress-ring__value { transition: none; }
+  .pr-progress-bar__fill { transition: none; }
+}
+
+/* ─────────────────────── CopyField ─────────────────────── */
+
+.pr-copy-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 2px 2px 12px;
+  border: 1px solid var(--pr-border);
+  /* Same radius step as .pr-input — this reads as a field. */
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-bg);
+}
+
+.pr-copy-field__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--pr-font-mono, monospace);
+  font-size: 13px;
+  color: var(--pr-fg-muted);
+}
+
+/* 40px, the package-wide interactive minimum. */
+.pr-copy-field__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: none;
+  border-radius: calc(var(--pr-radius-md, 0.75rem) - 4px);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease);
+}
+.pr-copy-field__button:hover {
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+}
+.pr-copy-field__button:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+
+/* ─────────────────────── AmbientBackground ─────────────────────── */
+
+/* Decorative glows behind the page. `overflow: hidden` keeps the blurred
+   circles from widening the scrollable area on small screens. `z-index: -1`
+   puts the layer behind in-flow content — at 0 it would paint OVER any
+   unpositioned text and tint it. */
+.pr-ambient {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.pr-ambient__glow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(64px);
+}
+
+.pr-ambient__glow--warm {
+  top: -120px;
+  right: -100px;
+  width: 480px;
+  height: 480px;
+  background: color-mix(in srgb, var(--pr-accent) 10%, transparent);
+}
+
+.pr-ambient__glow--cool {
+  bottom: -140px;
+  left: -120px;
+  width: 520px;
+  height: 520px;
+  background: color-mix(in srgb, var(--pr-info) 8%, transparent);
+}
+
+.pr-ambient--login .pr-ambient__glow--warm {
+  width: 640px;
+  height: 640px;
+  background: color-mix(in srgb, var(--pr-accent) 16%, transparent);
+}
+.pr-ambient--login .pr-ambient__glow--cool {
+  background: color-mix(in srgb, var(--pr-info) 12%, transparent);
+}
+
+/* The accent is a fixed brand token and `info` LIGHTENS in dark, so without
+   explicit dimming the glows come out brighter over a dark page, not softer. */
+.dark .pr-ambient__glow--warm {
+  background: color-mix(in srgb, var(--pr-accent) 6%, transparent);
+}
+.dark .pr-ambient__glow--cool {
+  background: color-mix(in srgb, var(--pr-info) 5%, transparent);
+}
+.dark .pr-ambient--login .pr-ambient__glow--warm {
+  background: color-mix(in srgb, var(--pr-accent) 9%, transparent);
+}
+.dark .pr-ambient--login .pr-ambient__glow--cool {
+  background: color-mix(in srgb, var(--pr-info) 7%, transparent);
+}
+
+/* ─────────────────────── Display tracking ─────────────────────── */
+
+/* The Crystal type spec tightens display-role text. The package's own titles
+   carry it here so the tokens' claim ("titles tighten automatically") is true
+   of the primitives, not just available to apps. */
+.pr-card__title,
+.pr-dialog__title,
+.pr-alert-dialog__title,
+.pr-sheet__title {
+  letter-spacing: var(--pr-tracking-display, -0.022em);
+}

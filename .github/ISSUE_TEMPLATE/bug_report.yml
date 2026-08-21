@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible package defect
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: For security issues, use a private vulnerability report instead.
+  - type: input
+    id: package
+    attributes:
+      label: Package and version
+      placeholder: "@partrunner-ai/ui@1.2.3"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the smallest repository or code sample that demonstrates the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Node, React, framework, browser, and package-manager versions when relevant.
+    validations:
+      required: true

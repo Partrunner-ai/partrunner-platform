@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions: {}
+
+jobs:
+  plan:
+    if: >-
+      github.repository == 'Partrunner-ai/partrunner-platform' &&
+      vars.NPM_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.release-plan.outputs.mode }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - id: release-plan
+        name: Select fail-closed release mode
+        run: node scripts/release-plan.mjs
+
+  version-required:
+    needs: plan
+    if: >-
+      github.repository == 'Partrunner-ai/partrunner-platform' &&
+      vars.NPM_RELEASE_ENABLED == 'true' &&
+      needs.plan.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require a human-authored version PR
+        run: |
+          {
+            echo "### Version PR required"
+            echo
+            echo "Create a branch from main, run \`pnpm run version\`, and open a normal pull request."
+            echo "The pull request must pass required CI and human review before merge."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Version PR required::Pending Changesets must be materialized in a human-authored pull request."
+          exit 1
+
+  publish:
+    needs: plan
+    if: >-
+      github.repository == 'Partrunner-ai/partrunner-platform' &&
+      vars.NPM_RELEASE_ENABLED == 'true' &&
+      needs.plan.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Pin OIDC-capable npm
+        run: npm install --global npm@11.15.0
+
+      - name: Verify npm version
+        run: test \"$(npm --version)\" = \"11.15.0\"
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify and retain exact package artifacts
+        run: pnpm packages:check
+        env:
+          PARTRUNNER_ARTIFACT_OUTPUT_DIR: .artifacts/release
+
+      - name: Publish verified package artifacts
+        run: pnpm run release
+        env:
+          PARTRUNNER_RELEASE_ENABLED: ${{ vars.NPM_RELEASE_ENABLED }}

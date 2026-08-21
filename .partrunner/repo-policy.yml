@@ -1,0 +1,65 @@
+version: 1
+
+repository:
+  name: Partrunner-ai/partrunner-platform
+  # No separate staging branch. main is both.
+  integration_branch: main
+  production_branch: main
+
+pull_requests:
+  feature_base: main
+  feature_merge: unknown
+  promotion: none
+
+context:
+  file: CONTEXT.md
+  instructions: AGENTS.md
+  claude_adapter: CLAUDE.md
+
+verification:
+  - pnpm install --frozen-lockfile
+  - pnpm build
+  - pnpm packages:check
+  - pnpm typecheck
+  - pnpm lint
+  - pnpm test
+  - pnpm test:browser
+
+review:
+  human:
+    requirement: required
+    enforcement: advisory_in_pilot
+  agent:
+    change_review: required
+    architecture_for:
+      - cross_repository
+      - auth_or_permissions
+      - shared_database_contract
+      - finance_or_audit
+      - irreversible_data_change
+      - long_lived_platform_seam
+    enforcement: advisory_in_pilot
+
+database_changes: []
+
+deployment:
+  # Packages are the production artifact.
+  kind: package_registry
+  provider: npmjs
+  review_surface:
+    kind: static_showcase
+    provider: vercel
+    path: packages/showcase
+    data: fixtures_only
+
+release:
+  versioning: semver_from_1_0
+  trusted_publishing: github_oidc
+  environment: npm
+  enable_variable: NPM_RELEASE_ENABLED
+  major: Renaming or removing a prop, dropping a variant, or changing what a --pr-* variable means.
+  minor: A new variant, token, or component.
+  note: >-
+    A minor reaches every consuming app on its next install. That reach is the
+    point of the library and the reason an accidental behaviour change is
+    fleet-wide.

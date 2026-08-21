@@ -1,0 +1,226 @@
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--pr-bg);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body);
+}
+
+.catalog {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+
+.catalog__hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  align-items: end;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--pr-border);
+}
+
+.catalog__eyebrow {
+  margin: 0 0 8px;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.catalog__title {
+  margin: 0;
+  font-family: var(--pr-font-title);
+  font-size: clamp(44px, 7vw, 72px);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.catalog__lede {
+  max-width: 64ch;
+  margin: 16px 0 0;
+  color: var(--pr-fg-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.catalog__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--pr-radius-sm);
+  background: var(--pr-accent);
+  color: var(--pr-accent-ink);
+  font-weight: 700;
+}
+
+.catalog__section {
+  padding-top: 36px;
+}
+
+.catalog__section-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: baseline;
+  margin-bottom: 18px;
+}
+
+.catalog__section-title {
+  margin: 0;
+  font-family: var(--pr-font-title);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.catalog__section-description {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.catalog__surface {
+  padding: 24px;
+  border-radius: var(--pr-radius-lg);
+  background: var(--pr-surface);
+  box-shadow: var(--pr-shadow-card);
+}
+
+.catalog__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.catalog__row + .catalog__row {
+  margin-top: 18px;
+}
+
+@layer utilities {
+  .catalog__layered-trigger {
+    font-family: Georgia, serif;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 18px;
+  }
+}
+
+.catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.catalog__filter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.catalog__filter-dot--warning {
+  background: var(--pr-warning);
+}
+
+.catalog__filter-dot--success {
+  background: var(--pr-success);
+}
+
+.catalog__filter-dot--muted {
+  background: var(--pr-fg-faint);
+}
+
+.catalog__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--pr-radius-md);
+  background:
+    radial-gradient(circle at 48% 12%, var(--pr-tone-blue-bg), transparent 38%),
+    radial-gradient(circle at 68% 88%, var(--pr-tone-purple-bg), transparent 34%),
+    var(--pr-bg);
+}
+
+.catalog__selection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.catalog__selection-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalog__pagination-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.catalog__calendar-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 348px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.catalog__validation {
+  margin-top: 24px;
+}
+
+.catalog__sample-copy {
+  margin: 0;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.catalog__shell-content {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 24px;
+}
+
+@media (max-width: 760px) {
+  .catalog {
+    width: min(100% - 28px, 1180px);
+    padding-top: 28px;
+  }
+
+  .catalog__hero,
+  .catalog__grid,
+  .catalog__cards,
+  .catalog__selection-grid,
+  .catalog__calendar-grid,
+  .catalog__shell-content {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog__section-header {
+    display: block;
+  }
+
+  .catalog__section-description {
+    margin-top: 8px;
+    text-align: left;
+  }
+}

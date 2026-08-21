@@ -1,0 +1,76 @@
+{
+  "name": "@partrunner-ai/ui",
+  "version": "2.0.0",
+  "description": "L1 primitives built on the PartRunner token scale. Plain CSS over --pr-* so it works in Tailwind v3, v4, or no Tailwind at all.",
+  "license": "(MIT AND OFL-1.1)",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "styles",
+    "README.md",
+    "LICENSE",
+    "TRADEMARKS.md"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": "./styles/ui.css",
+    "./light.css": "./styles/light.css",
+    "./theme.css": "./styles/theme.css"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup && node scripts/build-css-bundles.mjs",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@partrunner-ai/tokens": "workspace:*"
+  },
+  "peerDependencies": {
+    "lucide-react": ">=0.312.0",
+    "react": "^18.2.0 || ^19.0.0",
+    "react-dom": "^18.2.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@partrunner-ai/shell": "workspace:*",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/postcss-import": "^14.0.3",
+    "jsdom": "^26.1.0",
+    "lucide-react": "^0.460.0",
+    "postcss": "^8.4.31",
+    "postcss-import": "15.1.0",
+    "tailwindcss": "3.4.17",
+    "vitest": "^3.2.7"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Partrunner-ai/partrunner-platform.git",
+    "directory": "packages/ui"
+  },
+  "homepage": "https://github.com/Partrunner-ai/partrunner-platform/tree/main/packages/ui#readme",
+  "bugs": {
+    "url": "https://github.com/Partrunner-ai/partrunner-platform/issues"
+  }
+}
