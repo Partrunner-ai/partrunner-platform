@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/tokens",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "PartRunner design tokens - Crystal v2 semantic CSS variables, themes, and self-hosted brand fonts, with nexus retained as a deprecated compatibility export",
   "license": "(MIT AND OFL-1.1)",
   "type": "module",
