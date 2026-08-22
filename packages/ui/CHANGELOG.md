@@ -1,5 +1,13 @@
 # @partrunner-ai/ui
 
+## 2.0.1
+
+### Patch Changes
+
+- Publish the first routine npm release through Trusted Publishing with registry provenance.
+- Updated dependencies:
+  - @partrunner-ai/tokens@2.0.1
+
 ## 2.0.0
 
 ### Major Changes

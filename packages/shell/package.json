@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/shell",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Standardized PartRunner staff shell, global header, app launcher, preferences, and user controls.",
   "license": "MIT",
   "type": "module",

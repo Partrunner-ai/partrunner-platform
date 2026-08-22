@@ -1,5 +1,11 @@
 # @partrunner-ai/tokens
 
+## 2.0.1
+
+### Patch Changes
+
+- Publish the first routine npm release through Trusted Publishing with registry provenance.
+
 ## 2.0.0
 
 ### Major Changes
