@@ -81,13 +81,25 @@ export function invalidateFeatureFlagsCache(): void {
   cacheExpiresAt = 0;
 }
 
-export function parseTargeting(valueJson: unknown): FeatureFlagTargeting | null {
-  if (!valueJson || typeof valueJson !== 'object' || Array.isArray(valueJson)) return null;
-  const envelope = valueJson as FeatureFlagValueJson;
+type FeatureFlagTargetingParseResult =
+  | { status: 'absent' }
+  | { status: 'valid'; targeting: FeatureFlagTargeting }
+  | { status: 'invalid' };
+
+function parseTargetingResult(valueJson: unknown): FeatureFlagTargetingParseResult {
+  if (valueJson === null || valueJson === undefined) return { status: 'absent' };
+  if (typeof valueJson !== 'object' || Array.isArray(valueJson)) return { status: 'invalid' };
+
+  const envelope = valueJson as Record<string, unknown>;
+  if (!Object.prototype.hasOwnProperty.call(envelope, 'targeting')) return { status: 'absent' };
   const raw = envelope.targeting;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  if (!validateTargeting(raw)) return null;
-  return normalizeTargeting(raw);
+  if (!validateTargeting(raw)) return { status: 'invalid' };
+  return { status: 'valid', targeting: normalizeTargeting(raw) };
+}
+
+export function parseTargeting(valueJson: unknown): FeatureFlagTargeting | null {
+  const result = parseTargetingResult(valueJson);
+  return result.status === 'valid' ? result.targeting : null;
 }
 
 /** Validates a targeting object (strict enough for admin PUT). */
@@ -137,8 +149,10 @@ export function evaluateFlag(
 ): boolean {
   if (!flag.value_bool) return false;
 
-  const targeting = parseTargeting(flag.value_json);
-  if (!targeting || targeting.mode === 'all') return true;
+  const parsed = parseTargetingResult(flag.value_json);
+  if (parsed.status === 'invalid') return false;
+  if (parsed.status === 'absent' || parsed.targeting.mode === 'all') return true;
+  const targeting = parsed.targeting;
 
   // allowlist
   if (ctx.kind === 'user') {
