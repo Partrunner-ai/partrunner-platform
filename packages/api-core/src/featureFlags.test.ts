@@ -209,7 +209,24 @@ describe('parseTargetingResult', () => {
     ).toEqual({ status: 'invalid' });
     expect(
       parseTargetingResult({
-        targeting: { mode: 'allowlist', admin_roles: ['unknown_role'] },
+        targeting: {
+          mode: 'allowlist',
+          admin_roles: ['partrunner_admin', 'payment_approver', 'new_role_code'],
+        },
+      })
+    ).toEqual({
+      status: 'valid',
+      targeting: {
+        mode: 'allowlist',
+        flotillero_ids: [],
+        flotillero_rfcs: [],
+        admin_emails: [],
+        admin_roles: ['partrunner_admin', 'payment_approver', 'new_role_code'],
+      },
+    });
+    expect(
+      parseTargetingResult({
+        targeting: { mode: 'allowlist', admin_roles: ['Invalid-Role'] },
       })
     ).toEqual({ status: 'invalid' });
   });
@@ -234,6 +251,21 @@ describe('evaluateFlagDecision', () => {
       })
     ).toEqual({ enabled: true, reason: 'matched', variant: null, payload: null });
   });
+
+  it.each(['partrunner_admin', 'partrunner_finance', 'payment_approver', 'new_role_code'])(
+    'matches valid dynamic Nexus role code %s',
+    role => {
+      expect(
+        evaluateFlagDecision(
+          {
+            value_bool: true,
+            value_json: { targeting: { mode: 'allowlist', admin_roles: [role] } },
+          },
+          { roles: [role] }
+        )
+      ).toEqual({ enabled: true, reason: 'matched', variant: null, payload: null });
+    }
+  );
 
   it('returns archive, disabled, and invalid configuration reasons in order', () => {
     const malformed = { targeting: { mode: 'percentage' } };

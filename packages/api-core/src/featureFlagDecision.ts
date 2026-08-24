@@ -7,8 +7,9 @@
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const ROLE_CODE_RE = /^[a-z][a-z0-9_]*$/;
 
-/** Known admin role codes accepted in targeting.admin_roles. */
+/** Common role-code suggestions. Valid role codes are not limited to this list. */
 export const FEATURE_FLAG_ADMIN_ROLES = [
   'super_admin',
   'product_manager',
@@ -116,13 +117,7 @@ export function validateTargeting(v: unknown): v is FeatureFlagTargeting {
   if (!checkStringArray('flotillero_ids', s => UUID_RE.test(s))) return false;
   if (!checkStringArray('flotillero_rfcs', s => s.length >= 12 && s.length <= 13)) return false;
   if (!checkStringArray('admin_emails', s => EMAIL_RE.test(s))) return false;
-  if (
-    !checkStringArray('admin_roles', s =>
-      (FEATURE_FLAG_ADMIN_ROLES as readonly string[]).includes(s)
-    )
-  ) {
-    return false;
-  }
+  if (!checkStringArray('admin_roles', s => ROLE_CODE_RE.test(s))) return false;
 
   return true;
 }
