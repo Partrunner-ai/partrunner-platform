@@ -1,7 +1,13 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/vercel.ts', 'src/auth.ts', 'src/week.ts'],
+  entry: [
+    'src/index.ts',
+    'src/vercel.ts',
+    'src/auth.ts',
+    'src/week.ts',
+    'src/feature-flags.ts',
+  ],
   format: ['esm', 'cjs'],
   dts: true,
   clean: true,

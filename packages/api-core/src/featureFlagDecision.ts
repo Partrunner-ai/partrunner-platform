@@ -1,0 +1,271 @@
+/**
+ * @partrunner-ai/api-core/feature-flags — browser-safe pure flag semantics.
+ *
+ * This module has no database, logger, environment, or runtime imports. Hosts
+ * own row loading, caching, provider errors, context validation, and exposure.
+ */
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
+/** Known admin role codes accepted in targeting.admin_roles. */
+export const FEATURE_FLAG_ADMIN_ROLES = [
+  'super_admin',
+  'product_manager',
+  'finance_manager',
+  'finance_agent',
+  'cs_manager',
+  'cs_agent',
+  'operations_manager',
+  'operations_agent',
+  'ops_agent',
+  'fds_manager',
+  'fds_agent',
+  'supply',
+  'finance',
+  'operations',
+  'viewer',
+] as const;
+
+export type FeatureFlagAdminRole = (typeof FEATURE_FLAG_ADMIN_ROLES)[number];
+export type FeatureFlagTargetingMode = 'all' | 'allowlist';
+
+export interface FeatureFlagTargeting {
+  mode: FeatureFlagTargetingMode;
+  flotillero_ids?: string[];
+  flotillero_rfcs?: string[];
+  admin_emails?: string[];
+  admin_roles?: string[];
+}
+
+/** Envelope stored in value_json. Extra keys are ignored. */
+export interface FeatureFlagValueJson {
+  targeting?: FeatureFlagTargeting;
+  variant?: string;
+  payload?: unknown;
+}
+
+export interface FeatureFlagEvaluationRow {
+  value_bool: boolean;
+  value_json: unknown | null;
+  archived_at?: string | null;
+}
+
+/** Legacy caller context retained for the compatible boolean evaluator. */
+export type FeatureFlagContext =
+  | { kind: 'user'; flotilleroId?: string | null; rfc?: string | null }
+  | { kind: 'admin'; email?: string | null; role?: string | null };
+
+/** Provider-neutral actor fields understood by the structured row evaluator. */
+export interface FeatureFlagActor {
+  flotilleroId?: string | null;
+  flotilleroRfc?: string | null;
+  email?: string | null;
+  roles?: readonly string[] | null;
+}
+
+export type FeatureFlagDecisionReason =
+  | 'matched'
+  | 'disabled'
+  | 'archived'
+  | 'invalid_configuration';
+
+/** Pure row decision. Provider errors, missing keys, and exposure stay host-owned. */
+export interface FeatureFlagDecision<TPayload = unknown> {
+  enabled: boolean;
+  reason: FeatureFlagDecisionReason;
+  variant: string | null;
+  payload: TPayload | null;
+}
+
+export type FeatureFlagTargetingParseResult =
+  | { status: 'absent' }
+  | { status: 'valid'; targeting: FeatureFlagTargeting }
+  | { status: 'invalid' };
+
+export function parseTargetingResult(valueJson: unknown): FeatureFlagTargetingParseResult {
+  if (valueJson === null || valueJson === undefined) return { status: 'absent' };
+  if (typeof valueJson !== 'object' || Array.isArray(valueJson)) return { status: 'invalid' };
+
+  const envelope = valueJson as Record<string, unknown>;
+  if (!Object.prototype.hasOwnProperty.call(envelope, 'targeting')) return { status: 'absent' };
+  const raw = envelope.targeting;
+  if (!validateTargeting(raw)) return { status: 'invalid' };
+  return { status: 'valid', targeting: normalizeTargeting(raw) };
+}
+
+export function parseTargeting(valueJson: unknown): FeatureFlagTargeting | null {
+  const result = parseTargetingResult(valueJson);
+  return result.status === 'valid' ? result.targeting : null;
+}
+
+/** Validates a targeting object for evaluation and admin writes. */
+export function validateTargeting(v: unknown): v is FeatureFlagTargeting {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  const t = v as Record<string, unknown>;
+  if (t.mode !== 'all' && t.mode !== 'allowlist') return false;
+
+  const checkStringArray = (key: string, itemOk: (s: string) => boolean): boolean => {
+    if (t[key] === undefined) return true;
+    if (!Array.isArray(t[key])) return false;
+    return (t[key] as unknown[]).every(
+      item => typeof item === 'string' && item.trim().length > 0 && itemOk(item.trim())
+    );
+  };
+
+  if (!checkStringArray('flotillero_ids', s => UUID_RE.test(s))) return false;
+  if (!checkStringArray('flotillero_rfcs', s => s.length >= 12 && s.length <= 13)) return false;
+  if (!checkStringArray('admin_emails', s => EMAIL_RE.test(s))) return false;
+  if (
+    !checkStringArray('admin_roles', s =>
+      (FEATURE_FLAG_ADMIN_ROLES as readonly string[]).includes(s)
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function normalizeTargeting(t: FeatureFlagTargeting): FeatureFlagTargeting {
+  return {
+    mode: t.mode,
+    flotillero_ids: (t.flotillero_ids ?? []).map(s => s.trim().toLowerCase()),
+    flotillero_rfcs: (t.flotillero_rfcs ?? []).map(s => s.trim().toUpperCase()),
+    admin_emails: (t.admin_emails ?? []).map(s => s.trim().toLowerCase()),
+    admin_roles: (t.admin_roles ?? []).map(s => s.trim()),
+  };
+}
+
+function decisionMetadata(valueJson: unknown):
+  | { status: 'valid'; variant: string | null; payload: unknown }
+  | { status: 'invalid' } {
+  if (valueJson === null || valueJson === undefined) {
+    return { status: 'valid', variant: null, payload: null };
+  }
+  if (typeof valueJson !== 'object' || Array.isArray(valueJson)) return { status: 'invalid' };
+
+  const envelope = valueJson as Record<string, unknown>;
+  const rawVariant = envelope.variant;
+  if (rawVariant !== undefined && (typeof rawVariant !== 'string' || !rawVariant.trim())) {
+    return { status: 'invalid' };
+  }
+
+  return {
+    status: 'valid',
+    variant: typeof rawVariant === 'string' ? rawVariant : null,
+    payload: Object.prototype.hasOwnProperty.call(envelope, 'payload') ? envelope.payload : null,
+  };
+}
+
+function normalized(value: string | null | undefined): string {
+  return value?.trim().toLocaleLowerCase('en-US') ?? '';
+}
+
+function listIncludes(list: readonly string[] | undefined, value: string | null | undefined): boolean {
+  const candidate = normalized(value);
+  return Boolean(candidate && list?.some(item => normalized(item) === candidate));
+}
+
+/** Evaluate one already-loaded row without database or cache access. */
+export function evaluateFlagDecision<TPayload = unknown>(
+  flag: FeatureFlagEvaluationRow,
+  actor: FeatureFlagActor | null | undefined
+): FeatureFlagDecision<TPayload> {
+  if (flag.archived_at) {
+    return { enabled: false, reason: 'archived', variant: null, payload: null };
+  }
+  if (!flag.value_bool) {
+    return { enabled: false, reason: 'disabled', variant: null, payload: null };
+  }
+
+  const parsed = parseTargetingResult(flag.value_json);
+  const metadata = decisionMetadata(flag.value_json);
+  if (parsed.status === 'invalid' || metadata.status === 'invalid') {
+    return { enabled: false, reason: 'invalid_configuration', variant: null, payload: null };
+  }
+
+  if (parsed.status === 'absent' || parsed.targeting.mode === 'all') {
+    return {
+      enabled: true,
+      reason: 'matched',
+      variant: metadata.variant,
+      payload: metadata.payload as TPayload | null,
+    };
+  }
+
+  const targeting = parsed.targeting;
+  const matches =
+    listIncludes(targeting.flotillero_ids, actor?.flotilleroId) ||
+    listIncludes(targeting.flotillero_rfcs, actor?.flotilleroRfc) ||
+    listIncludes(targeting.admin_emails, actor?.email) ||
+    Boolean(actor?.roles?.some(role => listIncludes(targeting.admin_roles, role)));
+
+  return matches
+    ? {
+        enabled: true,
+        reason: 'matched',
+        variant: metadata.variant,
+        payload: metadata.payload as TPayload | null,
+      }
+    : { enabled: false, reason: 'disabled', variant: null, payload: null };
+}
+
+/** Compatible 1.0.x boolean evaluator for legacy user/admin contexts. */
+export function evaluateFlag(
+  flag: Pick<FeatureFlagEvaluationRow, 'value_bool' | 'value_json'>,
+  ctx: FeatureFlagContext
+): boolean {
+  if (!flag.value_bool) return false;
+
+  const parsed = parseTargetingResult(flag.value_json);
+  if (parsed.status === 'invalid') return false;
+  if (parsed.status === 'absent' || parsed.targeting.mode === 'all') return true;
+  const targeting = parsed.targeting;
+
+  if (ctx.kind === 'user') {
+    const id = ctx.flotilleroId?.trim().toLowerCase() ?? '';
+    const rfc = ctx.rfc?.trim().toUpperCase() ?? '';
+    const ids = targeting.flotillero_ids ?? [];
+    const rfcs = targeting.flotillero_rfcs ?? [];
+    if (ids.length === 0 && rfcs.length === 0) return false;
+    if (id && ids.includes(id)) return true;
+    if (rfc && rfcs.includes(rfc)) return true;
+    return false;
+  }
+
+  const email = ctx.email?.trim().toLowerCase() ?? '';
+  const role = ctx.role?.trim() ?? '';
+  const emails = targeting.admin_emails ?? [];
+  const roles = targeting.admin_roles ?? [];
+  if (emails.length === 0 && roles.length === 0) return false;
+  if (email && emails.includes(email)) return true;
+  if (role && roles.includes(role)) return true;
+  return false;
+}
+
+/** Build value_json while preserving unknown sibling keys. */
+export function mergeTargetingIntoValueJson(
+  existing: unknown,
+  targeting: FeatureFlagTargeting | null | undefined
+): FeatureFlagValueJson | null {
+  const base: FeatureFlagValueJson =
+    existing && typeof existing === 'object' && !Array.isArray(existing)
+      ? { ...(existing as FeatureFlagValueJson) }
+      : {};
+
+  if (targeting === null) {
+    delete base.targeting;
+    return Object.keys(base).length === 0 ? null : base;
+  }
+  if (targeting === undefined) {
+    return Object.keys(base).length === 0 ? null : base;
+  }
+  base.targeting = normalizeTargeting(targeting);
+  return base;
+}
+
+/** Key shape: snake/dot lowercase segments. */
+export function isValidFeatureFlagKey(key: string): boolean {
+  return /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/.test(key) && key.length <= 80;
+}

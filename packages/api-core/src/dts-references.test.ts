@@ -53,7 +53,7 @@ function exportedBy(dep: string): Set<string> {
 }
 
 describe('built declarations', () => {
-  const entries = ['index.d.ts', 'vercel.d.ts'];
+  const entries = ['index.d.ts', 'vercel.d.ts', 'feature-flags.d.ts'];
 
   it.each(entries)('%s only references types its dependencies export', entry => {
     const path = join(DIST, entry);
