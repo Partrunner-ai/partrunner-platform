@@ -9,6 +9,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const REGISTRY = 'https://registry.npmjs.org';
 const PACKAGES = [
+  'adoption-check',
   'api-core',
   'app-registry',
   'seamless',
@@ -21,7 +22,7 @@ async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
 
-test('all six public manifests target anonymous public npm', async () => {
+test('every public manifest targets anonymous public npm', async () => {
   for (const packageDirectory of PACKAGES) {
     const manifest = await readJson(
       join(ROOT, 'packages', packageDirectory, 'package.json'),

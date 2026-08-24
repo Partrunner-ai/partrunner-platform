@@ -1,13 +1,14 @@
 /**
  * Fleet-wide adoption audit — the entry `sales/tests/theme-adoption.test.mjs`
  * names. Thin wrapper over @partrunner-ai/adoption-check so the gates have one
- * implementation whether they run here, in an app's CI, or by hand:
+ * implementation whether they run here, in an app's CI, or by hand. It imports
+ * the built workspace package, so run `pnpm build` first:
  *
  *   node scripts/adoption-audit.mjs <app-dir> [<app-dir>…] [--allow-nexus-compat]
  */
 import { resolve } from 'node:path';
 import process from 'node:process';
-import { auditApp } from '../packages/adoption-check/src/audit.mjs';
+import { auditApp } from '@partrunner-ai/adoption-check';
 
 const args = process.argv.slice(2);
 const dirs = args.filter((a) => !a.startsWith('--'));

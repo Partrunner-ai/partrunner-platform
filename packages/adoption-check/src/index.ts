@@ -14,6 +14,25 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
 
+export interface AdoptionFinding {
+  gate: string;
+  file: string;
+  line: number;
+  message: string;
+}
+
+export interface AuditOptions {
+  allowNexusCompat?: boolean;
+  minUiMajor?: number;
+  /** Files with a legitimate reason to restate brand values (HTML emails, OG images). */
+  allowFiles?: string[];
+}
+
+export interface AuditResult {
+  findings: AdoptionFinding[];
+  scanned: number;
+}
+
 /** Directories never worth scanning. */
 const SKIP_DIRS = new Set([
   'node_modules',
@@ -59,7 +78,7 @@ const PALETTE_HEX = [
 
 const BRAND_FONT_PATTERN = /barlow|bebas[\s_+-]?neue/i;
 
-function walk(dir, files = []) {
+function walk(dir: string, files: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry.startsWith('.') && entry !== '.partrunner') continue;
     const full = join(dir, entry);
@@ -79,38 +98,38 @@ function walk(dir, files = []) {
 }
 
 /** Comments explain the rules; they are not violations of them. */
-function withoutComments(source) {
+function withoutComments(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
     .replace(/^([ \t]*)\/\/.*$/gm, (m) => m.replace(/[^\n]/g, ' '));
 }
 
-function findLines(source, regex, mapper) {
-  const findings = [];
+function findLines<T>(
+  source: string,
+  regex: RegExp,
+  mapper: (line: number, match: RegExpMatchArray, text: string) => T,
+): T[] {
+  const findings: T[] = [];
   const lines = source.split('\n');
   for (let i = 0; i < lines.length; i += 1) {
-    const match = lines[i].match(regex);
-    if (match) findings.push(mapper(i + 1, match, lines[i]));
+    const text = lines[i] ?? '';
+    const match = text.match(regex);
+    if (match) findings.push(mapper(i + 1, match, text));
   }
   return findings;
 }
 
-function loadConfig(rootDir) {
+function loadConfig(rootDir: string): AuditOptions {
   const configPath = join(rootDir, '.partrunner', 'adoption.json');
   if (!existsSync(configPath)) return {};
-  return JSON.parse(readFileSync(configPath, 'utf8'));
+  return JSON.parse(readFileSync(configPath, 'utf8')) as AuditOptions;
 }
 
-/**
- * @param {string} rootDir absolute path of the consuming app
- * @param {{allowNexusCompat?: boolean, minUiMajor?: number}} [options]
- * @returns {{findings: Array<{gate: string, file: string, line: number, message: string}>, scanned: number}}
- */
-export function auditApp(rootDir, options = {}) {
+export function auditApp(rootDir: string, options: AuditOptions = {}): AuditResult {
   const config = { ...loadConfig(rootDir), ...options };
   const allowFiles = new Set(config.allowFiles ?? []);
-  const findings = [];
-  const push = (gate, file, line, message) => {
+  const findings: AdoptionFinding[] = [];
+  const push = (gate: string, file: string, line: number, message: string) => {
     const rel = relative(rootDir, file);
     if (allowFiles.has(rel)) return;
     findings.push({ gate, file: rel, line, message });
@@ -118,10 +137,15 @@ export function auditApp(rootDir, options = {}) {
 
   const files = walk(rootDir);
   const packageJsonPath = join(rootDir, 'package.json');
-  const pkg = existsSync(packageJsonPath)
-    ? JSON.parse(readFileSync(packageJsonPath, 'utf8'))
-    : {};
-  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  const pkg = (
+    existsSync(packageJsonPath)
+      ? JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+      : {}
+  ) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  const deps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies };
   const usesPackages = Object.keys(deps).some((name) => name.startsWith('@partrunner-ai/'));
 
   let themeBundleImports = 0;
@@ -138,7 +162,7 @@ export function auditApp(rootDir, options = {}) {
       for (const f of findLines(
         source,
         /(?:^|[{;])\s*(--pr-(?:ch-)?[a-z0-9-]+)\s*:/i,
-        (line, match) => ({ line, name: match[1] }),
+        (line, match) => ({ line, name: match[1] ?? '' }),
       )) {
         push('namespace', file, f.line, `declares ${f.name} — the --pr-* namespace is package-owned; alias it instead (--app-x: var(${f.name}))`);
       }
@@ -146,7 +170,7 @@ export function auditApp(rootDir, options = {}) {
       for (const f of findLines(
         source,
         /setProperty\(\s*['"`](--pr-[a-z0-9-]+)|['"`](--pr-[a-z0-9-]+)['"`]\s*:/i,
-        (line, match) => ({ line, name: match[1] ?? match[2] }),
+        (line, match) => ({ line, name: match[1] ?? match[2] ?? '' }),
       )) {
         push('namespace', file, f.line, `sets ${f.name} from code — the --pr-* namespace is package-owned`);
       }
@@ -159,7 +183,7 @@ export function auditApp(rootDir, options = {}) {
       push('bundle', file, 1, 'imports the legacy shell/styles.css bundle (repeats its own theme); use shell/shell.css beside a ui bundle');
     }
     if (!config.allowNexusCompat && /@partrunner-ai\/tokens\/nexus(?:-light)?\.css/.test(source)) {
-      push('bundle', file, 1, 'imports the deprecated nexus theme; Crystal v2 is the default — drop the import (or set allowNexusCompat during a staged migration)');
+      push('bundle', file, 1, 'imports the deprecated nexus theme; Crystal v2 is the default — drop it, or set allowNexusCompat during a staged migration');
     }
 
     // Gate 3 — no restated palette.

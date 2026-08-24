@@ -136,6 +136,24 @@ OIDC cannot create a package that does not yet exist.
    not test revocation by attempting another publication.
 10. Set `NPM_RELEASE_ENABLED=true`. Future Changeset releases then use OIDC.
 
+### Later packages
+
+A package added to the release set after the original six repeats the
+bootstrap for itself. OIDC still cannot create a package that does not exist,
+so after the registering pull request merges, the release plan reports
+`mode: publish` and the guarded publish job fails closed until a maintainer:
+
+1. runs `pnpm bootstrap:artifacts` from the exact merged `main` commit;
+2. verifies the new package's name/version pair has no published-then-removed
+   history (steps 3 and 5 above, scoped to that package);
+3. publishes only the new package's retained tarball under the `bootstrap`
+   dist-tag with a short-lived granular token (step 6);
+4. configures its trusted publisher, promotes the verified version to
+   `latest`, and revokes the token (steps 8 and 9).
+
+The held publish run then verifies the existing version's integrity against
+its retained tarball instead of publishing.
+
 ### Bootstrap failure procedure
 
 Treat the six publications as resumable, not atomic. On any timeout, mismatch,

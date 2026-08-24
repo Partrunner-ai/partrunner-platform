@@ -36,7 +36,15 @@ Per-app config in `.partrunner/adoption.json`:
 
 ## Status
 
-Private workspace package for now. Wave-1 apps consume it as a packed tarball
-devDependency; publishing to npm requires registering it in the release gates
-(`scripts/verify-package-artifacts.mjs`, `scripts/release-plan.mjs`) and is
-tracked as a follow-up.
+Published on public npmjs like the other platform packages. Consuming apps
+install it as a devDependency (or run it with `npx`):
+
+```bash
+npm install --save-dev @partrunner-ai/adoption-check
+npx pr-adoption-check
+```
+
+The fleet audit in this repository (`scripts/adoption-audit.mjs`) uses the same
+workspace package, so the gates have one implementation everywhere. The packed
+preview tarballs the wave-1 apps carried are obsolete; remove them on the next
+update.

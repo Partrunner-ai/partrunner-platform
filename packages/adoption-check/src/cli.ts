@@ -7,12 +7,12 @@
  * CI step fails on the PR that introduces the fork instead of the next audit.
  */
 import { resolve } from 'node:path';
-import process from 'node:process';
-import { auditApp } from './audit.mjs';
+import { argv, exit } from 'node:process';
+import { auditApp, type AdoptionFinding, type AuditOptions } from './index';
 
-const args = process.argv.slice(2);
+const args = argv.slice(2);
 const dir = resolve(args.find((a) => !a.startsWith('--')) ?? '.');
-const options = {
+const options: AuditOptions = {
   allowNexusCompat: args.includes('--allow-nexus-compat'),
 };
 const minIdx = args.indexOf('--min-ui-major');
@@ -22,13 +22,17 @@ const { findings, scanned } = auditApp(dir, options);
 
 if (findings.length === 0) {
   console.log(`adoption-check: ${scanned} files scanned, all gates pass — no design-system forks.`);
-  process.exit(0);
+  exit(0);
 }
 
-const byGate = new Map();
+const byGate = new Map<string, AdoptionFinding[]>();
 for (const finding of findings) {
-  if (!byGate.has(finding.gate)) byGate.set(finding.gate, []);
-  byGate.get(finding.gate).push(finding);
+  const list = byGate.get(finding.gate);
+  if (list) {
+    list.push(finding);
+  } else {
+    byGate.set(finding.gate, [finding]);
+  }
 }
 
 console.error(`adoption-check: ${findings.length} finding(s) across ${byGate.size} gate(s) in ${dir}\n`);
@@ -39,4 +43,4 @@ for (const [gate, list] of byGate) {
   }
   console.error('');
 }
-process.exit(1);
+exit(1);

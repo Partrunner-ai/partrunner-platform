@@ -93,7 +93,7 @@ test('verifies the retained source ledger and every tarball digest', async () =>
       gitTree: () => source.tree,
       gitStatus: () => '',
     });
-    assert.equal(manifest.packages.length, 6);
+    assert.equal(manifest.packages.length, PUBLISH_ORDER.length);
 
     await writeFile(join(directory, packages[0].filename), 'tampered');
     await assert.rejects(
@@ -148,7 +148,7 @@ test('completes every registry preflight before the first publish', async () => 
     }),
     /does not match/,
   );
-  assert.equal(lookupCount, 6);
+  assert.equal(lookupCount, PUBLISH_ORDER.length);
   assert.equal(publishCount, 0);
 });
 

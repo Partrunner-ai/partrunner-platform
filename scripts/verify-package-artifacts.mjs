@@ -90,6 +90,7 @@ SOFTWARE.
   .trim()
   .toLowerCase();
 const EXPECTED_PACKAGES = [
+  '@partrunner-ai/adoption-check',
   '@partrunner-ai/api-core',
   '@partrunner-ai/app-registry',
   '@partrunner-ai/seamless',
@@ -2942,6 +2943,7 @@ function fixturePackageJson(tarballs, reactLine) {
 const ESM_FIXTURE = `
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as adoptionCheck from '@partrunner-ai/adoption-check';
 import * as apiCore from '@partrunner-ai/api-core';
 import * as appRegistry from '@partrunner-ai/app-registry';
 import * as seamless from '@partrunner-ai/seamless';
@@ -2949,6 +2951,7 @@ import * as shell from '@partrunner-ai/shell';
 import * as tokens from '@partrunner-ai/tokens';
 import * as ui from '@partrunner-ai/ui';
 
+assert.equal(typeof adoptionCheck.auditApp, 'function');
 assert.equal(typeof apiCore.tbl, 'function');
 assert.equal(typeof appRegistry.buildAppUrl, 'function');
 assert.equal(seamless.safeNextPath('//evil.example'), '/');
@@ -2965,6 +2968,7 @@ for (const path of subpaths) assert.ok(import.meta.resolve(path), path);
 const CJS_FIXTURE = `
 const assert = require('node:assert/strict');
 const subpaths = require('./verify-subpaths.json');
+const adoptionCheck = require('@partrunner-ai/adoption-check');
 const apiCore = require('@partrunner-ai/api-core');
 const appRegistry = require('@partrunner-ai/app-registry');
 const seamless = require('@partrunner-ai/seamless');
@@ -2972,6 +2976,7 @@ const shell = require('@partrunner-ai/shell');
 const tokens = require('@partrunner-ai/tokens');
 const ui = require('@partrunner-ai/ui');
 
+assert.equal(typeof adoptionCheck.auditApp, 'function');
 assert.equal(typeof apiCore.tbl, 'function');
 assert.equal(typeof appRegistry.buildAppUrl, 'function');
 assert.equal(seamless.safeNextPath('//evil.example'), '/');
@@ -2982,6 +2987,7 @@ for (const path of subpaths) assert.ok(require.resolve(path), path);
 `;
 
 const TYPES_FIXTURE = `
+import { auditApp, type AdoptionFinding } from '@partrunner-ai/adoption-check';
 import { type SchemaName } from '@partrunner-ai/api-core';
 import * as apiAuth from '@partrunner-ai/api-core/auth';
 import { type HandlerOptions } from '@partrunner-ai/api-core/vercel';
@@ -2997,6 +3003,7 @@ import { THEMES, type ThemeName } from '@partrunner-ai/tokens';
 import { Button, type ButtonProps } from '@partrunner-ai/ui';
 
 const schema: SchemaName = 'core';
+const adoptionFinding = null as AdoptionFinding | null;
 const handlerOptions = null as HandlerOptions | null;
 const app: AppLink = APPS[0]!;
 const session: NexusSession = {
@@ -3009,7 +3016,9 @@ const button: ButtonProps = { children: THEMES[theme].light.accent };
 void [
   AppShell,
   Button,
+  adoptionFinding,
   apiAuth,
+  auditApp,
   apiWeek,
   app,
   buildStandaloneUrl,

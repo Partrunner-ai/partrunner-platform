@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
 const PACKAGE_DIRECTORIES = [
+  'packages/adoption-check',
   'packages/api-core',
   'packages/app-registry',
   'packages/seamless',

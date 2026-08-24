@@ -10,6 +10,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
 const REQUIRED_NPM_VERSION = '11.15.0';
 export const PUBLISH_ORDER = [
+  '@partrunner-ai/adoption-check',
   '@partrunner-ai/app-registry',
   '@partrunner-ai/tokens',
   '@partrunner-ai/api-core',
