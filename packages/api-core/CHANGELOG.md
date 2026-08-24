@@ -1,5 +1,11 @@
 # @partrunner-ai/api-core
 
+## 1.1.1
+
+### Patch Changes
+
+- Accept any valid lower snake-case Nexus role code in feature-flag targeting instead of a fixed role catalog.
+
 ## 1.1.0
 
 ### Minor Changes
