@@ -144,8 +144,14 @@ so after the registering pull request merges, the release plan reports
 `mode: publish` and the guarded publish job fails closed until a maintainer:
 
 1. runs `pnpm bootstrap:artifacts` from the exact merged `main` commit;
-2. verifies the new package's name/version pair has no published-then-removed
-   history (steps 3 and 5 above, scoped to that package);
+2. verifies the new package alone. `--initial-release-preflight` serves only
+   the original six-package bootstrap and now always fails, so instead:
+   `npm view <package>` against `https://registry.npmjs.org` must return
+   `E404`, and `pnpm release:plan` must list the new package as the only
+   unpublished entry. Then obtain the step-5 authenticated organization
+   inventory and provider-authoritative history for that exact name/version
+   pair — an anonymous `404` cannot prove the version was never published
+   and removed;
 3. publishes only the new package's retained tarball under the `bootstrap`
    dist-tag with a short-lived granular token (step 6);
 4. configures its trusted publisher, promotes the verified version to
@@ -153,6 +159,12 @@ so after the registering pull request merges, the release plan reports
 
 The held publish run then verifies the existing version's integrity against
 its retained tarball instead of publishing.
+
+The registering pull request sets the package's initial public version
+directly and writes its changelog entry by hand. It must not add a Changeset:
+a Changeset beside an unpublished version makes the release plan fail as
+ambiguous on every push to `main`, and the artifact gate rejects any public
+manifest below `1.0.0` while a version PR is pending.
 
 ### Bootstrap failure procedure
 

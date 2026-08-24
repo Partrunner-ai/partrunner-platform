@@ -62,6 +62,9 @@ artifact. `packages/showcase` may deploy as a static review catalog through
 `vercel.json`; it contains fixture data only, has no backend or secrets, and is
 not a package release environment. Every publishable change requires current
 verification, independent automated review, human approval, and a Changeset.
+The one exception: a pull request that registers a new package sets its initial
+public version directly, without a Changeset (see
+`docs/public-npm-cutover.md`, "Later packages").
 
 Provider and production mutations require exact target proof and explicit
 authorization.
