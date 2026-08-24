@@ -45,6 +45,33 @@ import {
 The root entry is server-only because it can create a service-role database
 client. The `./vercel` entry is for Vercel's Node request/response types.
 
+## Feature flag decisions
+
+Use `evaluateFlagDecision` when a host already owns the Nexus row loader and
+cache. The function owns only pure row semantics: archive and master-switch
+state, strict targeting, actor matching, variant, payload, and row-level
+reasons.
+
+```ts
+import { evaluateFlagDecision } from '@partrunner-ai/api-core/feature-flags';
+
+const decision = evaluateFlagDecision(
+  { value_bool: row.value_bool, value_json: row.value_json, archived_at: row.archived_at },
+  {
+    flotilleroId: actor.flotilleroId,
+    flotilleroRfc: actor.flotilleroRfc,
+    email: actor.email,
+    roles: actor.roles,
+  },
+);
+```
+
+The host still owns missing keys, invalid host context, provider failures,
+database access, cache policy, and exposure events. `evaluateFlag` remains the
+compatible boolean API for existing callers. `parseTargetingResult` exposes
+the same strict parser to admin forms and import checks. The `./feature-flags`
+entry is browser-safe and has no database, logger, or environment imports.
+
 ## Security boundaries
 
 - API keys are accepted only through `X-API-Key`.

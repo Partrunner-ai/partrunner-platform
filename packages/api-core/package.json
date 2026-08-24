@@ -51,6 +51,16 @@
         "types": "./dist/week.d.cts",
         "default": "./dist/week.cjs"
       }
+    },
+    "./feature-flags": {
+      "import": {
+        "types": "./dist/feature-flags.d.ts",
+        "default": "./dist/feature-flags.js"
+      },
+      "require": {
+        "types": "./dist/feature-flags.d.cts",
+        "default": "./dist/feature-flags.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
