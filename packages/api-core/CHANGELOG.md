@@ -1,5 +1,11 @@
 # @partrunner-ai/api-core
 
+## 1.1.0
+
+### Minor Changes
+
+- Add provider-neutral feature flag decision and targeting parse contracts while preserving the existing boolean evaluator.
+
 ## 1.0.2
 
 ### Patch Changes
