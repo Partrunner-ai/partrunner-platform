@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/seamless",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Seamless cross-app navigation, browser-safe transitions, and server-only Nexus session verification for PartRunner applications.",
   "license": "MIT",
   "type": "module",
