@@ -10,6 +10,7 @@ import {
   PackageCheck,
   Plus,
   Search,
+  Trash2,
   Truck,
   Users,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ import {
   Checkbox,
   CheckboxGroup,
   Combobox,
+  ConfirmDialog,
   Dialog,
   DialogClose,
   DialogContent,
@@ -48,9 +50,11 @@ import {
   EmptyState,
   FileDropzone,
   FormField,
+  IconButton,
   Input,
   MultiSelect,
   NavigationTabs,
+  PageHeader,
   Pagination,
   Popover,
   PopoverContent,
@@ -69,6 +73,7 @@ import {
   RichSelectValue,
   Select,
   Spinner,
+  StatTile,
   Switch,
   AlertDialogAction,
   AlertDialogCancel,
@@ -100,6 +105,7 @@ import {
   TabsList,
   TabsTrigger,
   Textarea,
+  Toolbar,
   ValidationSummary,
   type BadgeTone,
   type ButtonVariant,
@@ -292,6 +298,7 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
   const [priority, setPriority] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [paginationPage, setPaginationPage] = useState(2);
   const [catalogCsvFiles] = useState(() => [
     new File(['route_id,driver_id\n'.padEnd(18_432, '\n')], 'rutas-validado.csv', {
@@ -967,6 +974,70 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
               </TableRow>
             </TableFooter>
           </Table>
+        </div>
+      </CatalogSection>
+
+      <CatalogSection
+        title="Page chrome"
+        description="The standard page header, KPI tile, toolbar surface, icon-only button, and confirm dialog the staff apps share."
+      >
+        <div className="catalog__grid">
+          <div style={{ display: 'grid', gap: '16px' }}>
+            <PageHeader
+              eyebrow="Finanzas"
+              title="Cobranza"
+              subtitle="Resumen de cobranza de la semana en curso."
+              actions={
+                <>
+                  <Button size="sm" variant="secondary">Exportar</Button>
+                  <Button size="sm" variant="primary">Nueva nota</Button>
+                </>
+              }
+            />
+            <Toolbar>
+              <Input aria-label="Buscar" placeholder="Buscar cliente" />
+              <Button size="sm" variant="ghost">Filtros</Button>
+              <IconButton label="Actualizar" icon={<Search />} size="sm" />
+            </Toolbar>
+          </div>
+          <div className="catalog__row">
+            <StatTile
+              label="Flotillas activas"
+              value={42}
+              hint="últimos 30 días"
+              icon={Truck}
+              tone="blue"
+              trendValue={12}
+            />
+            <StatTile
+              label="Cobranza vencida"
+              value="$18,450"
+              icon={CircleDollarSign}
+              tone="rose"
+              trendValue={-3}
+              footer="vs. semana pasada"
+            />
+            <StatTile label="Rutas del día" value={128} icon={MapPinned} />
+          </div>
+          <div className="catalog__row">
+            <IconButton label="Editar" icon={<Search />} size="sm" variant="default" />
+            <IconButton label="Primario" icon={<Plus />} variant="primary" />
+            <IconButton label="Peligro" icon={<Trash2 />} variant="danger" />
+            <IconButton label="Compacto" icon={<Boxes />} compact />
+            <Button size="sm" variant="secondary" onClick={() => setConfirmOpen(true)}>
+              Abrir confirmación
+            </Button>
+            <ConfirmDialog
+              open={confirmOpen}
+              onOpenChange={setConfirmOpen}
+              title="Eliminar registro"
+              description="Esta acción no se puede deshacer."
+              confirmLabel="Eliminar"
+              destructive
+              icon={Trash2}
+              onConfirm={() => setConfirmOpen(false)}
+            />
+          </div>
         </div>
       </CatalogSection>
     </main>

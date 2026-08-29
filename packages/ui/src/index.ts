@@ -310,6 +310,26 @@ export {
 } from './AmbientBackground';
 export { Tooltip, type TooltipProps } from './Tooltip';
 export {
+  PageHeader,
+  type PageHeaderProps,
+} from './PageHeader';
+export {
+  StatTile,
+  type StatTileProps,
+  type StatTone,
+} from './StatTile';
+export { Toolbar, type ToolbarProps } from './Toolbar';
+export {
+  IconButton,
+  type IconButtonProps,
+  type IconButtonSize,
+  type IconButtonVariant,
+} from './IconButton';
+export {
+  ConfirmDialog,
+  type ConfirmDialogProps,
+} from './ConfirmDialog';
+export {
   menuStyle,
   useAnchoredMenu,
   type AnchoredMenuOptions,

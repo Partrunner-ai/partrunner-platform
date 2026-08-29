@@ -3443,3 +3443,436 @@ button.pr-stepper__dot:focus-visible {
 .pr-sheet__title {
   letter-spacing: var(--pr-tracking-display, -0.022em);
 }
+
+/* ───────────────────────── PageHeader ───────────────────────── */
+
+/* Stacks on small screens, spreads title/actions from 640px up. Text colours
+   come from --pr-fg/--pr-fg-muted rather than fixed brand greys: opacity over
+   a themed surface does not produce a legible grey, and the tokens are
+   audited in both themes. */
+.pr-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-block-end: 24px;
+}
+
+.pr-page-header__text {
+  min-width: 0;
+}
+
+.pr-page-header__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--pr-glass-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pr-surface) 70%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--pr-glass-blur, 24px) / 2)) saturate(120%);
+  backdrop-filter: blur(calc(var(--pr-glass-blur, 24px) / 2)) saturate(120%);
+  box-shadow: var(--pr-shadow-sm);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--pr-fg-muted);
+}
+
+.pr-page-header__eyebrow + .pr-page-header__title {
+  margin-block-start: 8px;
+}
+
+.pr-page-header__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: var(--pr-tracking-display, -0.022em);
+  line-height: 1.25;
+  color: var(--pr-fg);
+}
+
+.pr-page-header__subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.375;
+  color: var(--pr-fg-muted);
+}
+
+.pr-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .pr-page-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .pr-page-header__title {
+    font-size: 30px;
+  }
+}
+
+/* ───────────────────────── StatTile ───────────────────────── */
+
+/* The tone wash mixes the tone into the current surface, so the tile stays on
+   the semantic surface in both themes instead of sitting on fixed white.
+   The trend chip is the one place with fixed light-theme colours: its 11px
+   text needs AA and the tone foregrounds only clear AA under .dark. */
+.pr-stat-tile {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid var(--pr-glass-border);
+  border-radius: var(--pr-radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--pr-surface) 90%, transparent);
+  box-shadow: var(--pr-shadow-sm);
+  transition:
+    transform 200ms var(--pr-ease, ease),
+    box-shadow 200ms var(--pr-ease, ease);
+}
+
+.pr-stat-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pr-shadow-card);
+}
+
+.pr-stat-tile--yellow {
+  background: color-mix(in srgb, var(--pr-surface) 88%, var(--pr-tone-yellow-bg));
+}
+.pr-stat-tile--amber {
+  background: color-mix(in srgb, var(--pr-surface) 88%, var(--pr-tone-amber-bg));
+}
+.pr-stat-tile--blue {
+  background: color-mix(in srgb, var(--pr-surface) 88%, var(--pr-tone-blue-bg));
+}
+.pr-stat-tile--purple {
+  background: color-mix(in srgb, var(--pr-surface) 88%, var(--pr-tone-purple-bg));
+}
+.pr-stat-tile--green {
+  background: color-mix(in srgb, var(--pr-surface) 88%, var(--pr-tone-green-bg));
+}
+.pr-stat-tile--rose {
+  background: color-mix(in srgb, var(--pr-surface) 88%, var(--pr-tone-rose-bg));
+}
+
+.pr-stat-tile__body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pr-stat-tile__main {
+  min-width: 0;
+  flex: 1;
+}
+
+.pr-stat-tile__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--pr-fg-muted);
+}
+
+.pr-stat-tile__value {
+  margin: 8px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: var(--pr-tracking-display, -0.022em);
+  line-height: 1;
+  color: var(--pr-fg);
+}
+
+.pr-stat-tile__hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.375;
+  color: var(--pr-fg-muted);
+}
+
+.pr-stat-tile__icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--pr-radius-sm, 0.375rem);
+}
+
+.pr-stat-tile__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Icon-chip pairs use the audited tone bg/fg pairs. The light-theme tone
+   foregrounds sit below AA for text but only ever paint an 18px icon here,
+   which is governed by the 3:1 non-text minimum. */
+.pr-stat-tile--yellow .pr-stat-tile__icon {
+  background: var(--pr-tone-yellow-bg);
+  color: var(--pr-tone-yellow-fg);
+}
+.pr-stat-tile--amber .pr-stat-tile__icon {
+  background: var(--pr-tone-amber-bg);
+  color: var(--pr-tone-amber-fg);
+}
+.pr-stat-tile--blue .pr-stat-tile__icon {
+  background: var(--pr-tone-blue-bg);
+  color: var(--pr-tone-blue-fg);
+}
+.pr-stat-tile--purple .pr-stat-tile__icon {
+  background: var(--pr-tone-purple-bg);
+  color: var(--pr-tone-purple-fg);
+}
+.pr-stat-tile--green .pr-stat-tile__icon {
+  background: var(--pr-tone-green-bg);
+  color: var(--pr-tone-green-fg);
+}
+.pr-stat-tile--rose .pr-stat-tile__icon {
+  background: var(--pr-tone-rose-bg);
+  color: var(--pr-tone-rose-fg);
+}
+.pr-stat-tile--neutral .pr-stat-tile__icon {
+  background: var(--pr-border);
+  color: var(--pr-fg-muted);
+}
+
+.pr-stat-tile__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-start: 12px;
+}
+
+.pr-stat-tile__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pr-stat-tile__trend svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pr-stat-tile__trend--up {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.pr-stat-tile__trend--down {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.dark .pr-stat-tile__trend--up {
+  background: var(--pr-tone-green-bg);
+  color: var(--pr-tone-green-fg);
+}
+
+.dark .pr-stat-tile__trend--down {
+  background: var(--pr-tone-rose-bg);
+  color: var(--pr-tone-rose-fg);
+}
+
+.pr-stat-tile__footer {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--pr-fg-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .pr-stat-tile {
+    padding: 20px;
+  }
+
+  .pr-stat-tile__value {
+    font-size: 28px;
+  }
+}
+
+/* ───────────────────────── Toolbar ───────────────────────── */
+
+/* Glass surface, same recipe as the shell chrome at half the blur: separates
+   from the page background without weight, and follows the theme. */
+.pr-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--pr-glass-border);
+  border-radius: var(--pr-radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--pr-surface) 75%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--pr-glass-blur, 24px) / 2)) saturate(120%);
+  backdrop-filter: blur(calc(var(--pr-glass-blur, 24px) / 2)) saturate(120%);
+  box-shadow: var(--pr-shadow-sm);
+}
+
+/* ───────────────────────── IconButton ───────────────────────── */
+
+/* Icon-only button with an accessibility contract: the touch target is at
+   least 44x44 on small screens for every size, and on all screens unless
+   `compact` is set. Desktop sizes step down visually while the pointer
+   stays coarse. */
+.pr-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--pr-radius-md, 0.5rem);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease);
+}
+
+.pr-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+
+.pr-icon-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.pr-icon-btn:disabled,
+.pr-icon-btn[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .pr-icon-btn--sm {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .pr-icon-btn--md {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .pr-icon-btn--lg {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .pr-icon-btn--compact {
+    min-width: 32px;
+    min-height: 32px;
+  }
+}
+
+.pr-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pr-icon-btn--default,
+.pr-icon-btn--subtle {
+  color: var(--pr-fg-muted);
+}
+
+.pr-icon-btn--default:hover,
+.pr-icon-btn--subtle:hover {
+  background: var(--pr-glass-bg);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-sm);
+}
+
+.pr-icon-btn--ghost {
+  color: var(--pr-fg-muted);
+}
+
+.pr-icon-btn--ghost:hover {
+  background: var(--pr-glass-bg);
+  color: var(--pr-fg);
+}
+
+.pr-icon-btn--primary {
+  color: var(--pr-accent);
+}
+
+.pr-icon-btn--primary:hover {
+  background: color-mix(in srgb, var(--pr-accent) 15%, transparent);
+  color: var(--pr-accent-strong);
+  box-shadow: var(--pr-shadow-sm);
+}
+
+.pr-icon-btn--danger {
+  color: var(--pr-danger);
+}
+
+.pr-icon-btn--danger:hover {
+  background: color-mix(in srgb, var(--pr-danger) 12%, transparent);
+  color: var(--pr-danger);
+  box-shadow: var(--pr-shadow-sm);
+}
+
+/* ───────────────────────── ConfirmDialog ───────────────────────── */
+
+.pr-confirm-dialog__actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+}
+
+.pr-confirm-dialog__icon-row {
+  display: flex;
+  justify-content: center;
+  padding-block: 8px;
+}
+
+.pr-confirm-dialog__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--pr-radius-md, 0.5rem);
+}
+
+.pr-confirm-dialog__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.pr-confirm-dialog__icon--danger {
+  background: color-mix(in srgb, var(--pr-danger) 12%, transparent);
+  color: var(--pr-danger);
+}
+
+.pr-confirm-dialog__icon--accent {
+  background: var(--pr-tone-yellow-bg);
+  color: var(--pr-tone-yellow-fg);
+}
+
+@media (min-width: 640px) {
+  .pr-confirm-dialog__actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
