@@ -80,6 +80,16 @@ describe('the registry as a whole', () => {
     expect(appHref(fds)).toBe('https://fds.partrunner.ai');
   });
 
+  it('follows the environment for Comunidad, which has both deployments', () => {
+    const comunidad = findApp('community')!;
+
+    configureAppRegistry(PROD);
+    expect(appHref(comunidad)).toBe('https://community.partrunner.ai');
+
+    configureAppRegistry(STAGING);
+    expect(appHref(comunidad)).toBe('https://staging.community.partrunner.ai');
+  });
+
   it('contains only current fleet applications', () => {
     expect(APPS.map((entry) => entry.label)).toEqual([
       'Home',
@@ -89,6 +99,7 @@ describe('the registry as a whole', () => {
       'Comercial',
       'Finanzas',
       'FDS',
+      'Comunidad',
     ]);
     expect(APPS.every((entry) => !entry.comingSoon)).toBe(true);
   });
