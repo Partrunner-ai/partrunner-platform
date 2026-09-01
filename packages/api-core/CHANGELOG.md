@@ -1,5 +1,15 @@
 # @partrunner-ai/api-core
 
+## 1.1.2
+
+### Patch Changes
+
+- Republish API Core after the dependency sweep changed the packaged
+  `@vercel/node` development dependency without changing the package version.
+  There is no runtime source change; this patch realigns the verified artifact
+  with the npm registry ledger so later releases can pass the fail-closed
+  integrity preflight.
+
 ## 1.1.1
 
 ### Patch Changes

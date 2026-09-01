@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/app-registry",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Canonical registry of PartRunner applications + environment-aware URL builder. Single source of truth for every app launcher.",
   "license": "MIT",
   "type": "module",
