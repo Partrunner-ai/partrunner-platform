@@ -1,5 +1,12 @@
 # @partrunner-ai/shell
 
+## 2.0.2
+
+### Patch Changes
+
+- Updated dependencies:
+  - @partrunner-ai/app-registry@1.4.0
+
 ## 2.0.1
 
 ### Patch Changes
