@@ -6,6 +6,7 @@ import {
   LineChart,
   Radio,
   ReceiptText,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -148,6 +149,24 @@ export const APPS: AppLink[] = [
     icon: Headphones,
     tone: 'purple',
     tile: 'bg-violet-500/15 text-violet-500',
+  },
+  {
+    // Comunidad is on the standard topology and has BOTH environments
+    // (`staging.community.partrunner.ai` / `community.partrunner.ai`), so it
+    // takes the plain `subdomain` scheme and the prefix does the work. It is
+    // deliberately NOT an `absoluteUrl`: pinning it to the older
+    // `www.partrunner.community` host would hardcode production into the
+    // staging launcher, which is exactly the bug this registry prevents.
+    //
+    // The same deploy also serves the public job board on `careers`. That host
+    // is candidate-facing and, by design, cannot reach the portal, so it is not
+    // a staff destination and gets no launcher tile.
+    label: 'Comunidad',
+    sub: 'community',
+    description: 'Portal interno de la empresa',
+    icon: UsersRound,
+    tone: 'rose',
+    tile: 'bg-rose-500/15 text-rose-500',
   },
 ];
 
