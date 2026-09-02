@@ -2387,6 +2387,12 @@
   background: var(--pr-surface);
   box-shadow: inset 0 0 0 1px var(--pr-border);
 }
+/* A compound table already inside a Card or a TableFrame: the frame is the surface. */
+.pr-table__scroll--bare {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
 .pr-table__scroll:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--pr-accent);
@@ -3630,4 +3636,595 @@ button.pr-stepper__dot:focus-visible {
     flex-direction: row;
     justify-content: flex-end;
   }
+}
+
+/* ───────────────────────── Page ───────────────────────── */
+
+/* The page container: Crystal rhythm (16 → 24 → 32px), centred and capped, with
+   one vertical stack between its children so screens stop deciding padding and
+   width per file. */
+.pr-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: 16px;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-page--narrow { max-width: 768px; }
+.pr-page--wide { max-width: 1536px; }
+.pr-page--full { max-width: none; }
+
+@media (min-width: 640px) {
+  .pr-page { padding: 24px; }
+}
+@media (min-width: 1024px) {
+  .pr-page { padding: 32px; }
+}
+
+/* ───────────────────────── SectionHeading ───────────────────────── */
+
+/* The step below PageHeader: an 18px Barlow title (the display face starts at
+   24px), an optional eyebrow and description, actions on the end edge. */
+.pr-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-section-heading__text { min-width: 0; }
+.pr-section-heading__eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pr-fg-muted);
+}
+.pr-section-heading__title {
+  margin: 0;
+  font-family: var(--pr-font-body, inherit);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: var(--pr-tracking-display, -0.022em);
+  color: var(--pr-fg);
+  text-wrap: balance;
+}
+.pr-section-heading__description {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--pr-fg-muted);
+  text-wrap: pretty;
+}
+.pr-section-heading__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .pr-section-heading {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+/* ───────────────────────── StatTileGrid ───────────────────────── */
+
+/* One column on a phone, two on a tablet, then the requested count. */
+.pr-stat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .pr-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+@media (min-width: 1024px) {
+  .pr-stat-grid--cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pr-stat-grid--cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pr-stat-grid--cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pr-stat-grid--cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .pr-stat-grid--cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* ───────────────────────── Toolbar parts ───────────────────────── */
+
+.pr-toolbar__group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+/* Pushes what follows to the end edge from 640px up. Below, the bar wraps and
+   the gap would only add a blank line. */
+.pr-toolbar__spacer {
+  display: none;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .pr-toolbar__spacer { display: block; }
+}
+
+/* ───────────────────────── SearchField ───────────────────────── */
+
+/* The width lives on the field wrapper (`containerClassName`), never on the
+   input: with a leading icon the wrapper is the layout box. */
+.pr-search-field { width: 100%; }
+
+@media (min-width: 640px) {
+  .pr-search-field:not(.pr-search-field--block) { width: 16rem; }
+}
+
+/* ───────────────────────── FilterChip ───────────────────────── */
+
+.pr-filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* One tap filters the list. Quiet outline at rest; the active chip is ink on
+   the page, and the count rides the label in tabular figures. 40px tall: the
+   chip is a control, so it keeps the package's interaction floor. */
+.pr-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg-muted);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    border-color 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease);
+}
+.pr-filter-chip:hover:not(:disabled) {
+  border-color: var(--pr-border-strong);
+  color: var(--pr-fg);
+}
+.pr-filter-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-filter-chip[aria-pressed='true'] {
+  background: var(--pr-fg);
+  border-color: var(--pr-fg);
+  color: var(--pr-bg);
+}
+.pr-filter-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.pr-filter-chip__dot,
+.pr-filter-chip__icon { flex: 0 0 auto; }
+.pr-filter-chip__count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--pr-fg-faint);
+}
+.pr-filter-chip[aria-pressed='true'] .pr-filter-chip__count {
+  color: inherit;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-filter-chip { transition: none; }
+}
+
+/* ───────────────────────── SegmentedControl ───────────────────────── */
+
+/* A quiet track with the checked option lifted onto the surface. Each option
+   is a 40px control (44 for `lg`); the track adds 2px around them. */
+.pr-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: color-mix(in srgb, var(--pr-fg) 6%, transparent);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-segmented--block { display: flex; width: 100%; }
+.pr-segmented__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--pr-radius-md, 0.75rem) - 2px);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--pr-ease, ease),
+    border-color 160ms var(--pr-ease, ease),
+    color 160ms var(--pr-ease, ease),
+    box-shadow 160ms var(--pr-ease, ease);
+}
+.pr-segmented--lg .pr-segmented__option {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+.pr-segmented--block .pr-segmented__option { flex: 1 1 0; }
+.pr-segmented__option:hover:not(:disabled) { color: var(--pr-fg); }
+.pr-segmented__option[aria-checked='true'] {
+  background: var(--pr-surface);
+  border-color: var(--pr-border);
+  color: var(--pr-fg);
+  box-shadow: var(--pr-shadow-xs);
+}
+.pr-segmented__option:focus-visible {
+  z-index: 1;
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-segmented__option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pr-segmented__icon { flex: 0 0 auto; }
+.pr-segmented__count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--pr-fg-faint);
+}
+.pr-segmented__option[aria-checked='true'] .pr-segmented__count { color: var(--pr-fg-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-segmented__option { transition: none; }
+}
+
+/* ───────────────────────── StatusDot ───────────────────────── */
+
+/* The colour a Badge of the same tone paints, as a dot beside visible text. */
+.pr-status-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pr-fg-faint);
+}
+.pr-status-dot--md { width: 10px; height: 10px; }
+.pr-status-dot--neutral { background: var(--pr-fg-faint); }
+.pr-status-dot--yellow { background: var(--pr-tone-yellow-fg); }
+.pr-status-dot--blue { background: var(--pr-tone-blue-fg); }
+.pr-status-dot--amber { background: var(--pr-tone-amber-fg); }
+.pr-status-dot--purple { background: var(--pr-tone-purple-fg); }
+.pr-status-dot--green { background: var(--pr-tone-green-fg); }
+.pr-status-dot--rose { background: var(--pr-tone-rose-fg); }
+.pr-status-dot--danger { background: var(--pr-danger); }
+.pr-status-dot--success { background: var(--pr-success); }
+.pr-status-dot--warning { background: var(--pr-warning); }
+.pr-status-dot--info { background: var(--pr-info); }
+
+/* ───────────────────────── IconTile ───────────────────────── */
+
+/* The same chip StatTile paints its icon in, on its own: neutral by default,
+   the audited tone pairs otherwise. Non-text, so the 3:1 floor governs. */
+.pr-icon-tile {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--pr-radius-sm, 0.625rem);
+  background: var(--pr-border);
+  color: var(--pr-fg-muted);
+}
+.pr-icon-tile--sm { width: 28px; height: 28px; border-radius: var(--pr-radius-xs, 0.375rem); }
+.pr-icon-tile--lg { width: 44px; height: 44px; border-radius: var(--pr-radius-md, 0.75rem); }
+.pr-icon-tile--yellow { background: var(--pr-tone-yellow-bg); color: var(--pr-tone-yellow-fg); }
+.pr-icon-tile--blue { background: var(--pr-tone-blue-bg); color: var(--pr-tone-blue-fg); }
+.pr-icon-tile--amber { background: var(--pr-tone-amber-bg); color: var(--pr-tone-amber-fg); }
+.pr-icon-tile--purple { background: var(--pr-tone-purple-bg); color: var(--pr-tone-purple-fg); }
+.pr-icon-tile--green { background: var(--pr-tone-green-bg); color: var(--pr-tone-green-fg); }
+.pr-icon-tile--rose { background: var(--pr-tone-rose-bg); color: var(--pr-tone-rose-fg); }
+.pr-icon-tile--danger {
+  background: color-mix(in srgb, var(--pr-danger) 14%, transparent);
+  color: var(--pr-danger);
+}
+.pr-icon-tile--success {
+  background: color-mix(in srgb, var(--pr-success) 14%, transparent);
+  color: var(--pr-success);
+}
+.pr-icon-tile--warning {
+  background: color-mix(in srgb, var(--pr-warning) 14%, transparent);
+  color: var(--pr-warning);
+}
+.pr-icon-tile--info {
+  background: color-mix(in srgb, var(--pr-info) 14%, transparent);
+  color: var(--pr-info);
+}
+
+/* ───────────────────────── Avatar ───────────────────────── */
+
+/* A person by initials in a stable tint. The root is the named image; the
+   initials inside are decoration. */
+.pr-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--pr-tone-blue-bg);
+  color: var(--pr-tone-blue-fg);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+.pr-avatar--xs { width: 20px; height: 20px; font-size: 8px; }
+.pr-avatar--md { width: 32px; height: 32px; font-size: 11px; }
+.pr-avatar--lg { width: 40px; height: 40px; font-size: 13px; }
+.pr-avatar--yellow { background: var(--pr-tone-yellow-bg); color: var(--pr-tone-yellow-fg); }
+.pr-avatar--blue { background: var(--pr-tone-blue-bg); color: var(--pr-tone-blue-fg); }
+.pr-avatar--amber { background: var(--pr-tone-amber-bg); color: var(--pr-tone-amber-fg); }
+.pr-avatar--purple { background: var(--pr-tone-purple-bg); color: var(--pr-tone-purple-fg); }
+.pr-avatar--green { background: var(--pr-tone-green-bg); color: var(--pr-tone-green-fg); }
+.pr-avatar--rose { background: var(--pr-tone-rose-bg); color: var(--pr-tone-rose-fg); }
+.pr-avatar__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pr-avatar__initials { display: inline-block; }
+
+/* ───────────────────────── TableFrame ───────────────────────── */
+
+/* A strict assembly of Card, CardHeader and a bleeding CardContent. `clip`
+   rounds the corners without making the frame a scroll container, so a pinned
+   header inside a capped table keeps working. */
+.pr-card.pr-table-frame { overflow: clip; }
+.pr-table-frame__header { align-items: center; }
+.pr-table-frame__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.pr-table-frame__title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-table-frame__icon {
+  flex: 0 0 auto;
+  color: var(--pr-fg-muted);
+}
+.pr-table-frame__count { font-variant-numeric: tabular-nums; }
+/* The header and the rows meet on one line; a frame with no header starts at the rows. */
+.pr-table-frame__body { border-top: 1px solid var(--pr-border); }
+.pr-table-frame__body:first-child { border-top: 0; }
+/* Any table inside the frame drops its own surface: the frame is the border. */
+.pr-table-frame .pr-table__shell {
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.pr-table-frame .pr-table__scroll--compound {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+/* The bleeding body ends with a negative margin the footer cancels, so the two
+   meet exactly; the footer then bleeds to the same edges. */
+.pr-table-frame__footer {
+  margin-top: var(--pr-card-pad, 0px);
+  margin-inline: calc(-1 * var(--pr-card-pad, 0px));
+  margin-bottom: calc(-1 * var(--pr-card-pad, 0px));
+  padding: 12px var(--pr-card-pad, 16px);
+  border-top: 1px solid var(--pr-border);
+  background: var(--pr-surface);
+}
+
+/* The compound sibling of `Table loading`: same rows, announced once. */
+.pr-table-skeleton { display: block; }
+
+/* ───────────────────────── DateRangeFilter ───────────────────────── */
+
+/* One pill names the window of a list and opens the presets plus a calendar
+   for a custom range. The trigger shares its box with the MultiSelect filter
+   so a toolbar row aligns; an active window takes the same yellow tint. */
+.pr-date-range {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-date-range__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition-property: border-color, box-shadow, background-color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--pr-ease, ease);
+}
+.pr-date-range__trigger--md {
+  padding: 0 12px;
+  font-size: 14px;
+}
+.pr-date-range__trigger:hover { border-color: var(--pr-border-strong); }
+.pr-date-range__trigger--active {
+  background: var(--pr-tone-yellow-bg);
+  border-color: var(--pr-tone-yellow-border);
+  font-weight: 650;
+}
+.pr-date-range__trigger--open,
+.pr-date-range__trigger:focus-visible {
+  outline: none;
+  border-color: var(--pr-accent-strong);
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-date-range__icon,
+.pr-date-range__chevron {
+  flex: 0 0 auto;
+  color: var(--pr-fg-faint);
+}
+.pr-date-range__trigger--active .pr-date-range__icon { color: var(--pr-fg-muted); }
+.pr-date-range__chevron { transition: transform 160ms var(--pr-ease, ease); }
+.pr-date-range__trigger--open .pr-date-range__chevron { transform: rotate(180deg); }
+.pr-date-range__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The panel owns its inset (popover padding is `none`): the calendar is 348px wide. */
+.pr-date-range__content {
+  width: min(372px, calc(100vw - 16px));
+  padding: 6px;
+}
+.pr-date-range__presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+}
+.pr-date-range__preset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--pr-radius-sm, 0.625rem);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition-property: background-color, color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--pr-ease, ease);
+}
+.pr-date-range__preset:hover {
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+}
+.pr-date-range__preset:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-date-range__preset[aria-pressed='true'] {
+  color: var(--pr-fg);
+  font-weight: 650;
+}
+.pr-date-range__check {
+  flex: 0 0 auto;
+  color: var(--pr-fg);
+}
+.pr-date-range__custom {
+  margin-top: 6px;
+  padding: 10px 6px 6px;
+  border-top: 1px solid var(--pr-border);
+}
+.pr-date-range__custom-title {
+  margin: 0 0 8px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pr-fg-muted);
+}
+.pr-date-range__bounds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0 4px;
+}
+.pr-date-range__bound dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pr-fg-faint);
+}
+.pr-date-range__bound dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--pr-fg);
+}
+/* The calendar sits inside the panel, which is already a surface. */
+.pr-date-range__calendar {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.pr-date-range__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--pr-border);
 }

@@ -33,6 +33,8 @@ export interface TableRootProps extends TableHTMLAttributes<HTMLTableElement> {
    * body loses that width. One table cannot drift from itself.
    */
   maxHeight?: number | string;
+  /** Drops the surrounding surface, for a table already inside a Card or a `TableFrame`. */
+  bare?: boolean;
 }
 
 /** @internal Native compound-table root used by the backwards-compatible Table dispatcher. */
@@ -44,6 +46,7 @@ export const TableRoot = forwardRef<HTMLTableElement, TableRootProps>(function T
     density = 'default',
     stickyFirstColumn = false,
     maxHeight,
+    bare = false,
     className,
     children,
     'aria-label': ariaLabel,
@@ -81,6 +84,7 @@ export const TableRoot = forwardRef<HTMLTableElement, TableRootProps>(function T
       className={classes(
         'pr-table__scroll',
         'pr-table__scroll--compound',
+        bare && 'pr-table__scroll--bare',
         maxHeight !== undefined && 'pr-table__scroll--capped',
         containerClassName,
       )}
