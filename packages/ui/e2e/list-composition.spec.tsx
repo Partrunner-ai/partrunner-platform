@@ -161,6 +161,35 @@ test('the page keeps one 24px rhythm between its header and the KPIs', async ({ 
   await expect(header).toHaveCSS('margin-bottom', '0px');
 });
 
+test('the toolbar spacer is decorative, pushes the view switch to the end, and collapses on narrow screens', async ({
+  mount,
+  page,
+}) => {
+  await mount(<ListCompositionStory />);
+
+  const spacer = page.locator('.pr-toolbar__spacer');
+  await expect(spacer).toBeAttached();
+  await expect(spacer).toHaveAttribute('aria-hidden', 'true');
+  const desktop = await spacer.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return { display: style.display, flexGrow: style.flexGrow, width: element.getBoundingClientRect().width };
+  });
+  expect(desktop.display).toBe('block');
+  expect(desktop.flexGrow).toBe('1');
+  expect(desktop.width).toBeGreaterThan(0);
+
+  const [segmented, toolbar] = await Promise.all([
+    page.getByRole('radiogroup', { name: 'Vista' }).boundingBox(),
+    page.locator('.pr-toolbar').first().boundingBox(),
+  ]);
+  // The spacer takes the slack, so the view switch ends at the toolbar's padding edge.
+  expect(segmented!.x + segmented!.width).toBeGreaterThan(toolbar!.x + toolbar!.width - 24);
+  expect(segmented!.x).toBeGreaterThan(toolbar!.x + toolbar!.width / 2);
+
+  await page.setViewportSize({ width: 390, height: 800 });
+  await expect(spacer).toHaveCSS('display', 'none');
+});
+
 test('the segmented control is exactly as tall as the search field beside it', async ({
   mount,
   page,
