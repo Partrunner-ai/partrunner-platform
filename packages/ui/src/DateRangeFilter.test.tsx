@@ -227,3 +227,98 @@ describe('DateRangeFilter', () => {
     expect(getByRole('button', { name: 'Siguiente' })).toBeDefined();
   });
 });
+
+describe('DateRangeFilter invariant guard', () => {
+  const INVALID_PRESETS = [
+    { id: 'end-only', label: 'Hasta hoy', range: { from: '', to: '2026-09-02' } },
+    { id: 'reversed', label: 'Al revés', range: { from: '2026-09-02', to: '2026-08-03' } },
+    { id: 'malformed', label: 'Roto', range: { from: '2026-02-30', to: '' } },
+    { id: 'ok', label: 'Válido', range: { from: '2026-08-03', to: '2026-09-02' } },
+  ];
+
+  it('renders an invalid preset disabled and never commits it', () => {
+    const onChange = vi.fn();
+    const { getByRole } = render(
+      <DateRangeFilter
+        aria-label="Fechas"
+        value={EMPTY_DATE_RANGE}
+        onChange={onChange}
+        presets={INVALID_PRESETS}
+        labels={LABELS}
+      />,
+    );
+    fireEvent.click(getByRole('button', { name: 'Fechas' }));
+    for (const name of ['Hasta hoy', 'Al revés', 'Roto']) {
+      const option = getByRole('button', { name });
+      expect(option.getAttribute('aria-disabled')).toBe('true');
+      expect(option).toHaveProperty('disabled', true);
+      fireEvent.click(option);
+    }
+    expect(onChange).not.toHaveBeenCalled();
+    expect(getByRole('dialog', { name: 'Filtrar por fechas' })).toBeDefined();
+    const valid = getByRole('button', { name: 'Válido' });
+    expect(valid.getAttribute('aria-disabled')).toBeNull();
+    fireEvent.click(valid);
+    expect(onChange).toHaveBeenCalledWith(INVALID_PRESETS[3]!.range);
+  });
+
+  it('disables a preset that falls outside the limits', () => {
+    const onChange = vi.fn();
+    const { getByRole } = render(
+      <DateRangeFilter
+        aria-label="Fechas"
+        value={EMPTY_DATE_RANGE}
+        onChange={onChange}
+        presets={PRESETS}
+        labels={LABELS}
+        min="2026-08-10"
+      />,
+    );
+    fireEvent.click(getByRole('button', { name: 'Fechas' }));
+    expect(getByRole('button', { name: 'Últimos 30 días' })).toHaveProperty('disabled', true);
+    expect(getByRole('button', { name: 'Últimos 7 días' })).toHaveProperty('disabled', false);
+    fireEvent.click(getByRole('button', { name: 'Últimos 30 días' }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('reads an invalid controlled value as all time, matches no preset and marks the trigger', () => {
+    const endOnly = { from: '', to: '2026-09-02' };
+    const { getByRole } = render(
+      <DateRangeFilter
+        aria-label="Fechas"
+        value={endOnly}
+        onChange={() => {}}
+        presets={[...PRESETS, { id: 'end-only', label: 'Hasta hoy', range: endOnly }]}
+        labels={LABELS}
+      />,
+    );
+    const trigger = getByRole('button', { name: 'Fechas' });
+    expect(trigger.textContent).toBe('Todo el tiempo');
+    expect(trigger.getAttribute('data-invalid')).toBe('');
+    expect(trigger.getAttribute('data-active')).toBeNull();
+    expect(trigger.className).not.toContain('pr-date-range__trigger--active');
+    fireEvent.click(trigger);
+    const group = getByRole('group', { name: 'Fechas' });
+    expect(group.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0);
+    expect(getByRole('button', { name: 'Hasta hoy' })).toHaveProperty('disabled', true);
+    expect(getByRole('dialog').querySelectorAll('.pr-date-range__bound dd')[0]?.textContent).toBe(
+      '—',
+    );
+  });
+
+  it('marks a valid controlled value outside the limits as invalid too', () => {
+    const { getByRole } = render(
+      <DateRangeFilter
+        aria-label="Fechas"
+        value={{ from: '2025-01-01', to: '2025-01-31' }}
+        onChange={() => {}}
+        presets={PRESETS}
+        labels={LABELS}
+        min="2026-01-01"
+      />,
+    );
+    const trigger = getByRole('button', { name: 'Fechas' });
+    expect(trigger.textContent).toBe('Todo el tiempo');
+    expect(trigger.getAttribute('data-invalid')).toBe('');
+  });
+});

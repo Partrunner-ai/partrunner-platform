@@ -20,6 +20,18 @@ describe('StatusDot', () => {
     expect(dot.className).toContain('pr-status-dot--md');
   });
 
+  it('keeps decorative or named ownership when rest props try to override it', () => {
+    const { container } = render(<StatusDot tone="green" role="img" aria-label="otro" />);
+    const decorative = container.querySelector('.pr-status-dot')!;
+    expect(decorative.getAttribute('aria-hidden')).toBe('true');
+    expect(decorative.getAttribute('role')).toBeNull();
+    expect(decorative.getAttribute('aria-label')).toBeNull();
+
+    const named = render(<StatusDot tone="green" label="Activo" aria-hidden role="button" />);
+    const dot = named.getByRole('img', { name: 'Activo' });
+    expect(dot.getAttribute('aria-hidden')).toBeNull();
+  });
+
   it('forwards its ref, class and rest props to the span', () => {
     const ref = createRef<HTMLSpanElement>();
     const { container } = render(

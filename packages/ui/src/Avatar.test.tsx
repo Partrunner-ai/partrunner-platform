@@ -56,6 +56,22 @@ describe('Avatar', () => {
     expect(root.getAttribute('aria-label')).toBeNull();
   });
 
+  it('keeps its naming contract when rest props try to override it', () => {
+    const { container } = render(
+      <Avatar name="Ana Operadora" role="button" aria-label="otro" aria-hidden />,
+    );
+    const root = container.querySelector('.pr-avatar')!;
+    expect(root.getAttribute('role')).toBe('img');
+    expect(root.getAttribute('aria-label')).toBe('Ana Operadora');
+    expect(root.getAttribute('aria-hidden')).toBeNull();
+
+    const decorative = render(<Avatar name="Ana" decorative role="img" aria-label="otro" />);
+    const hidden = decorative.container.querySelector('.pr-avatar')!;
+    expect(hidden.getAttribute('aria-hidden')).toBe('true');
+    expect(hidden.getAttribute('role')).toBeNull();
+    expect(hidden.getAttribute('aria-label')).toBeNull();
+  });
+
   it('forwards its ref, class and rest props', () => {
     const ref = createRef<HTMLSpanElement>();
     render(<Avatar ref={ref} name="Ana" className="extra" data-testid="avatar" />);

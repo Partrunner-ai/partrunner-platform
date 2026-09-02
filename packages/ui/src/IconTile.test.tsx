@@ -23,6 +23,12 @@ describe('IconTile', () => {
     expect(large.querySelector('.pr-icon-tile')?.className).toContain('pr-icon-tile--danger');
   });
 
+  it('stays decorative when rest props try to name it', () => {
+    const { container } = render(<IconTile icon={Truck} aria-hidden={false} aria-label="otro" />);
+    const tile = container.querySelector('.pr-icon-tile')!;
+    expect(tile.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('forwards its ref, class and rest props', () => {
     const ref = createRef<HTMLSpanElement>();
     render(<IconTile ref={ref} icon={Truck} className="extra" data-testid="tile" />);

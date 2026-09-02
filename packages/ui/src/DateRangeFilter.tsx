@@ -48,10 +48,17 @@ export type DateRangeFilterSize = 'sm' | 'md';
 export interface DateRangeFilterProps {
   value: DateRange;
   onChange: (next: DateRange) => void;
-  /** Quick ranges, computed by the caller; the package owns no date logic. */
+  /**
+   * Quick ranges, computed by the caller; the package owns no date logic. A preset
+   * whose range is not valid under the invariant and the limits renders disabled
+   * and can never be committed.
+   */
   presets: readonly DateRangePreset[];
   labels: DateRangeFilterLabels;
-  /** BCP 47 locale for the trigger text and the calendar. Defaults to `es-MX`. */
+  /**
+   * BCP 47 locale for the trigger text and the calendar. Defaults to `es-MX`, the
+   * same default `Calendar` and `DatePicker` use; the runtime locale is never read.
+   */
   locale?: string;
   /** `sm` matches `MultiSelect variant="filter"`; `md` matches a field. */
   size?: DateRangeFilterSize;
@@ -142,7 +149,9 @@ function fromCalendarRange(range: CalendarRange): DateRange {
  * One control for the date window of a list: a pill that names the active range
  * and opens the presets plus a calendar for a custom range. Presets commit on
  * click; the calendar edits a draft that `apply` commits. The draft resets from
- * `value` on every open and is discarded on every other close.
+ * `value` on every open and is discarded on every other close. `onChange` only
+ * ever emits a range that passes `isValidDateRange` with the limits; an invalid
+ * controlled value reads as all time and marks the trigger `data-invalid`.
  */
 export function DateRangeFilter({
   value,
@@ -164,30 +173,47 @@ export function DateRangeFilter({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange>(value);
 
-  const isEmpty = !value.from && !value.to;
-  const activePreset = useMemo(
-    () => presets.find((preset) => isSameDateRange(preset.range, value)),
-    [presets, value],
+  const limits = useMemo(() => ({ min, max }), [min, max]);
+  const valueValid = isValidDateRange(value, limits);
+  const isEmpty = valueValid && !value.from && !value.to;
+  const presetStates = useMemo(
+    () =>
+      presets.map((preset) => ({
+        preset,
+        valid: isValidDateRange(preset.range, limits),
+      })),
+    [presets, limits],
   );
-  const triggerLabel: ReactNode = isEmpty
+  const activePreset = useMemo(
+    () =>
+      valueValid
+        ? presetStates.find(({ preset, valid }) => valid && isSameDateRange(preset.range, value))
+            ?.preset
+        : undefined,
+    [presetStates, value, valueValid],
+  );
+  const triggerLabel: ReactNode = !valueValid
     ? labels.allTime
-    : (activePreset?.label ?? formatDateRange(value, locale, labels));
+    : isEmpty
+      ? labels.allTime
+      : (activePreset?.label ?? formatDateRange(value, locale, labels));
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
-      if (next) setDraft(value);
+      if (next) setDraft(isValidDateRange(value, limits) ? value : EMPTY_DATE_RANGE);
       setOpen(next);
     },
-    [value],
+    [limits, value],
   );
 
   const commit = (next: DateRange) => {
+    if (!isValidDateRange(next, limits)) return;
     if (!isSameDateRange(next, value)) onChange(next);
     setOpen(false);
     queueMicrotask(() => triggerRef.current?.focus());
   };
 
-  const draftValid = isValidDateRange(draft, { min, max });
+  const draftValid = isValidDateRange(draft, limits);
   const draftFrom = draft.from ? parseCalendarDate(draft.from) : null;
   const draftTo = draft.to ? parseCalendarDate(draft.to) : null;
   const resolvedLocale = locale ?? DEFAULT_LOCALE;
@@ -209,11 +235,12 @@ export function DateRangeFilter({
           id={id}
           aria-label={ariaLabel}
           data-state={open ? 'open' : 'closed'}
-          data-active={isEmpty ? undefined : ''}
+          data-active={valueValid && !isEmpty ? '' : undefined}
+          data-invalid={valueValid ? undefined : ''}
           className={[
             'pr-date-range__trigger',
             `pr-date-range__trigger--${size}`,
-            isEmpty ? null : 'pr-date-range__trigger--active',
+            valueValid && !isEmpty ? 'pr-date-range__trigger--active' : null,
             open ? 'pr-date-range__trigger--open' : null,
           ]
             .filter(Boolean)
@@ -233,10 +260,11 @@ export function DateRangeFilter({
             <PresetOption active={isEmpty} onSelect={() => commit(EMPTY_DATE_RANGE)}>
               {labels.allTime}
             </PresetOption>
-            {presets.map((preset) => (
+            {presetStates.map(({ preset, valid }) => (
               <PresetOption
                 key={preset.id}
                 active={activePreset?.id === preset.id}
+                disabled={!valid}
                 onSelect={() => commit(preset.range)}
               >
                 {preset.label}
@@ -297,10 +325,13 @@ export function DateRangeFilter({
 
 function PresetOption({
   active,
+  disabled = false,
   onSelect,
   children,
 }: {
   active: boolean;
+  /** The preset's range fails the invariant or the limits: shown, muted, never committed. */
+  disabled?: boolean;
   onSelect: () => void;
   children: ReactNode;
 }) {
@@ -308,9 +339,11 @@ function PresetOption({
     <button
       type="button"
       aria-pressed={active}
+      aria-disabled={disabled || undefined}
+      disabled={disabled}
       data-state={active ? 'active' : 'inactive'}
       className="pr-date-range__preset"
-      onClick={onSelect}
+      onClick={disabled ? undefined : onSelect}
     >
       <span className="pr-date-range__preset-label">{children}</span>
       {active ? <Check size={14} aria-hidden className="pr-date-range__check" /> : null}

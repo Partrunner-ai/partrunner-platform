@@ -49,8 +49,8 @@ export const ToolbarSpacer = forwardRef<HTMLDivElement, ToolbarSpacerProps>(
     return (
       <div
         ref={ref}
-        aria-hidden
         {...rest}
+        aria-hidden
         data-slot="toolbar-spacer"
         className={['pr-toolbar__spacer', className].filter(Boolean).join(' ')}
       />

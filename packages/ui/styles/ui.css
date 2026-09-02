@@ -3657,6 +3657,10 @@ button.pr-stepper__dot:focus-visible {
 .pr-page--narrow { max-width: 768px; }
 .pr-page--wide { max-width: 1536px; }
 .pr-page--full { max-width: none; }
+/* The page's gap is the rhythm. A header directly inside it drops its own bottom
+   margin, or the recipe's first step would sit 48px above the KPIs; a header
+   outside a Page keeps the margin it always had. */
+.pr-page > .pr-page-header { margin-block-end: 0; }
 
 @media (min-width: 640px) {
   .pr-page { padding: 24px; }
@@ -3841,12 +3845,15 @@ button.pr-stepper__dot:focus-visible {
 /* ───────────────────────── SegmentedControl ───────────────────────── */
 
 /* A quiet track with the checked option lifted onto the surface. Each option
-   is a 40px control (44 for `lg`); the track adds 2px around them. */
+   is a 40px control (44 for `lg`) and the track adds nothing around them, so
+   the control is exactly as tall as the inputs and filter triggers beside it in
+   a toolbar row. The unchecked options show the track wash; the checked one
+   sits on the surface with the track's own radius. */
 .pr-segmented {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   border-radius: var(--pr-radius-md, 0.75rem);
   background: color-mix(in srgb, var(--pr-fg) 6%, transparent);
   color: var(--pr-fg);
@@ -3862,7 +3869,7 @@ button.pr-stepper__dot:focus-visible {
   min-height: 40px;
   padding: 0 14px;
   border: 1px solid transparent;
-  border-radius: calc(var(--pr-radius-md, 0.75rem) - 2px);
+  border-radius: var(--pr-radius-md, 0.75rem);
   background: transparent;
   color: var(--pr-fg-muted);
   font: inherit;
@@ -4021,6 +4028,7 @@ button.pr-stepper__dot:focus-visible {
 /* A strict assembly of Card, CardHeader and a bleeding CardContent. `clip`
    rounds the corners without making the frame a scroll container, so a pinned
    header inside a capped table keeps working. */
+.pr-table-frame { position: relative; }
 .pr-card.pr-table-frame { overflow: clip; }
 .pr-table-frame__header { align-items: center; }
 .pr-table-frame__title {
@@ -4172,6 +4180,12 @@ button.pr-stepper__dot:focus-visible {
   color: var(--pr-fg);
   font-weight: 650;
 }
+/* A preset whose range fails the invariant or the limits stays visible, muted. */
+.pr-date-range__preset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pr-date-range__trigger[data-invalid] { border-style: dashed; }
 .pr-date-range__check {
   flex: 0 0 auto;
   color: var(--pr-fg);

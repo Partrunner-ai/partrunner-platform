@@ -50,6 +50,8 @@ export const Avatar = forwardRef<HTMLSpanElement, AvatarProps>(function Avatar(
   return (
     <span
       ref={ref}
+      {...rest}
+      /* The naming contract is the component's, so it lands after the caller's props. */
       role={decorative ? undefined : 'img'}
       aria-label={decorative ? undefined : name}
       aria-hidden={decorative ? true : undefined}
@@ -57,7 +59,6 @@ export const Avatar = forwardRef<HTMLSpanElement, AvatarProps>(function Avatar(
       className={['pr-avatar', `pr-avatar--${resolvedTone}`, `pr-avatar--${size}`, className]
         .filter(Boolean)
         .join(' ')}
-      {...rest}
     >
       {showImage ? (
         <img

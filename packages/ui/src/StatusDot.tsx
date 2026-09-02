@@ -26,6 +26,8 @@ export const StatusDot = forwardRef<HTMLSpanElement, StatusDotProps>(function St
   return (
     <span
       ref={ref}
+      {...rest}
+      /* Decorative or named is the component's call, so it lands after the caller's props. */
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
@@ -33,7 +35,6 @@ export const StatusDot = forwardRef<HTMLSpanElement, StatusDotProps>(function St
       className={['pr-status-dot', `pr-status-dot--${tone}`, `pr-status-dot--${size}`, className]
         .filter(Boolean)
         .join(' ')}
-      {...rest}
     />
   );
 });

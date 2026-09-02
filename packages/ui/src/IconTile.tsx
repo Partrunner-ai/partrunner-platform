@@ -25,12 +25,13 @@ export const IconTile = forwardRef<HTMLSpanElement, IconTileProps>(function Icon
   return (
     <span
       ref={ref}
+      {...rest}
+      /* Always decorative: the text beside it carries the meaning, so this wins over rest. */
       aria-hidden
       data-slot="icon-tile"
       className={['pr-icon-tile', `pr-icon-tile--${tone}`, `pr-icon-tile--${size}`, className]
         .filter(Boolean)
         .join(' ')}
-      {...rest}
     >
       <Icon size={ICON_PX[size]} strokeWidth={2} aria-hidden />
     </span>

@@ -48,6 +48,17 @@ describe('Toolbar parts', () => {
     expect(spacer.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('keeps the spacer hidden from assistive tech whatever rest props say', () => {
+    const { container } = render(
+      <Toolbar>
+        <ToolbarSpacer aria-hidden={false} role="separator" />
+      </Toolbar>,
+    );
+    const spacer = container.querySelector('.pr-toolbar__spacer')!;
+    expect(spacer.getAttribute('aria-hidden')).toBe('true');
+    expect(spacer.getAttribute('role')).toBe('separator');
+  });
+
   it('forwards refs, classes and rest props', () => {
     const group = createRef<HTMLDivElement>();
     const spacer = createRef<HTMLDivElement>();
