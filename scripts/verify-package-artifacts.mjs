@@ -2957,6 +2957,12 @@ assert.equal(seamless.safeNextPath('//evil.example'), '/');
 assert.equal(typeof shell.AppShell, 'function');
 assert.equal(typeof tokens.THEMES, 'object');
 assert.ok(ui.Button);
+assert.equal(typeof ui.SegmentedControl, 'function');
+assert.equal(typeof ui.DateRangeFilter, 'function');
+assert.ok(ui.TableFrame);
+assert.ok(ui.FilterChip);
+assert.equal(ui.toneFromString('Ana Operadora'), ui.toneFromString('Ana Operadora'));
+assert.ok(ui.TINT_TONES.includes(ui.toneFromString('Ana Operadora')));
 
 const subpaths = JSON.parse(
   readFileSync(new URL('./verify-subpaths.json', import.meta.url), 'utf8'),
@@ -2982,6 +2988,11 @@ assert.equal(seamless.safeNextPath('//evil.example'), '/');
 assert.equal(typeof shell.AppShell, 'function');
 assert.equal(typeof tokens.THEMES, 'object');
 assert.ok(ui.Button);
+assert.equal(typeof ui.SegmentedControl, 'function');
+assert.equal(typeof ui.DateRangeFilter, 'function');
+assert.ok(ui.TableFrame);
+assert.ok(ui.FilterChip);
+assert.ok(ui.TINT_TONES.includes(ui.toneFromString('Ana Operadora')));
 for (const path of subpaths) assert.ok(require.resolve(path), path);
 `;
 
@@ -2999,9 +3010,47 @@ import * as seamlessServer from '@partrunner-ai/seamless/server';
 import { AppShell, type StaffShellContextValue } from '@partrunner-ai/shell';
 import * as shellPreferences from '@partrunner-ai/shell/preferences';
 import { THEMES, type ThemeName } from '@partrunner-ai/tokens';
-import { Button, type ButtonProps } from '@partrunner-ai/ui';
+import {
+  Button,
+  DateRangeFilter,
+  EMPTY_DATE_RANGE,
+  SegmentedControl,
+  TableFrame,
+  toneFromString,
+  type ButtonProps,
+  type DateRangeFilterProps,
+  type SegmentedControlProps,
+  type TableFrameProps,
+  type TintTone,
+} from '@partrunner-ai/ui';
 
 const schema: SchemaName = 'core';
+const segmented: SegmentedControlProps<'all' | 'mine'> = {
+  'aria-label': 'Vista',
+  value: 'all',
+  onChange: (next) => void next,
+  options: [
+    { value: 'all', label: 'Todas', count: 4 },
+    { value: 'mine', label: 'Mis' },
+  ],
+};
+const dateRange: DateRangeFilterProps = {
+  'aria-label': 'Fechas',
+  value: EMPTY_DATE_RANGE,
+  onChange: (next) => void next,
+  presets: [{ id: '7d', label: 'Últimos 7 días', range: { from: '2026-08-26', to: '2026-09-02' } }],
+  labels: {
+    allTime: 'Todo el tiempo',
+    custom: 'Personalizado',
+    from: 'Desde',
+    to: 'Hasta',
+    apply: 'Aplicar',
+    clear: 'Limpiar',
+    dialog: 'Filtrar por fechas',
+  },
+};
+const frame: TableFrameProps = { title: 'Colocadas', count: 4, countLabel: (count) => String(count) + ' filas' };
+const tint: TintTone = toneFromString('Ana Operadora');
 const handlerOptions = null as HandlerOptions | null;
 const app: AppLink = APPS[0]!;
 const session: NexusSession = {
@@ -3014,6 +3063,13 @@ const button: ButtonProps = { children: THEMES[theme].light.accent };
 void [
   AppShell,
   Button,
+  DateRangeFilter,
+  SegmentedControl,
+  TableFrame,
+  dateRange,
+  frame,
+  segmented,
+  tint,
   apiAuth,
   apiFeatureFlags,
   apiWeek,

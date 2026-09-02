@@ -21,6 +21,10 @@ Read `CONTEXT.md` before you plan, edit, or review this repository. Use its defi
   version. Consuming apps run multiple stack generations on React 18 and 19.
 - Changing what a `--pr-*` variable means is a major even when the name stays. Say so, and write the
   migration note.
+- Before adding a UI composition in a consuming app, read the decision table in
+  `docs/crystal-guide.md` § 5b. If a row names a component, use it. A recurring, presentation-only
+  job that at least two apps need belongs in `@partrunner-ai/ui`; domain state, routing, data access
+  and one-off layout stay in the app.
 
 ## Communication
 

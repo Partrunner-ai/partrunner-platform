@@ -10,6 +10,8 @@ test('navigates the public component, shell, and brand catalogs', async ({
   );
 
   await expect(page.getByTestId('ui-light-catalog')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Lists' })).toBeVisible();
+  await expect(page.getByTestId('catalog-list-page')).toBeVisible();
   await page.getByRole('button', { name: 'App shell' }).click();
   await expect(page.getByTestId('shell-light-catalog')).toBeVisible();
   await page.getByRole('button', { name: 'Brand mark' }).click();
@@ -31,6 +33,7 @@ test('switches the complete public showcase between themes', async ({
     .click();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.getByTestId('ui-dark-catalog')).toBeVisible();
+  await expect(page.getByTestId('catalog-list-page')).toBeVisible();
 
   await page.getByRole('button', { name: 'App shell' }).click();
   await expect(page.getByTestId('shell-dark-catalog')).toBeVisible();

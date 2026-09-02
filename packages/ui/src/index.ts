@@ -318,7 +318,14 @@ export {
   type StatTileProps,
   type StatTone,
 } from './StatTile';
-export { Toolbar, type ToolbarProps } from './Toolbar';
+export {
+  Toolbar,
+  ToolbarGroup,
+  ToolbarSpacer,
+  type ToolbarGroupProps,
+  type ToolbarProps,
+  type ToolbarSpacerProps,
+} from './Toolbar';
 export {
   IconButton,
   type IconButtonProps,
@@ -329,6 +336,52 @@ export {
   ConfirmDialog,
   type ConfirmDialogProps,
 } from './ConfirmDialog';
+export { TINT_TONES, toneFromString, type TintTone } from './tone';
+export { StatusDot, type StatusDotProps, type StatusDotSize } from './StatusDot';
+export { IconTile, type IconTileProps, type IconTileSize } from './IconTile';
+export { Avatar, avatarInitials, type AvatarProps, type AvatarSize } from './Avatar';
+export { Page, type PageProps, type PageWidth } from './Page';
+export {
+  SectionHeading,
+  type SectionHeadingLevel,
+  type SectionHeadingProps,
+} from './SectionHeading';
+export {
+  StatTileGrid,
+  type StatTileGridColumns,
+  type StatTileGridProps,
+} from './StatTileGrid';
+export { SearchField, type SearchFieldProps } from './SearchField';
+export {
+  FilterChip,
+  FilterChipRow,
+  type FilterChipProps,
+  type FilterChipRowProps,
+} from './FilterChip';
+export {
+  SegmentedControl,
+  type SegmentedControlProps,
+  type SegmentedControlSize,
+  type SegmentedOption,
+} from './SegmentedControl';
+export {
+  TableFrame,
+  TableSkeleton,
+  type TableFrameProps,
+  type TableSkeletonProps,
+} from './TableFrame';
+export {
+  DateRangeFilter,
+  EMPTY_DATE_RANGE,
+  formatDateRange,
+  isSameDateRange,
+  isValidDateRange,
+  type DateRange,
+  type DateRangeFilterLabels,
+  type DateRangeFilterProps,
+  type DateRangeFilterSize,
+  type DateRangePreset,
+} from './DateRangeFilter';
 export {
   menuStyle,
   useAnchoredMenu,

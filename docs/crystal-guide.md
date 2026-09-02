@@ -101,6 +101,103 @@ reach for `@partrunner-ai/ui` first:
 Apps compose and position; they do not restyle package internals
 ([`token-namespace-contract.md`](token-namespace-contract.md)).
 
+## 5b. One job, one component
+
+An agent building a screen must not choose between two components for one job.
+The table names the component for each job; the ordered questions below settle
+the rest. If a job is missing, add the component to this package (when at least
+two apps need it and it is presentation only) — never a local composition in an
+app.
+
+| Job on the screen | Use | Not this |
+|---|---|---|
+| The page container: width and outer rhythm | `Page` | ad-hoc `max-w-*` and padding utilities |
+| The page title block (eyebrow, h1, subtitle, actions) | `PageHeader` | a second title component, `CardHeader` |
+| A titled section inside a page (h2/h3, description, actions) | `SectionHeading` | `PageHeader` twice, `CardHeader` outside a card |
+| KPI figures in a row | `StatTile` inside `StatTileGrid` | `Card` with a big number |
+| Move between **routes** | `NavigationTabs` | `Tabs`, `SegmentedControl` |
+| Switch between **independently labelled panels** (Detalle / Comentarios / Actividad) | `Tabs` | `SegmentedControl` |
+| Change the **representation or subset of the same dataset** (Todas/Mis, lista/tablero, día/semana) | `SegmentedControl` | `Tabs`, a `Button` group |
+| Filter on **one field with at most 7 values, always visible, with counts** (statuses) | `FilterChip` in `FilterChipRow` | `Badge` as a button, `Tabs` |
+| Filter on **any other field** | `MultiSelect variant="filter"` | one `RichSelect` per filter |
+| The date **window** of a list (presets first) | `DateRangeFilter` | two `Input type="date"`, `DatePicker mode="range"` |
+| A date **field** in a form | `DatePicker` | `DateRangeFilter` |
+| The row of controls that narrows a list | `Toolbar` with `SearchField`, `ToolbarGroup`, `ToolbarSpacer` | `Card`, a bare flex div |
+| A table on a page: title, row count, actions, pager | `TableFrame` around `Table` | `Card` + a hand-rolled header |
+| The table, when rows are uniform records | `Table` with `columns` and `rows` (`loading`, `empty`, `error`) | raw `<table>` with class constants |
+| The table, when cells need custom markup | `Table` with `TableHeader/TableBody/TableRow/TableHead/TableCell`; `TableSkeleton` while loading, `EmptyState` when empty | raw `<table>` with class constants |
+| Page through rows | `Pagination` in `TableFrame footer` | a custom pager bar |
+| Nothing to show | `EmptyState` as the frame body | text |
+| A status or category label | `Badge tone` | custom spans |
+| A tone dot beside visible text in a menu item, option or legend | `StatusDot` | `Badge dot` with no text |
+| A person by initials | `Avatar` | an initials span |
+| An icon in a tinted chip | `IconTile` | a hand-tinted span |
+| A stable colour for an entity (client, project, person) | `toneFromString(seed)` → `TintTone` | picking a hex |
+
+`DataTable` is a compatibility alias of `Table`, not a choice.
+
+### Ordered tie-breaks
+
+Run them top to bottom and stop at the first match.
+
+1. Does the option change the URL? → `NavigationTabs`.
+2. Does each option show its own content, not the same rows? → `Tabs`.
+3. Same dataset, different subset, representation or granularity? → `SegmentedControl`.
+4. Is it a filter? One field, at most 7 values, counts shown, always visible → `FilterChip`.
+   A date window → `DateRangeFilter`. Anything else → `MultiSelect variant="filter"`.
+5. Is it a table? Uniform records → `Table columns/rows` with its `loading`/`empty`/`error`.
+   Custom cells → compound `Table`, `TableSkeleton` while loading, `EmptyState` when empty.
+   Either goes inside `TableFrame`; the pager goes in `footer`.
+
+### List page recipe
+
+```tsx
+<Page>
+  <PageHeader
+    eyebrow="Supply"
+    title="Colocadas"
+    actions={<SegmentedControl aria-label="Vista" value={view} onChange={setView} options={VIEWS} />}
+  />
+  <StatTileGrid columns={3}>
+    <StatTile label="Colocadas" value={128} icon={Truck} tone="blue" />
+    …
+  </StatTileGrid>
+  <FilterChipRow aria-label="Estado">
+    <FilterChip active={status === 'all'} count={128} onClick={() => setStatus('all')}>Todos</FilterChip>
+    <FilterChip active={status === 'pending'} dot tone="warning" count={12} onClick={…}>Pendiente</FilterChip>
+  </FilterChipRow>
+  <Toolbar>
+    <SearchField aria-label="Buscar" placeholder="Buscar conductor o placa" />
+    <DateRangeFilter aria-label="Fechas" value={range} onChange={setRange} presets={presets} labels={labels} />
+    <MultiSelect variant="filter" aria-label="Origen" placeholder="Origen" options={origins} value={origin} onChange={setOrigin} />
+    <ToolbarSpacer />
+    <SegmentedControl aria-label="Presentación" value={layout} onChange={setLayout} options={LAYOUTS} />
+  </Toolbar>
+  <TableFrame
+    title="Todas las colocadas"
+    count={rows.length}
+    countLabel={(n) => `${n} filas`}
+    actions={<Button size="sm" variant="secondary">Exportar CSV</Button>}
+    footer={<Pagination page={page} pageSize={20} totalItems={total} onPageChange={setPage} />}
+  >
+    {loading ? (
+      <TableSkeleton rows={6} columns={4} label="Cargando tabla" />
+    ) : rows.length === 0 ? (
+      <EmptyState title="Sin colocadas en esta ventana" />
+    ) : (
+      <Table aria-label="Colocadas" bare>
+        <TableHeader>…</TableHeader>
+        <TableBody>…</TableBody>
+      </Table>
+    )}
+  </TableFrame>
+</Page>
+```
+
+The presets are computed by the app (`mexicoCityDaysAgo(7)`, …); the package owns
+no date logic. Status→tone maps stay in the app too: `Badge tone`, `StatusDot`
+and `FilterChip tone` take the result.
+
 ## 6. Layout rhythm
 
 Page padding `p-4 sm:p-6 lg:p-8` · admin width `max-w-7xl mx-auto` · forms

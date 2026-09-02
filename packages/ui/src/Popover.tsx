@@ -87,6 +87,12 @@ export interface PopoverProps {
   /** Viewport height the panel may occupy before it scrolls. Defaults to 280px. */
   maxHeight?: number;
   /**
+   * Room below the trigger that keeps the panel there. With less, and more room
+   * above, the panel flips up. Defaults to 180px; a panel holding a calendar
+   * asks for its full height so it opens where it fits instead of scrolling.
+   */
+  minimumSpace?: number;
+  /**
    * Size the panel to its trigger instead of to its content. Default false.
    *
    * A filter or picker panel can line up with a full-width field rather than
@@ -111,6 +117,7 @@ export function Popover({
   defaultOpen,
   onOpenChange,
   maxHeight,
+  minimumSpace,
   matchTriggerWidth = false,
 }: PopoverProps) {
   const align = useMemo(() => alignFromChildren(children), [children]);
@@ -121,6 +128,7 @@ export function Popover({
     align: ANCHOR_ALIGN[align],
     matchTriggerWidth,
     maxHeight,
+    minimumSpace,
   });
 
   const close = useCallback(
