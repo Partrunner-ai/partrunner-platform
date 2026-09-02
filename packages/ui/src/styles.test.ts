@@ -42,6 +42,23 @@ const PUBLIC_COMPONENT_SELECTORS = [
   '.pr-separator',
   '.pr-skeleton',
   '.pr-tooltip',
+  '.pr-page',
+  '.pr-section-heading',
+  '.pr-stat-grid',
+  '.pr-toolbar',
+  '.pr-toolbar__group',
+  '.pr-search-field',
+  '.pr-filter-chip',
+  '.pr-filter-chip-row',
+  '.pr-segmented',
+  '.pr-segmented__option',
+  '.pr-status-dot',
+  '.pr-icon-tile',
+  '.pr-avatar',
+  '.pr-table-frame__footer',
+  '.pr-table-skeleton',
+  '.pr-date-range__trigger',
+  '.pr-date-range__preset',
 ] as const;
 
 describe('the published cascade contract', () => {
@@ -272,6 +289,14 @@ describe('form control targets', () => {
     expect(rule('.pr-validation-summary__link')).toContain('min-height: 40px');
     expect(rule('.pr-menu__item')).toContain('min-height: 40px');
     expect(rule('.pr-navigation-tabs__link')).toContain('min-height: 40px');
+  });
+
+  it('keeps the list composition controls on the same 40px floor', () => {
+    expect(rule('.pr-filter-chip')).toContain('min-height: 40px');
+    expect(rule('.pr-segmented__option')).toContain('min-height: 40px');
+    expect(rule('.pr-segmented--lg .pr-segmented__option')).toContain('min-height: 44px');
+    expect(rule('.pr-date-range__trigger')).toContain('min-height: 40px');
+    expect(rule('.pr-date-range__preset')).toContain('min-height: 40px');
   });
 
   it('keeps dialog and sheet dismiss controls at least 40px square', () => {
@@ -707,5 +732,80 @@ describe('the file dropzone', () => {
     const surface = rule('.pr-file-dropzone');
     expect(surface).toContain('transition:');
     expect(surface).not.toContain('transition: all');
+  });
+});
+
+describe('the list composition set', () => {
+  it('lifts the checked segment onto the surface and keeps the track a quiet mix', () => {
+    expect(rule('.pr-segmented')).toContain(
+      'background: color-mix(in srgb, var(--pr-fg) 6%, transparent)',
+    );
+    const checked = rule(".pr-segmented__option[aria-checked='true']");
+    expect(checked).toContain('background: var(--pr-surface)');
+    expect(checked).toContain('border-color: var(--pr-border)');
+    expect(checked).toContain('box-shadow: var(--pr-shadow-xs)');
+    expect(rule('.pr-segmented__option')).not.toContain('transition: all');
+  });
+
+  it('inverts the active chip against the page and counts in tabular figures', () => {
+    const active = rule(".pr-filter-chip[aria-pressed='true']");
+    expect(active).toContain('background: var(--pr-fg)');
+    expect(active).toContain('color: var(--pr-bg)');
+    expect(rule('.pr-filter-chip__count')).toContain('font-variant-numeric: tabular-nums');
+    expect(rule('.pr-filter-chip')).toContain('var(--pr-radius-md');
+  });
+
+  it('shares the filter trigger box and active tint with the MultiSelect filter', () => {
+    const trigger = rule('.pr-date-range__trigger');
+    expect(trigger).toContain('min-height: 40px');
+    expect(trigger).toContain('background: var(--pr-surface)');
+    expect(trigger).toContain('var(--pr-radius-md');
+    expect(trigger).toContain('transition-property: border-color, box-shadow, background-color');
+    const active = rule('.pr-date-range__trigger--active');
+    expect(active).toContain('background: var(--pr-tone-yellow-bg)');
+    expect(active).toContain('border-color: var(--pr-tone-yellow-border)');
+    expect(rule('.pr-date-range__calendar')).toContain('box-shadow: none');
+  });
+
+  it('resolves dot, tile and avatar colours from the same tone tokens as Badge', () => {
+    expect(rule('.pr-status-dot--rose')).toContain('background: var(--pr-tone-rose-fg)');
+    expect(rule('.pr-status-dot--danger')).toContain('background: var(--pr-danger)');
+    expect(rule('.pr-icon-tile--green')).toContain('background: var(--pr-tone-green-bg)');
+    expect(rule('.pr-icon-tile--green')).toContain('color: var(--pr-tone-green-fg)');
+    expect(rule('.pr-icon-tile--warning')).toContain(
+      'color-mix(in srgb, var(--pr-warning) 14%, transparent)',
+    );
+    expect(rule('.pr-avatar--purple')).toContain('background: var(--pr-tone-purple-bg)');
+    expect(rule('.pr-avatar--purple')).toContain('color: var(--pr-tone-purple-fg)');
+  });
+
+  it('keeps the table frame a clipping card whose inner table drops its own surface', () => {
+    expect(rule('.pr-card.pr-table-frame')).toContain('overflow: clip');
+    expect(rule('.pr-table-frame .pr-table__shell')).toContain('border: 0');
+    expect(rule('.pr-table-frame .pr-table__scroll--compound')).toContain('box-shadow: none');
+    expect(rule('.pr-table__scroll--bare')).toContain('box-shadow: none');
+    expect(css.indexOf('.pr-table__scroll--bare')).toBeGreaterThan(
+      css.indexOf('.pr-table__scroll--compound {'),
+    );
+    const footer = rule('.pr-table-frame__footer');
+    expect(footer).toContain('margin-inline: calc(-1 * var(--pr-card-pad, 0px))');
+    expect(footer).toContain('border-top: 1px solid var(--pr-border)');
+  });
+
+  it('keeps the page and section rhythm on the Crystal steps', () => {
+    expect(rule('.pr-page')).toContain('gap: 24px');
+    expect(rule('.pr-page')).toContain('max-width: 1280px');
+    expect(rule('.pr-page--narrow')).toContain('max-width: 768px');
+    expect(rule('.pr-section-heading__title')).toContain('font-size: 18px');
+    expect(rule('.pr-section-heading__title')).toContain(
+      'font-family: var(--pr-font-body, inherit)',
+    );
+    expect(rule('.pr-stat-grid--cols-4')).toContain('repeat(4, minmax(0, 1fr))');
+  });
+
+  it('puts the search width on the field wrapper, not the input', () => {
+    expect(rule('.pr-search-field')).toContain('width: 100%');
+    expect(rule('.pr-search-field:not(.pr-search-field--block)')).toContain('width: 16rem');
+    expect(css).not.toMatch(/\.pr-search-field[^{]*\{[^}]*\.pr-field__input/);
   });
 });

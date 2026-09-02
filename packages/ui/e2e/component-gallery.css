@@ -224,3 +224,14 @@ body {
     text-align: left;
   }
 }
+
+/* The list recipe lives inside a catalog surface that already pads. */
+.catalog__list-page {
+  padding: 0;
+}
+
+.catalog__cell-lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -34,6 +34,19 @@ const PUBLIC_VISUAL_SELECTORS = [
   '.pr-tabs__list',
   '.pr-navigation-tabs__list',
   '.pr-pagination',
+  '.pr-page',
+  '.pr-section-heading',
+  '.pr-stat-grid',
+  '.pr-toolbar',
+  '.pr-search-field',
+  '.pr-filter-chip',
+  '.pr-segmented',
+  '.pr-status-dot',
+  '.pr-icon-tile',
+  '.pr-avatar',
+  '.pr-table-frame',
+  '.pr-table-skeleton',
+  '.pr-date-range__trigger',
 ] as const;
 
 const readTypography = (node: HTMLElement) => {
@@ -160,6 +173,10 @@ test('compact controls and embedded actions keep a 40px interaction target', asy
     '.pr-tabs__trigger',
     '.pr-navigation-tabs__link',
     '.pr-pagination__controls .pr-btn',
+    '.pr-filter-chip',
+    '.pr-segmented__option',
+    '.pr-date-range__trigger',
+    '.pr-search-field .pr-field__control',
   ] as const;
 
   for (const selector of selectors) {
@@ -486,7 +503,8 @@ test('multi select owns compact filter summary, leading content, and clear-all b
   await expect(trigger).toContainText('Estado (2)');
   await trigger.click();
 
-  await expect(page.getByRole('searchbox')).toHaveCount(0);
+  // The filter menu has no search of its own; the catalog's SearchField is a separate control.
+  await expect(page.locator('.pr-multiselect__menu').getByRole('searchbox')).toHaveCount(0);
   await expect(page.getByRole('option', { name: 'Pendiente' })).toBeVisible();
   const clear = page.getByRole('option', { name: 'Todos — Estado' });
   await expect(clear).toHaveAttribute('aria-selected', 'false');

@@ -23,9 +23,23 @@ import {
   type StaffShellContextValue,
 } from '@partrunner-ai/shell';
 import {
+  Avatar,
   Badge,
   Button,
   Calendar,
+  DateRangeFilter,
+  FilterChip,
+  FilterChipRow,
+  IconTile,
+  Page,
+  SearchField,
+  SectionHeading,
+  SegmentedControl,
+  StatTileGrid,
+  StatusDot,
+  TableFrame,
+  TableSkeleton,
+  ToolbarSpacer,
   Card,
   CardContent,
   CardHeader,
@@ -109,6 +123,8 @@ import {
   ValidationSummary,
   type BadgeTone,
   type ButtonVariant,
+  type DateRange,
+  type DateRangePreset,
   type ComboboxOption,
   type ChoiceOption,
   type MultiSelectOption,
@@ -190,6 +206,47 @@ const PRIORITY_OPTIONS: ChoiceOption[] = [
   { value: 'urgent', label: 'Urgente', description: 'Requiere seguimiento en vivo.' },
   { value: 'critical', label: 'Crítica', disabled: true },
 ];
+type ListStatus = 'all' | 'pending' | 'placed' | 'closed';
+type ListView = 'all' | 'mine';
+type ListLayout = 'list' | 'board';
+
+const LIST_PRESETS: DateRangePreset[] = [
+  { id: '7d', label: 'Últimos 7 días', range: { from: '2026-08-26', to: '2026-09-02' } },
+  { id: '30d', label: 'Últimos 30 días', range: { from: '2026-08-03', to: '2026-09-02' } },
+  { id: '90d', label: 'Últimos 90 días', range: { from: '2026-06-04', to: '2026-09-02' } },
+];
+const LIST_DATE_LABELS = {
+  allTime: 'Todo el tiempo',
+  custom: 'Personalizado',
+  from: 'Desde',
+  to: 'Hasta',
+  apply: 'Aplicar',
+  clear: 'Limpiar',
+  dialog: 'Filtrar por fechas',
+};
+const LIST_ROWS: Array<{
+  id: number;
+  driver: string;
+  project: string;
+  origin: string;
+  originTone: BadgeTone;
+  status: Exclude<ListStatus, 'all'>;
+  statusLabel: string;
+  statusTone: BadgeTone;
+  mine: boolean;
+}> = [
+  { id: 4801, driver: 'Daniela Ramírez', project: 'Mercado Libre · Monterrey', origin: 'Respond', originTone: 'green', status: 'placed', statusLabel: 'Colocada', statusTone: 'success', mine: true },
+  { id: 4802, driver: 'José Luis Garza', project: 'Coppel · Guadalajara', origin: 'Referido', originTone: 'blue', status: 'pending', statusLabel: 'Pendiente', statusTone: 'warning', mine: false },
+  { id: 4803, driver: 'Ricardo Peña', project: 'Walmart · CDMX Sur', origin: 'Flotilla', originTone: 'purple', status: 'placed', statusLabel: 'Colocada', statusTone: 'success', mine: true },
+  { id: 4804, driver: 'Mariana López', project: 'Home Depot · Mérida', origin: 'Interno', originTone: 'neutral', status: 'closed', statusLabel: 'Cerrada', statusTone: 'neutral', mine: false },
+];
+const LIST_STATUS_CHIPS: Array<{ value: ListStatus; label: string; tone: BadgeTone }> = [
+  { value: 'all', label: 'Todos', tone: 'neutral' },
+  { value: 'pending', label: 'Pendiente', tone: 'warning' },
+  { value: 'placed', label: 'Colocada', tone: 'success' },
+  { value: 'closed', label: 'Cerrada', tone: 'neutral' },
+];
+
 function WorkspaceRichSelect({
   defaultValue = 'supply',
   searchable = true,
@@ -300,6 +357,15 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [paginationPage, setPaginationPage] = useState(2);
+  const [listView, setListView] = useState<ListView>('all');
+  const [listStatus, setListStatus] = useState<ListStatus>('all');
+  const [listLayout, setListLayout] = useState<ListLayout>('list');
+  const [listRange, setListRange] = useState<DateRange>(LIST_PRESETS[1]!.range);
+  const [listOrigins, setListOrigins] = useState<string[]>([]);
+  const [listPage, setListPage] = useState(1);
+  const listRows = LIST_ROWS.filter(
+    (row) => (listView === 'all' || row.mine) && (listStatus === 'all' || row.status === listStatus),
+  );
   const [catalogCsvFiles] = useState(() => [
     new File(['route_id,driver_id\n'.padEnd(18_432, '\n')], 'rutas-validado.csv', {
       type: 'text/csv',
@@ -1039,6 +1105,173 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
             />
           </div>
         </div>
+      </CatalogSection>
+
+      <CatalogSection
+        title="Lists"
+        description="One job, one component: the page, its header and KPIs, the filters that narrow a list, and the framed table with its pager. See docs/crystal-guide.md § 5b."
+      >
+        <Page width="full" className="catalog__list-page" data-testid="catalog-list-page">
+          <PageHeader
+            eyebrow="Supply"
+            title="Colocadas"
+            subtitle="Unidades colocadas en proyectos activos."
+            actions={
+              <SegmentedControl<ListView>
+                aria-label="Vista"
+                value={listView}
+                onChange={setListView}
+                options={[
+                  { value: 'all', label: 'Todas', count: LIST_ROWS.length },
+                  { value: 'mine', label: 'Mis', count: LIST_ROWS.filter((row) => row.mine).length },
+                ]}
+              />
+            }
+          />
+          <StatTileGrid columns={3}>
+            <StatTile label="Colocadas" value={128} icon={Truck} tone="blue" trendValue={8} />
+            <StatTile label="Pendientes" value={12} icon={Boxes} tone="amber" hint="revisión Liveops" />
+            <StatTile label="Nuevas esta semana" value={9} icon={Users} tone="green" trendValue={4} />
+          </StatTileGrid>
+          <FilterChipRow aria-label="Estado de la colocación">
+            {LIST_STATUS_CHIPS.map((chip) => (
+              <FilterChip
+                key={chip.value}
+                active={listStatus === chip.value}
+                dot={chip.value !== 'all'}
+                tone={chip.tone}
+                count={
+                  chip.value === 'all'
+                    ? LIST_ROWS.length
+                    : LIST_ROWS.filter((row) => row.status === chip.value).length
+                }
+                onClick={() => setListStatus(chip.value)}
+              >
+                {chip.label}
+              </FilterChip>
+            ))}
+          </FilterChipRow>
+          <Toolbar>
+            <SearchField aria-label="Buscar colocadas" placeholder="Buscar conductor o placa" />
+            <DateRangeFilter
+              aria-label="Fechas"
+              value={listRange}
+              onChange={setListRange}
+              presets={LIST_PRESETS}
+              labels={LIST_DATE_LABELS}
+              locale="es-MX"
+            />
+            <MultiSelect
+              variant="filter"
+              options={FILTER_STATUSES}
+              value={listOrigins}
+              onChange={setListOrigins}
+              placeholder="Origen"
+              clearLabel="Todos — Origen"
+              aria-label="Filtrar por origen"
+            />
+            <ToolbarSpacer />
+            <SegmentedControl<ListLayout>
+              aria-label="Presentación"
+              value={listLayout}
+              onChange={setListLayout}
+              options={[
+                { value: 'list', label: 'Lista' },
+                { value: 'board', label: 'Tablero', icon: LayoutDashboard },
+              ]}
+            />
+          </Toolbar>
+          <TableFrame
+            title={listView === 'mine' ? 'Mis colocadas' : 'Todas las colocadas'}
+            count={listRows.length}
+            countLabel={(count) => `${count} filas`}
+            actions={
+              <Button size="sm" variant="secondary">
+                Exportar CSV
+              </Button>
+            }
+            footer={
+              <Pagination
+                page={listPage}
+                pageSize={20}
+                totalItems={128}
+                onPageChange={setListPage}
+                aria-label="Colocadas pages"
+              />
+            }
+          >
+            <Table aria-label="Colocadas" scrollLabel="Colocadas table" bare>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Conductor</TableHead>
+                  <TableHead>Proyecto</TableHead>
+                  <TableHead>Origen</TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {listRows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <span className="catalog__cell-lead">
+                        <Avatar name={row.driver} size="sm" decorative />
+                        {row.driver}
+                      </span>
+                    </TableCell>
+                    <TableCell>{row.project}</TableCell>
+                    <TableCell>
+                      <span className="catalog__cell-lead">
+                        <StatusDot tone={row.originTone} />
+                        {row.origin}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge tone={row.statusTone} dot>
+                        {row.statusLabel}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableFrame>
+          <SectionHeading
+            eyebrow="Detalle"
+            title="Piezas sueltas"
+            description="Avatar, IconTile y StatusDot resuelven su color en CSS desde los mismos tonos que Badge."
+            actions={
+              <Button size="sm" variant="ghost">
+                Ver guía
+              </Button>
+            }
+          />
+          <div className="catalog__row">
+            <Avatar name="Ana Operadora" size="xs" />
+            <Avatar name="Carlos Ruta" size="sm" />
+            <Avatar name="María Logística" size="md" />
+            <Avatar name="Luis Afiliación" size="lg" tone="green" />
+            <IconTile icon={Truck} tone="blue" size="sm" />
+            <IconTile icon={Boxes} />
+            <IconTile icon={Users} tone="green" size="lg" />
+            <IconTile icon={Trash2} tone="danger" />
+            <StatusDot tone="success" size="md" label="Activo" />
+            <StatusDot tone="warning" size="md" label="Pendiente" />
+            <StatusDot tone="rose" size="md" label="Rechazado" />
+            <SegmentedControl<'day' | 'week'>
+              aria-label="Granularidad"
+              size="lg"
+              value="week"
+              onChange={() => {}}
+              options={[
+                { value: 'day', label: 'Día' },
+                { value: 'week', label: 'Semana' },
+              ]}
+            />
+          </div>
+          <TableFrame title="Cargando" description="La tabla compuesta mientras carga.">
+            <TableSkeleton rows={3} columns={4} label="Cargando tabla" />
+          </TableFrame>
+        </Page>
       </CatalogSection>
     </main>
   );
