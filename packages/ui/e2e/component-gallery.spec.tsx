@@ -44,8 +44,13 @@ const PUBLIC_VISUAL_SELECTORS = [
   '.pr-status-dot',
   '.pr-icon-tile',
   '.pr-avatar',
+  '.pr-toolbar__group',
+  '.pr-filter-chip-row',
   '.pr-table-frame',
+  '.pr-table-frame__footer',
+  '.pr-table__scroll--bare',
   '.pr-table-skeleton',
+  '.pr-date-range',
   '.pr-date-range__trigger',
 ] as const;
 

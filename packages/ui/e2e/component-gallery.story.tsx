@@ -39,6 +39,7 @@ import {
   StatusDot,
   TableFrame,
   TableSkeleton,
+  ToolbarGroup,
   ToolbarSpacer,
   Card,
   CardContent,
@@ -240,6 +241,12 @@ const LIST_ROWS: Array<{
   { id: 4803, driver: 'Ricardo Peña', project: 'Walmart · CDMX Sur', origin: 'Flotilla', originTone: 'purple', status: 'placed', statusLabel: 'Colocada', statusTone: 'success', mine: true },
   { id: 4804, driver: 'Mariana López', project: 'Home Depot · Mérida', origin: 'Interno', originTone: 'neutral', status: 'closed', statusLabel: 'Cerrada', statusTone: 'neutral', mine: false },
 ];
+const LIST_PAGINATION_LABELS = {
+  previous: 'Página anterior',
+  next: 'Página siguiente',
+  summary: ({ start, end, totalItems }: { start: number; end: number; totalItems: number }) =>
+    `${start}–${end} de ${totalItems}`,
+};
 const LIST_STATUS_CHIPS: Array<{ value: ListStatus; label: string; tone: BadgeTone }> = [
   { value: 'all', label: 'Todos', tone: 'neutral' },
   { value: 'pending', label: 'Pendiente', tone: 'warning' },
@@ -1153,23 +1160,25 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
           </FilterChipRow>
           <Toolbar>
             <SearchField aria-label="Buscar colocadas" placeholder="Buscar conductor o placa" />
-            <DateRangeFilter
-              aria-label="Fechas"
-              value={listRange}
-              onChange={setListRange}
-              presets={LIST_PRESETS}
-              labels={LIST_DATE_LABELS}
-              locale="es-MX"
-            />
-            <MultiSelect
-              variant="filter"
-              options={FILTER_STATUSES}
-              value={listOrigins}
-              onChange={setListOrigins}
-              placeholder="Origen"
-              clearLabel="Todos — Origen"
-              aria-label="Filtrar por origen"
-            />
+            <ToolbarGroup>
+              <DateRangeFilter
+                aria-label="Fechas"
+                value={listRange}
+                onChange={setListRange}
+                presets={LIST_PRESETS}
+                labels={LIST_DATE_LABELS}
+                locale="es-MX"
+              />
+              <MultiSelect
+                variant="filter"
+                options={FILTER_STATUSES}
+                value={listOrigins}
+                onChange={setListOrigins}
+                placeholder="Origen"
+                clearLabel="Todos — Origen"
+                aria-label="Filtrar por origen"
+              />
+            </ToolbarGroup>
             <ToolbarSpacer />
             <SegmentedControl<ListLayout>
               aria-label="Presentación"
@@ -1196,7 +1205,8 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
                 pageSize={20}
                 totalItems={128}
                 onPageChange={setListPage}
-                aria-label="Colocadas pages"
+                labels={LIST_PAGINATION_LABELS}
+                aria-label="Páginas de colocadas"
               />
             }
           >

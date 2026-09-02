@@ -161,7 +161,12 @@ export function ListCompositionStory({
               pageSize={20}
               totalItems={128}
               onPageChange={setPage}
-              aria-label="Colocadas pages"
+              labels={{
+                previous: 'Página anterior',
+                next: 'Página siguiente',
+                summary: ({ start, end, totalItems }) => `${start}–${end} de ${totalItems}`,
+              }}
+              aria-label="Páginas de colocadas"
             />
           }
         >

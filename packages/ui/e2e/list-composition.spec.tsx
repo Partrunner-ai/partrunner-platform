@@ -143,7 +143,41 @@ test('the frame is the only surface around the rows and the table keeps its regi
   await expect(region).toHaveClass(/pr-table__scroll--bare/);
   await expect(region).toHaveCSS('box-shadow', 'none');
   await expect(region).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(page.getByRole('navigation', { name: 'Colocadas pages' })).toBeVisible();
+  const pager = page.getByRole('navigation', { name: 'Páginas de colocadas' });
+  await expect(pager).toBeVisible();
+  await expect(pager.getByRole('status')).toHaveText('1–20 de 128');
+  await expect(pager.getByRole('button', { name: 'Página siguiente' })).toBeVisible();
+});
+
+test('the page keeps one 24px rhythm between its header and the KPIs', async ({ mount, page }) => {
+  await mount(<ListCompositionStory />);
+
+  const header = page.locator('.pr-page > .pr-page-header');
+  const grid = page.locator('.pr-page > .pr-stat-grid');
+  const [headerBox, gridBox] = await Promise.all([header.boundingBox(), grid.boundingBox()]);
+  expect(headerBox).not.toBeNull();
+  expect(gridBox).not.toBeNull();
+  expect(gridBox!.y - (headerBox!.y + headerBox!.height)).toBe(24);
+  await expect(header).toHaveCSS('margin-bottom', '0px');
+});
+
+test('the segmented control is exactly as tall as the search field beside it', async ({
+  mount,
+  page,
+}) => {
+  await mount(<ListCompositionStory />);
+
+  const search = page.locator('.pr-search-field .pr-field__control');
+  const segmented = page.getByRole('radiogroup', { name: 'Vista' });
+  const option = segmented.getByRole('radio', { name: 'Todas 4' });
+  const [searchBox, groupBox, optionBox] = await Promise.all([
+    search.boundingBox(),
+    segmented.boundingBox(),
+    option.boundingBox(),
+  ]);
+  expect(searchBox!.height).toBe(40);
+  expect(groupBox!.height).toBe(40);
+  expect(optionBox!.height).toBe(40);
 });
 
 for (const mode of ['light', 'dark'] as const) {

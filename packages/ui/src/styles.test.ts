@@ -55,10 +55,20 @@ const PUBLIC_COMPONENT_SELECTORS = [
   '.pr-status-dot',
   '.pr-icon-tile',
   '.pr-avatar',
+  '.pr-toolbar__spacer',
+  '.pr-table-frame',
+  '.pr-table-frame__body',
   '.pr-table-frame__footer',
   '.pr-table-skeleton',
+  '.pr-table__scroll--bare',
+  '.pr-date-range',
   '.pr-date-range__trigger',
+  '.pr-date-range__content',
   '.pr-date-range__preset',
+  '.pr-date-range__calendar',
+  '.pr-segmented__count',
+  '.pr-filter-chip__count',
+  '.pr-avatar__image',
 ] as const;
 
 describe('the published cascade contract', () => {
@@ -737,9 +747,13 @@ describe('the file dropzone', () => {
 
 describe('the list composition set', () => {
   it('lifts the checked segment onto the surface and keeps the track a quiet mix', () => {
-    expect(rule('.pr-segmented')).toContain(
-      'background: color-mix(in srgb, var(--pr-fg) 6%, transparent)',
-    );
+    const track = rule('.pr-segmented');
+    expect(track).toContain('background: color-mix(in srgb, var(--pr-fg) 6%, transparent)');
+    // Flush with the row: the option is the whole height, so the control lines up
+    // with the 40px inputs and filter triggers beside it.
+    expect(track).toContain('padding: 0');
+    expect(track).toContain('gap: 0');
+    expect(rule('.pr-segmented__option')).toContain('border-radius: var(--pr-radius-md, 0.75rem)');
     const checked = rule(".pr-segmented__option[aria-checked='true']");
     expect(checked).toContain('background: var(--pr-surface)');
     expect(checked).toContain('border-color: var(--pr-border)');
@@ -765,6 +779,7 @@ describe('the list composition set', () => {
     expect(active).toContain('background: var(--pr-tone-yellow-bg)');
     expect(active).toContain('border-color: var(--pr-tone-yellow-border)');
     expect(rule('.pr-date-range__calendar')).toContain('box-shadow: none');
+    expect(rule('.pr-date-range__preset:disabled')).toContain('cursor: not-allowed');
   });
 
   it('resolves dot, tile and avatar colours from the same tone tokens as Badge', () => {
@@ -794,6 +809,9 @@ describe('the list composition set', () => {
 
   it('keeps the page and section rhythm on the Crystal steps', () => {
     expect(rule('.pr-page')).toContain('gap: 24px');
+    // The page gap is the rhythm; a header directly inside drops its own margin.
+    expect(rule('.pr-page > .pr-page-header')).toContain('margin-block-end: 0');
+    expect(rule('.pr-page-header')).toContain('margin-block-end: 24px');
     expect(rule('.pr-page')).toContain('max-width: 1280px');
     expect(rule('.pr-page--narrow')).toContain('max-width: 768px');
     expect(rule('.pr-section-heading__title')).toContain('font-size: 18px');
