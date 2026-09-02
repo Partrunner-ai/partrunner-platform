@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/ui",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "L1 primitives built on the PartRunner token scale. Plain CSS over --pr-* so it works in Tailwind v3, v4, or no Tailwind at all.",
   "license": "(MIT AND OFL-1.1)",
   "type": "module",
