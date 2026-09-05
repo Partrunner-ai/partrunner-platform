@@ -15,7 +15,7 @@ document for the package you change.
 ## Delivery and safety
 
 - Follow `.partrunner/repo-policy.yml` for every branch, merge, promotion, review, migration, and
-  deployment decision. It is the sole delivery-policy source; `feature_merge: unknown` is a stop,
+  deployment decision. It is the sole delivery-policy source; missing or unknown policy is a stop,
   not a choice.
 - Run change-aware checks and the manifest handoff gate. Request independent change review and
   architecture review when its policy trigger applies.
