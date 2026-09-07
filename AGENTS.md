@@ -1,51 +1,23 @@
 # PartRunner platform agent guide
 
-Read `CONTEXT.md` before you plan, edit, or review this repository. Use its defined terms.
+Read `CONTEXT.md` before planning, editing, or reviewing. Use the package README and linked contract
+document for the package you change.
 
-## Work isolation
+## Work and package constraints
 
-- Start independent feature, fix, tooling, and documentation work in a new Git worktree unless the
-  current checkout is already an isolated worktree for this task.
-- Base the worktree on the integration branch in `.partrunner/repo-policy.yml`.
-- Use one branch per task. Preserve unrelated local changes.
+- Start independent work in an isolated worktree. Preserve unrelated changes.
+- Keep non-UI server and URL entries framework-free. Declare UI framework peers and isolate optional
+  adapters behind subpaths. Support React 18 and 19 without assuming a Tailwind version.
+- Changing the meaning of a `--pr-*` variable is a major change. State it and write the migration note.
+- For UI composition, use `docs/crystal-guide.md` § 5b. Shared presentation belongs in
+  `@partrunner-ai/ui`; product state, routing, data access, and one-off layout remain in the app.
 
-## Engineering
+## Delivery and safety
 
-- Choose the simplest implementation that meets the current requirements.
-- Remove obsolete paths when the task permits it. Do not add speculative compatibility layers.
-- Prefer existing, maintained dependencies and repository seams.
-- Keep modules focused and concerns separate.
-- Build the smallest working end-to-end slice before adding capability.
-- Keep non-UI server and URL entries framework-free. Declare UI framework peers
-  explicitly and isolate optional adapters behind subpaths. Assume no Tailwind
-  version. Consuming apps run multiple stack generations on React 18 and 19.
-- Changing what a `--pr-*` variable means is a major even when the name stays. Say so, and write the
-  migration note.
-- Before adding a UI composition in a consuming app, read the decision table in
-  `docs/crystal-guide.md` § 5b. If a row names a component, use it. A recurring, presentation-only
-  job that at least two apps need belongs in `@partrunner-ai/ui`; domain state, routing, data access
-  and one-off layout stay in the app.
-
-## Communication
-
-- Use short, active sentences and one term for one concept.
-- State exact targets, evidence, unknowns, and remaining risks.
-
-## Delivery
-
-- Follow the branch, promotion, migration, and deployment facts in `.partrunner/repo-policy.yml`.
-- Run change-aware tests before handoff. Do not claim success without current command output.
-- Open a ready PR to the integration branch unless the work is incomplete or the user asks for a
-  draft.
-- After implementation, request an independent agent review. Resolve or rebut every finding before
-  merge. Keep human approval required.
-- Request an independent architecture critique before high-risk or cross-system implementation.
-  This includes any new long-lived platform seam.
-
-## Safety
-
-- Never print, commit, or copy secrets into chat or logs.
-- Verify the exact provider, project, environment, tenant, and branch before a live mutation.
-- A production mutation needs explicit authorization in the current conversation.
-- A minor reaches every consuming app on its next install. Treat an accidental behaviour change as a
-  fleet-wide incident, not a local one.
+- Follow `.partrunner/repo-policy.yml` for every branch, merge, promotion, review, migration, and
+  deployment decision. It is the sole delivery-policy source; missing or unknown policy is a stop,
+  not a choice.
+- Run change-aware checks and the manifest handoff gate. Request independent change review and
+  architecture review when its policy trigger applies.
+- A minor reaches consuming apps on their next install. Never expose credentials. A live mutation
+  needs current authorization, exact target proof, and before-and-after evidence.

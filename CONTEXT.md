@@ -57,8 +57,8 @@ Public versions begin at `1.0.0`.
 
 ## Delivery
 
-`main` is the integration and production branch. Packages are the production
-artifact. `packages/showcase` may deploy as a static review catalog through
+`.partrunner/repo-policy.yml` owns delivery rules, including branch, merge, promotion, review,
+migration, and deployment lanes. Packages are the production artifact. `packages/showcase` may deploy as a static review catalog through
 `vercel.json`; it contains fixture data only, has no backend or secrets, and is
 not a package release environment. Every publishable change requires current
 verification, independent automated review, human approval, and a Changeset.
