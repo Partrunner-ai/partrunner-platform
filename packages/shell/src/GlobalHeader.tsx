@@ -96,11 +96,13 @@ export function GlobalHeader({
         <NotificationCenter
           items={shell.notifications.items}
           unreadCount={shell.notifications.unreadCount}
+          unseenCount={shell.notifications.unseenCount}
           href={shell.notifications.href}
           locale={locale}
           loading={shell.notifications.loading}
           onNotificationRead={shell.markNotificationRead}
           onMarkAllRead={shell.markAllNotificationsRead}
+          onOpen={shell.markNotificationsSeen}
           labels={messages.notifications}
         />
         <AppLauncher
