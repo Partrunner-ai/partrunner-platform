@@ -251,4 +251,80 @@ describe('GlobalHeader', () => {
     ).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
+  it('counts what is new since the last open, not what is unread', async () => {
+    // El badge debe apagarse al abrir. Contando no leídas sólo baja destruyendo
+    // contenido, así que se queda fijo y la gente deja de mirarlo.
+    renderHeader({
+      ...baseContext,
+      notifications: { ...baseContext.notifications, unseenCount: 0 },
+    });
+
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Notifications: 2' }),
+    ).toBeNull();
+  });
+
+  it('falls back to the unread count when the host reports no unseen count', () => {
+    // Un satélite puede estar hablando con un backend que todavía no lo manda:
+    // vale más el significado viejo que un cero que nadie calculó.
+    renderHeader(baseContext);
+
+    expect(
+      screen.getByRole('button', { name: 'Notifications: 2' }),
+    ).toBeTruthy();
+  });
+
+  it('marks the bell seen once per open, and never as read', async () => {
+    const user = userEvent.setup();
+    const markNotificationsSeen = vi.fn();
+    const markAllNotificationsRead = vi.fn();
+    renderHeader({
+      ...baseContext,
+      markNotificationsSeen,
+      markAllNotificationsRead,
+    });
+
+    const trigger = screen.getByRole('button', { name: 'Notifications: 2' });
+    await user.click(trigger);
+    expect(markNotificationsSeen).toHaveBeenCalledTimes(1);
+
+    // Cerrar y reabrir cuenta como una segunda vista; quedarse abierto, no.
+    await user.click(trigger);
+    await user.click(trigger);
+    expect(markNotificationsSeen).toHaveBeenCalledTimes(2);
+
+    // Ver no es leer: la bandeja de no leídas queda intacta.
+    expect(markAllNotificationsRead).not.toHaveBeenCalled();
+    expect(screen.getByText('Quote approved')).toBeTruthy();
+  });
+
+  it('still opens when the host does not handle the seen callback', async () => {
+    const user = userEvent.setup();
+    renderHeader(baseContext);
+
+    await user.click(screen.getByRole('button', { name: 'Notifications: 2' }));
+
+    expect(screen.getByText('Quote approved')).toBeTruthy();
+  });
+
+  it('keeps mark-all available while unread items remain after seeing them', async () => {
+    // El botón se gobierna por NO LEÍDAS, no por el badge. Si se atara al badge,
+    // desaparecería justo al abrir y dejaría la bandeja sin forma de vaciarse.
+    const user = userEvent.setup();
+    const markAllNotificationsRead = vi.fn();
+    renderHeader({
+      ...baseContext,
+      notifications: { ...baseContext.notifications, unseenCount: 0 },
+      markAllNotificationsRead,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Notifications' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Mark all as read' }),
+    );
+
+    expect(markAllNotificationsRead).toHaveBeenCalledTimes(1);
+  });
+
 });

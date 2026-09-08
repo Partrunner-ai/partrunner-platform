@@ -18,11 +18,19 @@ export interface NotificationCenterLabels {
 export interface NotificationCenterProps {
   items: readonly StaffNotification[];
   unreadCount: number;
+  /**
+   * What the badge counts: unread notifications that arrived after the last
+   * time this person opened the panel. Falls back to `unreadCount` when the
+   * host does not report it.
+   */
+  unseenCount?: number;
   href: string;
   locale?: StaffLocale;
   loading?: boolean;
   onNotificationRead?: (id: string) => void;
   onMarkAllRead?: () => void;
+  /** Fired once per open. Clears the badge; must never touch read state. */
+  onOpen?: () => void;
   labels?: Partial<NotificationCenterLabels>;
   className?: string;
 }
@@ -54,11 +62,13 @@ function formatTimestamp(timestamp: string, locale: StaffLocale): string {
 export function NotificationCenter({
   items,
   unreadCount,
+  unseenCount,
   href,
   locale = 'es',
   loading = false,
   onNotificationRead,
   onMarkAllRead,
+  onOpen,
   labels: labelOverrides,
   className,
 }: NotificationCenterProps) {
@@ -80,10 +90,23 @@ export function NotificationCenter({
     if (open) popoverRef.current?.focus();
   }, [open]);
 
+  // The badge counts what is NEW since the last open, not what is unread. A
+  // host that does not report `unseenCount` keeps the old meaning rather than
+  // showing a zero it never computed.
+  const badgeCount = unseenCount ?? unreadCount;
+
+  // `onOpen` fires on the false → true edge only. Putting it in the click
+  // handler instead would miss an open driven by the host (a controlled parent,
+  // a keyboard shortcut), and putting it in an effect without the edge check
+  // would re-fire on every unrelated re-render while the panel stays open.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpen.current) onOpen?.();
+    wasOpen.current = open;
+  }, [open, onOpen]);
+
   const triggerLabel =
-    unreadCount > 0
-      ? `${labels.trigger}: ${unreadCount}`
-      : labels.trigger;
+    badgeCount > 0 ? `${labels.trigger}: ${badgeCount}` : labels.trigger;
 
   return (
     <div
@@ -101,9 +124,9 @@ export function NotificationCenter({
         onClick={() => setOpen((value) => !value)}
       >
         <Bell size={18} aria-hidden />
-        {unreadCount > 0 && (
+        {badgeCount > 0 && (
           <span className="pr-badge-dot" aria-hidden>
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {badgeCount > 99 ? '99+' : badgeCount}
           </span>
         )}
       </button>

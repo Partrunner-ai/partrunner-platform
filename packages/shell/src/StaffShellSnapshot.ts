@@ -33,6 +33,16 @@ export interface StaffShellSnapshotV1 {
   notifications: {
     items: readonly StaffShellSnapshotNotification[];
     unreadCount: number;
+    /**
+     * Unread notifications newer than this person's last bell open — what the
+     * badge counts.
+     *
+     * Optional, and the snapshot version stays at 1 deliberately. Consumers
+     * reject a version they do not know, so bumping it would break every
+     * satellite the moment the producer deploys, including the ones still on
+     * shell 1.x. A new field, by contrast, older consumers simply ignore.
+     */
+    unseenCount?: number;
     href: string;
   };
 }
@@ -109,6 +119,15 @@ export function isStaffShellSnapshot(
     return false;
   }
   if (!isRecord(value.notifications)) return false;
+  // Absent is fine — a producer that predates the badge change. Present but
+  // malformed is not: a bad number would be rendered straight into the badge.
+  const unseenCount = value.notifications.unseenCount;
+  if (
+    unseenCount !== undefined &&
+    !(Number.isInteger(unseenCount) && (unseenCount as number) >= 0)
+  ) {
+    return false;
+  }
   return (
     Array.isArray(value.notifications.items) &&
     value.notifications.items.every(isNotification) &&
