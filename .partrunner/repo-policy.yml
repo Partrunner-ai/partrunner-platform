@@ -8,8 +8,8 @@ repository:
 
 pull_requests:
   feature_base: main
-  feature_merge: merge
-  never: [squash, rebase]
+  feature_merge: squash
+  never: [merge, rebase]
   promotion: none
 
 context:
