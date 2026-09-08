@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.2.1
+
+### Patch Changes
+
+- Republish UI with its packed shell development dependency resolved to 2.1.0. The shell version bump changes UI package metadata even though its runtime code and styles are unchanged. This patch gives the updated artifact a new version while preserving the release integrity checks for already-published versions.
+
 ## 2.2.0
 
 ### Minor Changes
