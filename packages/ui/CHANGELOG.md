@@ -1,5 +1,20 @@
 # @partrunner-ai/ui
 
+## 2.2.2
+
+### Patch Changes
+
+- Re-release UI so its packed artifact matches the registry again.
+  
+  UI declares `@partrunner-ai/shell` as a `workspace:*` development dependency, so
+  packing UI after a shell change produces different bytes than the published
+  2.2.1 tarball. The release preflight compares every already-published version
+  against a fresh build and refuses to continue on a mismatch, which blocked
+  shell 2.2.0 from publishing even though its own artifact verified clean.
+  
+  Same resolution as 2.2.1: cut a new version rather than bypass the check or
+  overwrite a published one.
+
 ## 2.2.1
 
 ### Patch Changes
