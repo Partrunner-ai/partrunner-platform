@@ -949,6 +949,49 @@ a.pr-sidebar__brand:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Notification bell ---- */
+/* Una campana que suena es un aviso, no un adorno: sólo se mueve cuando hay
+   algo NUEVO desde la última vez que esta persona abrió el panel. El componente
+   decide cuándo (ver `data-ringing`); aquí sólo vive el movimiento. */
+.pr-notifications__bell {
+  /* Sin origen propio, `rotate` gira alrededor del centro del icono y la
+     campana tiembla como un fallo de render en vez de colgar de su soporte.
+     El eje va arriba, donde la campana se sujeta. */
+  transform-origin: 50% 4px;
+}
+.pr-notifications__bell[data-ringing='true'] {
+  /* `ease-in-out` y no `var(--pr-ease)`: el token es un ease-out para entradas
+     que llegan y se quedan quietas. Un péndulo tiene que frenar al llegar al
+     extremo y acelerar al volver, o cada extremo se ve como un tirón. */
+  animation: pr-bell-ring 8s ease-in-out infinite;
+}
+
+@keyframes pr-bell-ring {
+  /* El reposo va DENTRO del keyframe: un ciclo largo con la sacudida sólo al
+     principio repica cada 8s sin pedirle nada a React. Una animación finita
+     (`… 3`) sólo se vuelve a disparar quitando y devolviendo la clase, así que
+     un aviso que llega con el encabezado a la vista (2 → 3) sería mudo.
+     Los ángulos decrecen: es una campana que se queda sin impulso, no un
+     limpiaparabrisas. */
+  0%,
+  12%,
+  100% {
+    transform: rotate(0deg);
+  }
+  2% {
+    transform: rotate(14deg);
+  }
+  5% {
+    transform: rotate(-11deg);
+  }
+  8% {
+    transform: rotate(6deg);
+  }
+  10% {
+    transform: rotate(-3deg);
+  }
+}
+
 @keyframes pr-popover-in {
   from {
     opacity: 0;
@@ -1041,7 +1084,10 @@ a.pr-sidebar__brand:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .pr-launcher__popover,
   .pr-usermenu__popover,
-  .pr-notifications__popover {
+  .pr-notifications__popover,
+  /* Se calla el movimiento, NO el aviso: el conteo del badge sigue puesto y es
+     lo que de verdad lleva la información. */
+  .pr-notifications__bell[data-ringing='true'] {
     animation: none;
   }
 }

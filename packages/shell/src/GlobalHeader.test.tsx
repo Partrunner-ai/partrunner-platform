@@ -327,4 +327,60 @@ describe('GlobalHeader', () => {
     expect(markAllNotificationsRead).toHaveBeenCalledTimes(1);
   });
 
+  it('rings the bell while something has arrived since the last open', () => {
+    const { container } = renderHeader({
+      ...baseContext,
+      notifications: { ...baseContext.notifications, unseenCount: 2 },
+    });
+
+    expect(
+      container
+        .querySelector('.pr-notifications__bell')
+        ?.getAttribute('data-ringing'),
+    ).toBe('true');
+  });
+
+  it('stays still when the host reports no unseen count', () => {
+    // La prueba que de verdad importa: el badge SÍ cae a `unreadCount` cuando
+    // el anfitrión no manda lo no visto, y la campana NO puede heredar ese
+    // fallback. Las no leídas sólo bajan marcándolas —hay quien acumula
+    // cientos—, así que atarla al badge la dejaría sonando para siempre en los
+    // satélites que aún no están cableados.
+    const { container } = renderHeader(baseContext);
+
+    expect(screen.getByRole('button', { name: 'Notifications: 2' })).toBeTruthy();
+    expect(
+      container.querySelector('.pr-notifications__bell[data-ringing]'),
+    ).toBeNull();
+  });
+
+  it('stays still once everything has been seen, unread or not', () => {
+    const { container } = renderHeader({
+      ...baseContext,
+      notifications: { ...baseContext.notifications, unseenCount: 0 },
+    });
+
+    // La bandeja sigue teniendo no leídas; nada de eso es nuevo.
+    expect(
+      container.querySelector('.pr-notifications__bell[data-ringing]'),
+    ).toBeNull();
+  });
+
+  it('falls silent the moment the panel opens', async () => {
+    // Sin esto la campana sigue sonando mientras el panel está abierto, todo el
+    // viaje hasta que el anfitrión avisa que se vio y vuelve el snapshot. Se
+    // ve exactamente como algo roto.
+    const user = userEvent.setup();
+    const { container } = renderHeader({
+      ...baseContext,
+      notifications: { ...baseContext.notifications, unseenCount: 2 },
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Notifications: 2' }));
+
+    expect(
+      container.querySelector('.pr-notifications__bell[data-ringing]'),
+    ).toBeNull();
+  });
+
 });
