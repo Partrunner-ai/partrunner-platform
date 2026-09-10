@@ -95,6 +95,18 @@ export function NotificationCenter({
   // showing a zero it never computed.
   const badgeCount = unseenCount ?? unreadCount;
 
+  // La campana se sacude sólo por `unseenCount`, NUNCA por `badgeCount`. Ese
+  // fallback existe para conservar el significado del NÚMERO en un anfitrión
+  // que todavía no reporta lo no visto; heredarlo aquí dejaría la campana
+  // temblando para siempre contra un conteo de no leídas que sólo baja
+  // marcando (en prod hay quien acumula cientos), y un aviso permanente deja
+  // de ser un aviso.
+  //
+  // `!open` además tapa el viaje de ida y vuelta entre abrir, avisar que se
+  // vio y que vuelva el snapshot: sin él la campana sigue sonando un instante
+  // con el panel ya abierto, que es justo como se ve algo roto.
+  const ringing = !open && (unseenCount ?? 0) > 0;
+
   // `onOpen` fires on the false → true edge only. Putting it in the click
   // handler instead would miss an open driven by the host (a controlled parent,
   // a keyboard shortcut), and putting it in an effect without the edge check
@@ -123,7 +135,12 @@ export function NotificationCenter({
         aria-controls={popoverId}
         onClick={() => setOpen((value) => !value)}
       >
-        <Bell size={18} aria-hidden />
+        <Bell
+          size={18}
+          aria-hidden
+          className="pr-notifications__bell"
+          data-ringing={ringing ? 'true' : undefined}
+        />
         {badgeCount > 0 && (
           <span className="pr-badge-dot" aria-hidden>
             {badgeCount > 99 ? '99+' : badgeCount}
