@@ -32,6 +32,15 @@ review:
     enforcement: advisory_in_pilot
   agent:
     change_review: required
+    change_review_timing: pre_pr_submission
+    change_review_scope: complete_final_candidate
+    # No review on intermediate edits, commits or changed deltas. Batch fixes
+    # before resubmission; only the final reviewed head may merge.
+    architecture_scope: >-
+      Required before changing cross-repository ownership, auth/permission or
+      financial/audit invariants, shared database contracts, irreversible data
+      behavior, or long-lived platform interfaces. Merely touching a domain or
+      implementing an unchanged, already-reviewed design is not a new trigger.
     architecture_for:
       - cross_repository
       - auth_or_permissions

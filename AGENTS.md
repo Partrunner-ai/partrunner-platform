@@ -1,7 +1,8 @@
 # PartRunner platform agent guide
 
-Read `CONTEXT.md` before planning, editing, or reviewing. Use the package README and linked contract
-document for the package you change.
+Read `CONTEXT.md` for affected package behavior; reuse unchanged instructions across task phases.
+Tooling or documentation-only work needs only relevant instructions and policy. Use the package
+README and linked contract document when changing that package's behavior or interface.
 
 ## Work and package constraints
 
@@ -17,7 +18,9 @@ document for the package you change.
 - Follow `.partrunner/repo-policy.yml` for every branch, merge, promotion, review, migration, and
   deployment decision. It is the sole delivery-policy source; missing or unknown policy is a stop,
   not a choice.
-- Run change-aware checks and the manifest handoff gate. Request independent change review and
-  architecture review when its policy trigger applies.
+- Run change-aware checks and the manifest handoff gate. Request one independent review of the
+  complete final candidate at the pre-PR/submission checkpoint, not after intermediate edits,
+  commits or changed deltas. Batch fixes before resubmission; merge only the final reviewed head.
+  Architecture review follows the manifest's invariant/interface triggers.
 - A minor reaches consuming apps on their next install. Never expose credentials. A live mutation
   needs current authorization, exact target proof, and before-and-after evidence.
