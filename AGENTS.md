@@ -19,5 +19,8 @@ document for the package you change.
   not a choice.
 - Run change-aware checks and the manifest handoff gate. Request independent change review and
   architecture review when its policy trigger applies.
+- Qualified docs-only work (root instruction Markdown and `docs/**/*.md` only) is validated by the
+  bounded `scripts/ci/docs-only.mjs` job in `docs/ci-qa.md`; `build` stays required, and policy or
+  code changes always take full verification.
 - A minor reaches consuming apps on their next install. Never expose credentials. A live mutation
   needs current authorization, exact target proof, and before-and-after evidence.

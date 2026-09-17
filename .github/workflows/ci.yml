@@ -10,6 +10,42 @@ permissions:
   contents: read
 
 jobs:
+  # Resolves the pushed range (`github.event.before`) or the pull request merge
+  # base and decides whether the change is docs-only. The `build` check is still
+  # required and always runs: this repository has no aggregate check that could
+  # accept a skipped required job, so the lane is limited to preview builds and
+  # validation. See docs/ci-qa.md.
+  docs-only:
+    name: docs-only change
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.flags.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Classify docs-only change
+        id: flags
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_HEAD: ${{ github.sha }}
+        run: node scripts/ci/docs-only.mjs --flags
+
+      # The classifier and its validator are code: they are tested on every run
+      # that reaches this job, including the docs-only lane they protect.
+      - name: Test docs-only classifier
+        run: >-
+          node --test scripts/ci/docs-only.test.mjs
+          scripts/ci/should-deploy-preview.test.mjs
+
   build:
     runs-on: ubuntu-latest
     steps:
