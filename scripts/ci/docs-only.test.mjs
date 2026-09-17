@@ -1,16 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
-  assertDetectorFlags,
   classifyDocsOnly,
   decideChange,
   isDocsOnlyPath,
+  projectDetectorFlags,
   resolveChangeSet,
-  validateRepoPolicy,
   ZERO_SHA,
 } from './docs-only.mjs';
 
@@ -152,6 +151,9 @@ test('first pushes, force pushes and manual events fall back to full verificatio
     { eventName: 'push', pushBefore: undefined, pushHead: head },
     { eventName: 'push', pushBefore: 'not-a-sha', pushHead: head },
     { eventName: 'push', pushBefore: head, pushHead: head },
+    { eventName: 'push', pushBefore: head, pushHead: undefined },
+    { eventName: 'push', pushBefore: head, pushHead: 'not-a-sha' },
+    { eventName: 'push', pushHead: head },
     { eventName: 'workflow_dispatch', pushHead: head },
     { eventName: 'schedule' },
   ]) {
@@ -191,34 +193,34 @@ test('malformed pull request metadata fails closed', () => {
   assert.equal(change.fullVerification, true);
 });
 
-test('repository policy validation accepts the real manifest', () => {
-  const text = readFileSync(join(process.cwd(), '.partrunner/repo-policy.yml'), 'utf8');
-  const result = validateRepoPolicy(text);
-  assert.equal(result.ok, true, result.errors.join('; '));
-  assert.match(result.policy.name, /^Partrunner-ai\//);
-});
-
-test('repository policy validation fails closed on schema drift', () => {
-  const valid = readFileSync(join(process.cwd(), '.partrunner/repo-policy.yml'), 'utf8');
-  const parsed = validateRepoPolicy(valid);
-  assert.equal(parsed.ok, true, parsed.errors.join('; '));
-  const wrongBase = parsed.policy.featureBase === 'main' ? 'staging' : 'main';
-  assert.equal(validateRepoPolicy(valid.replace(/^version:.*$/m, 'version: 2')).ok, false);
-  assert.equal(
-    validateRepoPolicy(valid.replace(/feature_base: \w+/, `feature_base: ${wrongBase}`)).ok,
-    false,
+test('dorny metadata is projected onto the expected boolean keys', () => {
+  const projected = projectDetectorFlags(
+    {
+      changes: '["app"]',
+      app: 'true',
+      app_count: '3',
+      tooling: 'false',
+      tooling_count: '0',
+      worker: 'false',
+      worker_count: '0',
+    },
+    ['app', 'tooling', 'worker']
   );
-  assert.equal(validateRepoPolicy(valid.replace(/^deployment:.*$/m, '')).ok, false);
-  assert.equal(validateRepoPolicy('').ok, false);
+  assert.deepEqual(projected, { app: 'true', tooling: 'false', worker: 'false' });
 });
 
-test('detector flags must be exactly true or false', () => {
-  assert.doesNotThrow(() => assertDetectorFlags({ app: 'true', worker: 'false' }));
+test('a missing or malformed expected detector key fails the job', () => {
+  assert.throws(
+    () => projectDetectorFlags({ app: 'true', app_count: '1' }, ['app', 'tooling']),
+    /tooling must be exactly true or false/
+  );
   for (const value of [undefined, '', 'TRUE', true, 'yes']) {
-    assert.throws(() => assertDetectorFlags({ app: value }));
+    assert.throws(() =>
+      projectDetectorFlags({ app: value, changes: '["app"]' }, ['app'])
+    );
   }
-  assert.throws(() => assertDetectorFlags(null));
-  assert.throws(() => assertDetectorFlags([]));
+  assert.throws(() => projectDetectorFlags(null, ['app']));
+  assert.throws(() => projectDetectorFlags({ app: 'true' }, []));
 });
 
 test('decideChange keeps docs-only only when no existing filter claims the change', t => {
@@ -234,19 +236,74 @@ test('decideChange keeps docs-only only when no existing filter claims the chang
     eventName: 'push',
     pushBefore: before,
     pushHead: head,
-    detectorFlags: { app: 'false', tooling: 'false', worker: 'false' },
+    detectorFlags: { changes: '["app"]', app: 'false', app_count: '0', tooling: 'false', tooling_count: '0' },
+    expectedFlags: ['app', 'tooling'],
   });
   assert.equal(clean.docsOnly, true);
-  assert.deepEqual(clean.flags, { app: 'false', tooling: 'false', worker: 'false' });
+  assert.deepEqual(clean.flags, { app: 'false', tooling: 'false' });
 
   const coupled = decideChange({
     cwd: repo.dir,
     eventName: 'push',
     pushBefore: before,
     pushHead: head,
-    detectorFlags: { app: 'false', tooling: 'true', worker: 'false' },
+    detectorFlags: { app: 'false', tooling: 'true' },
+    expectedFlags: ['app', 'tooling'],
   });
   assert.equal(coupled.docsOnly, false);
+});
+
+test('an unmatched non-docs path forces every registered job', t => {
+  const repo = fixtureRepo(t);
+  repo.write('src/app.ts', 'export const app = 1;\n');
+  const before = repo.commit('base');
+  repo.write('unknown.config.xyz', 'value\n');
+  const head = repo.commit('unknown');
+
+  const decision = decideChange({
+    cwd: repo.dir,
+    eventName: 'push',
+    pushBefore: before,
+    pushHead: head,
+    detectorFlags: { app: 'false', tooling: 'false' },
+    expectedFlags: ['app', 'tooling'],
+  });
+  assert.equal(decision.docsOnly, false);
+  assert.deepEqual(decision.flags, { app: 'true', tooling: 'true' });
+  assert.match(decision.reason, /matched no registered filter/);
+});
+
+test('an instruction-only change skips the app jobs; mixed code never does', t => {
+  const repo = fixtureRepo(t);
+  repo.write('src/app.ts', 'export const app = 1;\n');
+  const before = repo.commit('base');
+  repo.write('AGENTS.md', '# instructions\n');
+  const docsHead = repo.commit('instructions only');
+  const flags = { app: 'false', tooling: 'false', worker: 'false' };
+
+  const instructionOnly = decideChange({
+    cwd: repo.dir,
+    eventName: 'pull_request',
+    prBaseSha: before,
+    prHeadSha: docsHead,
+    detectorFlags: flags,
+    expectedFlags: ['app', 'tooling', 'worker'],
+  });
+  assert.equal(instructionOnly.docsOnly, true);
+  assert.deepEqual(instructionOnly.flags, flags);
+
+  repo.write('src/app.ts', 'export const app = 2;\n');
+  const mixedHead = repo.commit('docs plus code');
+  const mixed = decideChange({
+    cwd: repo.dir,
+    eventName: 'pull_request',
+    prBaseSha: before,
+    prHeadSha: mixedHead,
+    detectorFlags: { app: 'true', tooling: 'false', worker: 'false' },
+    expectedFlags: ['app', 'tooling', 'worker'],
+  });
+  assert.equal(mixed.docsOnly, false);
+  assert.equal(mixed.flags.app, 'true');
 });
 
 test('decideChange forces every detector flag true when the range is unbounded', t => {
@@ -261,6 +318,7 @@ test('decideChange forces every detector flag true when the range is unbounded',
     pushBefore: ZERO_SHA,
     pushHead: head,
     detectorFlags: { app: 'false', tooling: 'false', worker: 'false' },
+    expectedFlags: ['app', 'tooling', 'worker'],
   });
   assert.equal(decision.fullVerification, true);
   assert.equal(decision.docsOnly, false);
@@ -269,6 +327,24 @@ test('decideChange forces every detector flag true when the range is unbounded',
 
 test('decideChange rejects malformed detector flags', () => {
   assert.throws(() =>
-    decideChange({ eventName: 'schedule', detectorFlags: { app: 'maybe' } })
+    decideChange({
+      eventName: 'schedule',
+      detectorFlags: { app: 'maybe' },
+      expectedFlags: ['app'],
+    })
   );
+});
+
+test('root instruction Markdown is not claimed by any code or tooling filter', () => {
+  const workflowsDir = join(process.cwd(), '.github/workflows');
+  const workflows = readdirSync(workflowsDir).filter(name => name.endsWith('.yml') || name.endsWith('.yaml'));
+  for (const workflow of workflows) {
+    const text = readFileSync(join(workflowsDir, workflow), 'utf8');
+    for (const path of ['AGENTS.md', 'CLAUDE.md', 'CONTEXT.md']) {
+      assert.ok(
+        !text.includes(`- '${path}'`),
+        `${workflow} must not pin ${path} to a code/tooling filter now that the docs-only validator covers it`
+      );
+    }
+  }
 });

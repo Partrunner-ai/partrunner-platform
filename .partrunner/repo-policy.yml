@@ -64,3 +64,19 @@ release:
     A minor reaches every consuming app on its next install. That reach is the
     point of the library and the reason an accidental behaviour change is
     fleet-wide.
+
+docs_only:
+  # Qualified docs-only changes (root AGENTS/CLAUDE/CONTEXT/README.md and
+  # docs/**/*.md only) take this bounded lane instead of the full verification
+  # list above. Every other change keeps the normal gates. The lane never skips
+  # its own classifier, policy-validator or preview-helper tests. A policy change
+  # is never docs-only, and the manifest is validated by
+  # scripts/ci/validate-repo-policy.py (PyYAML, duplicate keys rejected).
+  lane: scripts/ci/docs-only.mjs
+  validation:
+    - node --test scripts/ci/docs-only.test.mjs
+    - node --test scripts/ci/repo-policy.test.mjs
+  policy: scripts/ci/validate-repo-policy.py
+  preview: scripts/ci/should-deploy-preview.mjs
+  limit: >-
+    The CI build check stays required; only Vercel preview builds are skipped, because no protected aggregate check exists to accept a skipped build.

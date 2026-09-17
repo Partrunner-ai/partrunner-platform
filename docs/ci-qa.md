@@ -16,8 +16,9 @@ Markdown: root `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `README.md`, or a
   malformed metadata and empty ranges are not docs-only.
 - The classifier and its tests run in that job, so they cannot be skipped by the
   lane they protect.
-- `.partrunner/repo-policy.yml` is parsed and validated structurally; a policy
-  change is never classified as docs-only.
+- `.partrunner/repo-policy.yml` is parsed by the PyYAML validator
+  (`scripts/ci/validate-repo-policy.py`, duplicate keys rejected); a policy change
+  is never classified as docs-only.
 - The `build` job stays unconditional. This repository has no aggregate check
   that could accept a skipped required job, and branch protection still requires
   `build`, so skipping it would block merges. Adding a docs-only CI skip needs a
@@ -29,8 +30,9 @@ Markdown: root `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `README.md`, or a
 
 Run the checks without installing dependencies:
 
+Install the pinned policy validator first: `python3 -m pip install -r scripts/ci/requirements-ci.txt` (PyYAML; CI installs the same pinned version).
 ```sh
-node --test scripts/ci/docs-only.test.mjs scripts/ci/should-deploy-preview.test.mjs
+node --test scripts/ci/docs-only.test.mjs scripts/ci/repo-policy.test.mjs scripts/ci/should-deploy-preview.test.mjs
 ```
 
 ## Activation

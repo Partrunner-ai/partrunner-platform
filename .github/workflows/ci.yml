@@ -39,11 +39,20 @@ jobs:
           PUSH_HEAD: ${{ github.sha }}
         run: node scripts/ci/docs-only.mjs --flags
 
-      # The classifier and its validator are code: they are tested on every run
-      # that reaches this job, including the docs-only lane they protect.
+      - name: Install pinned policy validator
+        run: >-
+          python3 -m pip install --disable-pip-version-check --quiet
+          -r scripts/ci/requirements-ci.txt
+
+      - name: Validate repository policy
+        run: python3 scripts/ci/validate-repo-policy.py .partrunner/repo-policy.yml
+
+      # The classifier, validator and preview helper are code: they run on every
+      # run that reaches this job, including the docs-only lane they protect.
       - name: Test docs-only classifier
         run: >-
           node --test scripts/ci/docs-only.test.mjs
+          scripts/ci/repo-policy.test.mjs
           scripts/ci/should-deploy-preview.test.mjs
 
   build:
