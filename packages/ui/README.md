@@ -28,17 +28,14 @@ import '@partrunner-ai/ui/theme.css';
 
 The package's `.pr-*` rules are deliberately **unlayered**, not wrapped in
 `@layer components`. Tailwind v3 treats third-party rules inside
-`@layer components` as purgeable candidates, and — separately —  plain
+`@layer components` as purgeable candidates, and — separately — plain
 unlayered resets already outrank layered component rules, so a `@layer`
 wrapper would only make the cascade harder to reason about without fixing
 anything. Instead, the reset selectors use `:where([class^='pr-'], ...)`,
 which keeps their specificity at zero: any Tailwind utility class the
-consumer adds wins automatically, and no per-app patch is needed. This is
-the resolution of the `@layer` question this package's `asChild`/Card
-history once raised (PMO `c1617ff0`) — the answer is "don't layer it,
-keep specificity at zero" rather than "layer it after all". If an app
-still carries a local `@layer components { .pr-card { ... } }` patch from
-before this was documented, it's safe to delete.
+consumer adds wins automatically, and no per-app patch is needed. If an
+app still carries a local `@layer components { .pr-card { ... } }` patch
+from before this was documented, it's safe to delete.
 
 ```tsx
 import {
