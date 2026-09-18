@@ -122,6 +122,16 @@ Each publishable change includes a Changeset. Consuming applications should use
 compatible ranges rather than exact pins unless they intentionally own upgrade
 timing.
 
+**A caret range (`^1.2.0`) declares what a consumer is allowed to install —
+it does not by itself install anything.** A published minor reaches a
+consuming app only on that app's *next* `pnpm install`/`npm install` with an
+updated lockfile; a caret alone doesn't trigger that install or move the
+lockfile forward. Left unattended, an app can sit indefinitely behind the
+latest compatible release even with a correct range. Point Dependabot (or
+Renovate) at the `@partrunner-ai/*` scope in each consumer repo, grouped into
+one PR, so the update actually happens on a schedule instead of only when
+someone remembers to run it by hand.
+
 ## Security
 
 Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
