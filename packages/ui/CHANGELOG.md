@@ -1,5 +1,14 @@
 # @partrunner-ai/ui
 
+## 2.2.2
+
+### Patch Changes
+
+- Republish so the registry matches the retained artifact ledger. Rebuilding
+  ui@2.2.1 at current main no longer reproduces its registry bytes, so the
+  fail-closed publish preflight rejects it and blocks the pending shell 2.2.0
+  release. No source change.
+
 ## 2.2.1
 
 ### Patch Changes
