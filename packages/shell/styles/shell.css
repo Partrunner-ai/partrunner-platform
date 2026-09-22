@@ -77,6 +77,23 @@ a.pr-sidebar__brand:focus-visible {
   display: block;
   flex-shrink: 0;
 }
+/* Expanded, the brand block is the canonical wordmark with the app lettering
+   under it; the isotype is the rail's mark only. Only the packaged default is
+   hidden — an app-supplied logo is that surface's own decision. */
+.pr-sidebar:not([data-collapsed='true']) .pr-sidebar__brand > .pr-brand-mark {
+  display: none;
+}
+/* The canonical wordmark artwork is 1153×135; the height puts it on the same
+   optical size the lettered brand name had. Never tinted or redrawn. */
+.pr-brand-wordmark {
+  display: block;
+  height: 15px;
+  width: auto;
+  user-select: none;
+}
+.pr-sidebar__wordmark {
+  margin-bottom: 3px;
+}
 .pr-sidebar[data-collapsed='true'] .pr-sidebar__brand {
   justify-content: center;
   padding: 0 0 16px;

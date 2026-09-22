@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { buildAppUrl, type AppTone } from '@partrunner-ai/app-registry';
 import { BrandMark } from './BrandMark';
+import { BrandWordmark } from './BrandWordmark';
 import {
   appShellGroupsKey,
   decodeAppShellGroups,
@@ -787,7 +788,14 @@ export function AppShell({
             >
               {logo}
               <div className="pr-sidebar__brand-copy">
-                <div className="pr-sidebar__brand-name">{brandName}</div>
+                {brandName === 'Partrunner' ? (
+                  // Canonical wordmark instead of lettering the brand name; the
+                  // isotype stays rail-only (CSS hides it expanded). Black cut:
+                  // the sidebar is the fixed brand yellow in both modes.
+                  <BrandWordmark className="pr-sidebar__wordmark" alt={brandName} />
+                ) : (
+                  <div className="pr-sidebar__brand-name">{brandName}</div>
+                )}
                 {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
               </div>
             </a>
@@ -795,7 +803,11 @@ export function AppShell({
             <div className="pr-sidebar__brand">
               {logo}
               <div className="pr-sidebar__brand-copy">
-                <div className="pr-sidebar__brand-name">{brandName}</div>
+                {brandName === 'Partrunner' ? (
+                  <BrandWordmark className="pr-sidebar__wordmark" alt={brandName} />
+                ) : (
+                  <div className="pr-sidebar__brand-name">{brandName}</div>
+                )}
                 {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
               </div>
             </div>

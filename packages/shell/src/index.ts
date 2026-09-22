@@ -1,5 +1,6 @@
 export { AppLauncher, type AppLauncherProps } from './AppLauncher';
 export { BrandMark, type BrandMarkProps } from './BrandMark';
+export { BrandWordmark, type BrandWordmarkProps } from './BrandWordmark';
 export {
   AppShell,
   SidebarTrigger,
