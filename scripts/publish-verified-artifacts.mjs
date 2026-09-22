@@ -115,10 +115,13 @@ async function registryVersion(packageInfo, fetchImpl = globalThis.fetch) {
 }
 
 async function waitForRegistry(packageInfo, fetchImpl) {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  // npm's read API can lag a successful publish by several minutes ("Your
+  // package is being processed…"), and a premature failure here marks a
+  // completed publish red and strands the packages later in the order.
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     const metadata = await registryVersion(packageInfo, fetchImpl);
     if (metadata) return metadata;
-    await delay(5000);
+    await delay(10000);
   }
   throw new Error(
     `${packageInfo.name}@${packageInfo.version} did not appear on npm after publication`,
