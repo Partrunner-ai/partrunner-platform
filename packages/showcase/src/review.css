@@ -63,15 +63,21 @@ button {
   font-size: 11px;
 }
 
-.review-toolbar__mark {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--pr-accent);
-  color: var(--pr-accent-ink);
-  font-weight: 800;
+/* Wordmark canónico: 1153×135. La regla de contraste de marca elige el
+   archivo por tema; nada se tiñe por CSS. */
+.review-toolbar__wordmark {
+  height: 22px;
+  width: auto;
+  user-select: none;
+}
+
+.review-toolbar__wordmark--dark,
+.dark .review-toolbar__wordmark--light {
+  display: none;
+}
+
+.dark .review-toolbar__wordmark--dark {
+  display: block;
 }
 
 .review-toolbar__nav {
