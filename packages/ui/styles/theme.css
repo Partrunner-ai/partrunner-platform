@@ -74,7 +74,7 @@
   --pr-sidebar-bg: linear-gradient(165deg, var(--pr-accent-soft) 0%, var(--pr-accent) 45%, var(--pr-sidebar-bg-strong) 100%);
   --pr-sidebar-bg-strong: #ecb800;
   --pr-sidebar-fg: #1a1a1a;
-  --pr-sidebar-fg-muted: rgba(26, 26, 26, 0.6);
+  --pr-sidebar-fg-muted: rgba(26, 26, 26, 0.7);
   --pr-sidebar-border: rgba(26, 26, 26, 0.08);
   --pr-sidebar-hover-bg: rgba(26, 26, 26, 0.08);
   --pr-sidebar-active-bg: #1a1a1a;
