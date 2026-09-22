@@ -45,11 +45,11 @@ function ShowcaseToolbar({
         href="#components"
         onClick={() => onViewChange('components')}
       >
-        {/* Wordmark canónico (src/utils/brand.ts del portal): bicolor sobre
-            claro, amarillo sobre oscuro. Nunca se recolorea. */}
+        {/* Wordmark canónico: negro full sobre claro, amarillo sobre oscuro.
+            Nunca se recolorea. */}
         <img
           className="review-toolbar__wordmark review-toolbar__wordmark--light"
-          src="/brand/logo-full-bicolor.png"
+          src="/brand/logo-full-black.png"
           alt="PartRunner"
           draggable={false}
         />
