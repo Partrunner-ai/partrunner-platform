@@ -77,10 +77,13 @@ a.pr-sidebar__brand:focus-visible {
   display: block;
   flex-shrink: 0;
 }
-/* Expanded, the brand block is the canonical wordmark with the app lettering
-   under it; the isotype is the rail's mark only. Only the packaged default is
-   hidden — an app-supplied logo is that surface's own decision. */
-.pr-sidebar:not([data-collapsed='true']) .pr-sidebar__brand > .pr-brand-mark {
+/* Expanded, the canonical brand block is the wordmark with the app lettering
+   under it; the isotype is the rail's mark only. AppShell sets
+   data-canonical-brand only for the packaged default logo and name, so an
+   app-supplied logo or name keeps its mark. */
+.pr-sidebar:not([data-collapsed='true'])
+  .pr-sidebar__brand[data-canonical-brand='true']
+  > .pr-brand-mark {
   display: none;
 }
 /* The canonical wordmark artwork is 1153×135; the height puts it on the same
@@ -1055,6 +1058,11 @@ a.pr-sidebar__brand:focus-visible {
     justify-content: flex-start;
     padding-left: var(--pr-nav-item-px);
     padding-right: var(--pr-nav-item-px);
+  }
+  /* The drawer is always full width, so the canonical wordmark replaces the
+     isotype whatever the persisted desktop preference is. */
+  .pr-sidebar .pr-sidebar__brand[data-canonical-brand='true'] > .pr-brand-mark {
+    display: none;
   }
   .pr-sidebar__trigger,
   .pr-sidebar__backdrop {

@@ -95,6 +95,22 @@ describe('the brand mark contract', () => {
     expect(css).toMatch(/\.pr-sidebar__brand\s*\{[^}]*color:\s*var\(--pr-sidebar-fg\)/);
   });
 
+  it('swaps the isotype for the wordmark only on the canonical brand', () => {
+    const mobileStart = css.indexOf('@media (max-width: 720px)');
+    const desktopRules = css.slice(0, mobileStart);
+    const mobileRules = css.slice(mobileStart);
+    const canonicalMarkHidden =
+      /\.pr-sidebar__brand\[data-canonical-brand='true'\]\s*>\s*\.pr-brand-mark\s*\{[^}]*display:\s*none/;
+
+    expect(desktopRules).toMatch(canonicalMarkHidden);
+    expect(css).not.toMatch(/\.pr-sidebar__brand\s*>\s*\.pr-brand-mark\s*\{/);
+    // The drawer is full width even when the desktop preference is collapsed.
+    const drawerRule = mobileRules.match(
+      /([^{}]*)\.pr-sidebar__brand\[data-canonical-brand='true'\]\s*>\s*\.pr-brand-mark\s*\{[^}]*display:\s*none/,
+    );
+    expect(drawerRule?.[1]).not.toContain('data-collapsed');
+  });
+
   it('hides a section hint in the collapsed rail', () => {
     expect(css).toMatch(
       /\[data-collapsed='true'\]\s*\.pr-nav__section-description\s*\{[^}]*display:\s*none/,

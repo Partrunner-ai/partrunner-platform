@@ -378,7 +378,7 @@ export function AppShell({
   currentPath,
   brandName = 'Partrunner',
   subtitle,
-  logo = <BrandMark />,
+  logo: logoProp,
   brandHref,
   onBrandSelect,
   LinkComponent = DefaultLink,
@@ -400,6 +400,11 @@ export function AppShell({
   initialState,
   children,
 }: AppShellProps) {
+  const logo = logoProp ?? <BrandMark />;
+  const showWordmark = brandName === 'Partrunner';
+  // Only the packaged default pairing swaps the isotype for the wordmark when
+  // expanded; an app-supplied logo or name keeps its mark beside the copy.
+  const canonicalBrand = showWordmark && logoProp === undefined;
   const hasInitialState = initialState !== undefined;
   const [collapsed, setCollapsed] = useState(initialState?.collapsed ?? false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -751,6 +756,18 @@ export function AppShell({
     );
   }
 
+  const brandCopy = (
+    <div className="pr-sidebar__brand-copy">
+      {showWordmark ? (
+        // Black cut: the sidebar is the fixed brand yellow in both modes.
+        <BrandWordmark className="pr-sidebar__wordmark" alt={brandName} />
+      ) : (
+        <div className="pr-sidebar__brand-name">{brandName}</div>
+      )}
+      {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
+    </div>
+  );
+
   return (
     <SidebarContext.Provider value={sidebarState}>
       <div className="pr-shell" data-variant={variant}>
@@ -774,6 +791,7 @@ export function AppShell({
           {resolvedBrandHref ? (
             <a
               className="pr-sidebar__brand"
+              data-canonical-brand={canonicalBrand ? 'true' : undefined}
               href={resolvedBrandHref}
               title={collapsed ? brandName : undefined}
               onClick={
@@ -787,29 +805,15 @@ export function AppShell({
               }
             >
               {logo}
-              <div className="pr-sidebar__brand-copy">
-                {brandName === 'Partrunner' ? (
-                  // Canonical wordmark instead of lettering the brand name; the
-                  // isotype stays rail-only (CSS hides it expanded). Black cut:
-                  // the sidebar is the fixed brand yellow in both modes.
-                  <BrandWordmark className="pr-sidebar__wordmark" alt={brandName} />
-                ) : (
-                  <div className="pr-sidebar__brand-name">{brandName}</div>
-                )}
-                {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
-              </div>
+              {brandCopy}
             </a>
           ) : (
-            <div className="pr-sidebar__brand">
+            <div
+              className="pr-sidebar__brand"
+              data-canonical-brand={canonicalBrand ? 'true' : undefined}
+            >
               {logo}
-              <div className="pr-sidebar__brand-copy">
-                {brandName === 'Partrunner' ? (
-                  <BrandWordmark className="pr-sidebar__wordmark" alt={brandName} />
-                ) : (
-                  <div className="pr-sidebar__brand-name">{brandName}</div>
-                )}
-                {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
-              </div>
+              {brandCopy}
             </div>
           )}
 
