@@ -36,8 +36,13 @@
     "version": "changeset version"
   },
   "devDependencies": {
+    "@changesets/assemble-release-plan": "^7.0.0",
     "@changesets/cli": "^3.0.1",
+    "@changesets/config": "^4.0.0",
+    "@changesets/pre": "^3.0.0",
+    "@changesets/read": "^1.0.0",
     "@eslint/js": "^10.0.1",
+    "@manypkg/get-packages": "^3.1.0",
     "@playwright/experimental-ct-react": "^1.62.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

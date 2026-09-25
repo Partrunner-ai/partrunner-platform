@@ -21,6 +21,7 @@ verification:
   - pnpm install --frozen-lockfile
   - pnpm build
   - pnpm packages:check
+  - pnpm packages:published-check
   - pnpm typecheck
   - pnpm lint
   - pnpm test
