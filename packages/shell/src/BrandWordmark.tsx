@@ -25,6 +25,8 @@ export function BrandWordmark({ alt = 'Partrunner', className, style }: BrandWor
     <img
       className={className ? `pr-brand-wordmark ${className}` : 'pr-brand-wordmark'}
       src={BRAND_WORDMARK_BLACK}
+      width={1153}
+      height={135}
       alt={alt}
       style={style}
       draggable={false}

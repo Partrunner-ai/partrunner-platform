@@ -596,6 +596,15 @@ describe('AppShell brand block', () => {
       '.pr-sidebar__brand',
     );
     expect(explicitMark?.hasAttribute('data-canonical-brand')).toBe(false);
+    expect(explicitMark?.querySelector('.pr-sidebar__wordmark')).toBeNull();
+    expect(explicitMark?.querySelector('.pr-sidebar__brand-name')?.textContent).toBe('Partrunner');
+  });
+
+  it('renders no mark when the app passes logo={null}', () => {
+    const { container } = renderShell({ logo: null });
+    const brand = container.querySelector('.pr-sidebar__brand');
+    expect(brand?.querySelector('.pr-brand-mark')).toBeNull();
+    expect(brand?.hasAttribute('data-canonical-brand')).toBe(false);
   });
 
   it('links the brand to the Nexus hub by default, through the registry', () => {

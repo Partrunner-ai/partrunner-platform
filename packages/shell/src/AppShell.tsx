@@ -400,11 +400,11 @@ export function AppShell({
   initialState,
   children,
 }: AppShellProps) {
-  const logo = logoProp ?? <BrandMark />;
-  const showWordmark = brandName === 'Partrunner';
+  // `null` is a deliberate "no mark"; only an omitted logo gets the default.
+  const logo = logoProp === undefined ? <BrandMark /> : logoProp;
   // Only the packaged default pairing swaps the isotype for the wordmark when
-  // expanded; an app-supplied logo or name keeps its mark beside the copy.
-  const canonicalBrand = showWordmark && logoProp === undefined;
+  // expanded; an app-supplied logo or name keeps its mark and lettering.
+  const canonicalBrand = brandName === 'Partrunner' && logoProp === undefined;
   const hasInitialState = initialState !== undefined;
   const [collapsed, setCollapsed] = useState(initialState?.collapsed ?? false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -758,7 +758,7 @@ export function AppShell({
 
   const brandCopy = (
     <div className="pr-sidebar__brand-copy">
-      {showWordmark ? (
+      {canonicalBrand ? (
         // Black cut: the sidebar is the fixed brand yellow in both modes.
         <BrandWordmark className="pr-sidebar__wordmark" alt={brandName} />
       ) : (

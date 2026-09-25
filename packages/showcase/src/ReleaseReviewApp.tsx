@@ -56,8 +56,7 @@ function ShowcaseToolbar({
         <img
           className="review-toolbar__wordmark review-toolbar__wordmark--dark"
           src="/brand/logo-full-color.png"
-          alt=""
-          aria-hidden
+          alt="PartRunner"
           draggable={false}
         />
         <span>
