@@ -1,7 +1,7 @@
-* @corona-mp3 @sebastianpartrunner
+* @corona-mp3 @sebastianpartrunner @workofger
 
-/.github/ @corona-mp3 @sebastianpartrunner
-/.changeset/ @corona-mp3 @sebastianpartrunner
-/packages/api-core/ @corona-mp3 @sebastianpartrunner
-/packages/seamless/ @corona-mp3 @sebastianpartrunner
-/scripts/verify-package-artifacts.mjs @corona-mp3 @sebastianpartrunner
+/.github/ @corona-mp3 @sebastianpartrunner @workofger
+/.changeset/ @corona-mp3 @sebastianpartrunner @workofger
+/packages/api-core/ @corona-mp3 @sebastianpartrunner @workofger
+/packages/seamless/ @corona-mp3 @sebastianpartrunner @workofger
+/scripts/verify-package-artifacts.mjs @corona-mp3 @sebastianpartrunner @workofger
