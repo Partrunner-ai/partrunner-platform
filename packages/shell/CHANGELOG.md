@@ -10,6 +10,11 @@
   the collapsed rail's mark, and an app-supplied `logo` or custom `brandName`
   keeps rendering as before. New export: `BrandWordmark`.
 
+### Patch Changes
+
+- `theme.css` now inlines `@partrunner-ai/tokens@2.0.2`, so the muted sidebar
+  ink (`--pr-sidebar-fg-muted`) is AA-legible over the darkest sidebar stop.
+
 ## 2.2.0
 
 ### Minor Changes
