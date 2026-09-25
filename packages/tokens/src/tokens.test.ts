@@ -137,6 +137,37 @@ describe('the accent, which is fixed across modes', () => {
     expect(crystal['sidebar-active-fg']).toBe('#fdd238');
   });
 
+  // The muted sidebar ink is rgba over the brand yellow, so its effective
+  // colour depends on the stop beneath it. It must read as text (AA) even over
+  // the darkest stop each theme's sidebar can put under it.
+  it('keeps the muted sidebar ink legible over the worst sidebar stop', () => {
+    const composite = (rgba: string, hex: string): string => {
+      const [r, g, b, a] = rgba.match(/[\d.]+/g)!.map(Number) as [
+        number,
+        number,
+        number,
+        number,
+      ];
+      const bg = channels(hex).map((c) => c * 255) as [number, number, number];
+      const mix = [r, g, b].map((v, i) =>
+        Math.round(v * a + bg[i]! * (1 - a)),
+      );
+      return `#${mix.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    };
+    const worst: Record<ThemeName, string> = {
+      crystal: THEMES.crystal.fixed['sidebar-bg-strong']!, // deep gradient stop
+      nexus: THEMES.nexus.fixed['sidebar-bg']!, // flat brand yellow
+    };
+    for (const name of Object.keys(THEMES) as ThemeName[]) {
+      const muted = THEMES[name].fixed['sidebar-fg-muted']!;
+      const ratio = contrast(composite(muted, worst[name]), worst[name]);
+      expect(
+        ratio,
+        `${name} sidebar-fg-muted (${muted}) over ${worst[name]} is ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(AA_TEXT);
+    }
+  });
+
   it('keeps the deprecated nexus skin on its published values', () => {
     expect(THEMES.nexus.fixed.accent).toBe('#fdd238');
     expect(THEMES.nexus.fixed['sidebar-bg']).toBe('#fdd238');
