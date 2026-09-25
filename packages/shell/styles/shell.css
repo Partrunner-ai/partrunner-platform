@@ -93,6 +93,7 @@ a.pr-sidebar__brand:focus-visible {
   height: 15px;
   width: auto;
   max-width: 100%;
+  object-fit: contain;
   user-select: none;
 }
 .pr-sidebar__wordmark {
