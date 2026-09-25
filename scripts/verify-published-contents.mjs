@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as delay } from 'node:timers/promises';
 import { gunzipSync } from 'node:zlib';
 
@@ -180,45 +181,88 @@ function assertIntegrity(bytes, metadata) {
   }
 }
 
-async function fetchWithRetry(url, options, fetchImpl, retryDelay) {
+const REQUEST_ATTEMPTS = 3;
+
+/** A registry answer that retrying will not change, such as 403. */
+class RegistryStatusError extends Error {}
+
+/** A registry answer worth another attempt: 429 or 5xx. */
+class RetryableStatusError extends Error {}
+
+/**
+ * Each attempt has its own timeout, and `read` consumes the body inside the
+ * attempt, so a stalled connection or a body cut off part-way is retried. The
+ * timer is a normal ref'd timeout, cleared once the body is read, so it fires
+ * even when nothing else keeps the event loop alive.
+ */
+async function registryRequest(url, headers, registry, read) {
+  const { fetchImpl, retryDelay, timeout } = registry;
   for (let attempt = 1; ; attempt += 1) {
+    const controller = new globalThis.AbortController();
+    const timer = setTimeout(
+      () =>
+        controller.abort(
+          new globalThis.DOMException(
+            `npm registry request timed out after ${timeout} ms`,
+            'TimeoutError',
+          ),
+        ),
+      timeout,
+    );
     try {
-      const response = await fetchImpl(url, options);
-      if (response.status < 500 || attempt === 3) return response;
+      const response = await fetchImpl(url, {
+        headers,
+        signal: controller.signal,
+      });
+      if (response.status === 429 || response.status >= 500) {
+        await response.body?.cancel().catch(() => {});
+        throw new RetryableStatusError(
+          `npm registry returned ${response.status} for ${url}`,
+        );
+      }
+      return await read(response);
     } catch (error) {
-      if (attempt === 3) {
+      if (error instanceof RegistryStatusError) throw error;
+      if (attempt === REQUEST_ATTEMPTS) {
+        if (error instanceof RetryableStatusError) throw error;
         throw new Error(`npm registry request failed for ${url}`, {
           cause: error,
         });
       }
+    } finally {
+      clearTimeout(timer);
     }
     await delay(retryDelay);
   }
 }
 
-async function fetchPublishedMetadata(packageInfo, fetchImpl, retryDelay) {
+function fetchPublishedMetadata(packageInfo, registry) {
   const escapedName = packageInfo.name.replace('/', '%2f');
-  const response = await fetchWithRetry(
+  return registryRequest(
     `${REGISTRY}/${escapedName}/${encodeURIComponent(packageInfo.version)}`,
-    { headers: { accept: 'application/json' } },
-    fetchImpl,
-    retryDelay,
+    { accept: 'application/json' },
+    registry,
+    async (response) => {
+      if (response.status === 404) return null;
+      if (response.status !== 200) {
+        throw new RegistryStatusError(
+          `npm registry returned ${response.status} for ${packageInfo.name}@${packageInfo.version}`,
+        );
+      }
+      return response.json();
+    },
   );
-  if (response.status === 404) return null;
-  if (response.status !== 200) {
-    throw new Error(
-      `npm registry returned ${response.status} for ${packageInfo.name}@${packageInfo.version}`,
-    );
-  }
-  return response.json();
 }
 
-async function downloadTarball(url, fetchImpl, retryDelay) {
-  const response = await fetchWithRetry(url, {}, fetchImpl, retryDelay);
-  if (response.status !== 200) {
-    throw new Error(`npm registry returned ${response.status} for ${url}`);
-  }
-  return new Uint8Array(await response.arrayBuffer());
+function downloadTarball(url, registry) {
+  return registryRequest(url, {}, registry, async (response) => {
+    if (response.status !== 200) {
+      throw new RegistryStatusError(
+        `npm registry returned ${response.status} for ${url}`,
+      );
+    }
+    return new Uint8Array(await response.arrayBuffer());
+  });
 }
 
 function packLocal(directory, destination) {
@@ -244,18 +288,16 @@ export async function verifyPublishedContents({
   readPlan = () => readVersioning(root),
   pack = packLocal,
   retryDelay = 2000,
+  timeout = 30_000,
 } = {}) {
+  const registry = { fetchImpl, retryDelay, timeout };
   const packages = await readPackages();
   const { versioned, rewritten } = await readPlan();
   const workDirectory = await mkdtemp(join(tmpdir(), 'partrunner-published-'));
   const drifted = [];
   try {
     for (const packageInfo of packages) {
-      const metadata = await fetchPublishedMetadata(
-        packageInfo,
-        fetchImpl,
-        retryDelay,
-      );
+      const metadata = await fetchPublishedMetadata(packageInfo, registry);
       const decision = decideCheck(packageInfo, {
         published: metadata !== null,
         versioned,
@@ -275,8 +317,7 @@ export async function verifyPublishedContents({
       await mkdir(packageDirectory, { recursive: true });
       const publishedBytes = await downloadTarball(
         metadata.dist.tarball,
-        fetchImpl,
-        retryDelay,
+        registry,
       );
       assertIntegrity(publishedBytes, metadata);
       const localTarball = pack(join(root, packageInfo.directory), packageDirectory);
