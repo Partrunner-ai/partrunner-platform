@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Boxes, Headphones, Map as MapIcon, Truck } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
@@ -10,6 +10,7 @@ import {
   type LinkComponent,
   type NavSection,
 } from './AppShell';
+import { BrandMark } from './BrandMark';
 
 /** Stands in for next/link: handles the click itself instead of navigating. */
 const TestLink: LinkComponent = ({ href, children, onClick, ...rest }) => (
@@ -575,6 +576,35 @@ describe('AppShell brand block', () => {
     const { container } = renderShell({ logo: <span data-testid="own-mark" /> });
     expect(container.querySelector('[data-testid="own-mark"]')).not.toBeNull();
     expect(container.querySelector('.pr-brand-mark')).toBeNull();
+  });
+
+  it('marks only the packaged default logo and name as the canonical brand', () => {
+    const canonical = renderShell({}).container.querySelector('.pr-sidebar__brand');
+    expect(canonical?.getAttribute('data-canonical-brand')).toBe('true');
+    expect(canonical?.querySelector('.pr-sidebar__wordmark')).not.toBeNull();
+    cleanup();
+
+    const customName = renderShell({ brandName: 'Acme' }).container.querySelector(
+      '.pr-sidebar__brand',
+    );
+    expect(customName?.hasAttribute('data-canonical-brand')).toBe(false);
+    expect(customName?.querySelector('.pr-brand-mark')).not.toBeNull();
+    expect(customName?.querySelector('.pr-sidebar__wordmark')).toBeNull();
+    cleanup();
+
+    const explicitMark = renderShell({ logo: <BrandMark /> }).container.querySelector(
+      '.pr-sidebar__brand',
+    );
+    expect(explicitMark?.hasAttribute('data-canonical-brand')).toBe(false);
+    expect(explicitMark?.querySelector('.pr-sidebar__wordmark')).toBeNull();
+    expect(explicitMark?.querySelector('.pr-sidebar__brand-name')?.textContent).toBe('Partrunner');
+  });
+
+  it('renders no mark when the app passes logo={null}', () => {
+    const { container } = renderShell({ logo: null });
+    const brand = container.querySelector('.pr-sidebar__brand');
+    expect(brand?.querySelector('.pr-brand-mark')).toBeNull();
+    expect(brand?.hasAttribute('data-canonical-brand')).toBe(false);
   });
 
   it('links the brand to the Nexus hub by default, through the registry', () => {

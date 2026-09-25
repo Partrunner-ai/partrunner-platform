@@ -210,7 +210,9 @@ const crystal: Theme = {
       'linear-gradient(165deg, var(--pr-accent-soft) 0%, var(--pr-accent) 45%, var(--pr-sidebar-bg-strong) 100%)',
     'sidebar-bg-strong': '#ecb800',
     'sidebar-fg': '#1a1a1a',
-    'sidebar-fg-muted': 'rgba(26, 26, 26, 0.6)',
+    // 0.7, not 0.6: the muted ink must stay AA-legible over the gradient's deep
+    // stop (#ecb800), where 0.6 composites to 3.68:1. tokens.test.ts holds it.
+    'sidebar-fg-muted': 'rgba(26, 26, 26, 0.7)',
     'sidebar-border': 'rgba(26, 26, 26, 0.08)',
     'sidebar-hover-bg': 'rgba(26, 26, 26, 0.08)',
     'sidebar-active-bg': '#1a1a1a',
@@ -340,7 +342,9 @@ const nexus: Theme = {
     'sidebar-bg': '#fdd238',
     'sidebar-bg-strong': '#ecb800',
     'sidebar-fg': '#000000',
-    'sidebar-fg-muted': 'rgba(0, 0, 0, 0.55)',
+    // 0.6 keeps the muted ink AA-legible on the flat brand yellow (0.55 sat at
+    // 4.32:1). Same contract as crystal's sidebar-fg-muted.
+    'sidebar-fg-muted': 'rgba(0, 0, 0, 0.6)',
     'sidebar-border': 'rgba(0, 0, 0, 0.1)',
     'sidebar-hover-bg': 'rgba(0, 0, 0, 0.1)',
     'sidebar-active-bg': '#000000',

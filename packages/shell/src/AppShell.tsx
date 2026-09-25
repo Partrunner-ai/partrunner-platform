@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { buildAppUrl, type AppTone } from '@partrunner-ai/app-registry';
 import { BrandMark } from './BrandMark';
+import { BrandWordmark } from './BrandWordmark';
 import {
   appShellGroupsKey,
   decodeAppShellGroups,
@@ -377,7 +378,7 @@ export function AppShell({
   currentPath,
   brandName = 'Partrunner',
   subtitle,
-  logo = <BrandMark />,
+  logo: logoProp,
   brandHref,
   onBrandSelect,
   LinkComponent = DefaultLink,
@@ -399,6 +400,11 @@ export function AppShell({
   initialState,
   children,
 }: AppShellProps) {
+  // `null` is a deliberate "no mark"; only an omitted logo gets the default.
+  const logo = logoProp === undefined ? <BrandMark /> : logoProp;
+  // Only the packaged default pairing swaps the isotype for the wordmark when
+  // expanded; an app-supplied logo or name keeps its mark and lettering.
+  const canonicalBrand = brandName === 'Partrunner' && logoProp === undefined;
   const hasInitialState = initialState !== undefined;
   const [collapsed, setCollapsed] = useState(initialState?.collapsed ?? false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -750,6 +756,18 @@ export function AppShell({
     );
   }
 
+  const brandCopy = (
+    <div className="pr-sidebar__brand-copy">
+      {canonicalBrand ? (
+        // Black cut: the sidebar is the fixed brand yellow in both modes.
+        <BrandWordmark className="pr-sidebar__wordmark" alt={brandName} />
+      ) : (
+        <div className="pr-sidebar__brand-name">{brandName}</div>
+      )}
+      {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
+    </div>
+  );
+
   return (
     <SidebarContext.Provider value={sidebarState}>
       <div className="pr-shell" data-variant={variant}>
@@ -773,6 +791,7 @@ export function AppShell({
           {resolvedBrandHref ? (
             <a
               className="pr-sidebar__brand"
+              data-canonical-brand={canonicalBrand ? 'true' : undefined}
               href={resolvedBrandHref}
               title={collapsed ? brandName : undefined}
               onClick={
@@ -786,18 +805,15 @@ export function AppShell({
               }
             >
               {logo}
-              <div className="pr-sidebar__brand-copy">
-                <div className="pr-sidebar__brand-name">{brandName}</div>
-                {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
-              </div>
+              {brandCopy}
             </a>
           ) : (
-            <div className="pr-sidebar__brand">
+            <div
+              className="pr-sidebar__brand"
+              data-canonical-brand={canonicalBrand ? 'true' : undefined}
+            >
               {logo}
-              <div className="pr-sidebar__brand-copy">
-                <div className="pr-sidebar__brand-name">{brandName}</div>
-                {subtitle && <div className="pr-sidebar__brand-sub">{subtitle}</div>}
-              </div>
+              {brandCopy}
             </div>
           )}
 

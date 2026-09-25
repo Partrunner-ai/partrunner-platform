@@ -45,11 +45,21 @@ function ShowcaseToolbar({
         href="#components"
         onClick={() => onViewChange('components')}
       >
-        <span className="review-toolbar__mark" aria-hidden>
-          PR
-        </span>
+        {/* Wordmark canónico: negro full sobre claro, amarillo sobre oscuro.
+            Nunca se recolorea. */}
+        <img
+          className="review-toolbar__wordmark review-toolbar__wordmark--light"
+          src="/brand/logo-full-black.png"
+          alt="PartRunner"
+          draggable={false}
+        />
+        <img
+          className="review-toolbar__wordmark review-toolbar__wordmark--dark"
+          src="/brand/logo-full-color.png"
+          alt="PartRunner"
+          draggable={false}
+        />
         <span>
-          <strong>PartRunner platform</strong>
           <small>Public package catalog</small>
         </span>
       </a>
