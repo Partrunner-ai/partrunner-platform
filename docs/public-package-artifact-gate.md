@@ -76,3 +76,32 @@ This is an artifact and dependency-closure gate, not a proof that arbitrary
 runtime-generated JavaScript is benign. It rejects unsupported reflective
 loader forms, while normal computed application callbacks remain subject to
 source review and the repository test suite.
+
+## Published-version drift
+
+A published npm version is immutable, and the publish preflight refuses to
+release while any already-published version no longer matches its rebuilt
+tarball. CI therefore also runs, after the build:
+
+```bash
+pnpm packages:published-check
+```
+
+The check asks Changesets which packages the pending Changesets will version,
+including dependents that Changesets bumps on its own. For each other package
+whose current version is already on npm, it packs the workspace and compares
+the tar contents with the published tarball, after it checks the download
+against the registry integrity. Any difference fails with the changed paths and
+the packages that need a Changeset. This catches changes that look inert but
+still ship, such as a devDependency bump in `package.json`, or token CSS that
+`shell` rebundles when only `tokens` was named.
+
+It also fails when a package keeps its version but names a versioned workspace
+package in any dependency field. `pnpm pack` writes that exact version into the
+packed `package.json`, so the file changes at version time. For example, a
+`tokens` release always changes the packed `package.json` of `shell`, which
+names `tokens` only as a devDependency.
+
+Unpublished versions, such as a merged version PR awaiting release, are
+skipped. The check needs network access to the public registry and fails
+closed when the registry is unavailable.
