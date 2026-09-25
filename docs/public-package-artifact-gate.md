@@ -103,5 +103,10 @@ packed `package.json`, so the file changes at version time. For example, a
 names `tokens` only as a devDependency.
 
 Unpublished versions, such as a merged version PR awaiting release, are
-skipped. The check needs network access to the public registry and fails
-closed when the registry is unavailable.
+skipped. The check needs network access to the public registry. Each registry
+request times out after 30 seconds and is tried 3 times, including after a
+`429` or `5xx` answer. After that the check fails closed.
+
+The check calls the same Changesets libraries as `changeset version`, through
+root devDependencies. A unit test fails if they resolve to different copies
+than `@changesets/cli` uses, so update them together with the CLI.

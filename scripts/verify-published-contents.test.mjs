@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -12,6 +13,7 @@ import {
   diffFileHashes,
   formatDriftError,
   predictVersioning,
+  readVersioning,
   verifyPublishedContents,
 } from './verify-published-contents.mjs';
 
@@ -100,11 +102,12 @@ test('includes the cause of a failed request', () => {
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'published-contents-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const tarball = async (name, files) => {
+  const tarball = async (name, files, modes = {}) => {
     const source = join(directory, name);
     await mkdir(join(source, 'package'), { recursive: true });
     for (const [path, contents] of Object.entries(files)) {
       await writeFile(join(source, 'package', path), contents);
+      await chmod(join(source, 'package', path), modes[path] ?? 0o644);
     }
     const file = join(directory, `${name}.tgz`);
     execFileSync('tar', ['-czf', file, '-C', source, 'package']);
@@ -236,4 +239,128 @@ test('rejects a download that does not match its registry integrity', async (t) 
     verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => file }),
     /does not match its registry integrity/,
   );
+});
+
+test('reports a change in tar entry metadata alone', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', { 'bin.js': 'a' });
+  const local = await tarball('local', { 'bin.js': 'a' }, { 'bin.js': 0o755 });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: tar entry metadata/,
+  );
+});
+
+test('retries a request that times out, then fails closed', async () => {
+  let calls = 0;
+  const hang = (_url, { signal }) => {
+    calls += 1;
+    return new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason));
+    });
+  };
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl: hang, timeout: 5 }),
+    (error) =>
+      /request failed/.test(error.message) && error.cause?.name === 'TimeoutError',
+  );
+  assert.equal(calls, 3);
+});
+
+test('retries rate limits and bodies cut off part-way', async (t) => {
+  const { tarball } = await fixture(t);
+  const file = await tarball('published', { 'package.json': '{}' });
+  const entry = await publishedEntry(file);
+  const { fetchImpl: serve } = registry([entry]);
+  const failures = [
+    () => new Response('slow down', { status: 429 }),
+    () => ({
+      status: 200,
+      body: null,
+      json: async () => {
+        throw new TypeError('terminated');
+      },
+    }),
+  ];
+  let calls = 0;
+  const fetchImpl = async (url, options) => {
+    calls += 1;
+    return failures.shift()?.() ?? serve(url, options);
+  };
+  await verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => file });
+  assert.equal(calls, 4);
+});
+
+test('does not retry a registry answer that will not change', async () => {
+  let calls = 0;
+  await assert.rejects(
+    verifyPublishedContents({
+      ...inputs(),
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response('forbidden', { status: 403 });
+      },
+    }),
+    /npm registry returned 403/,
+  );
+  assert.equal(calls, 1);
+});
+
+test('predicts versioning from a real Changesets workspace', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'published-contents-workspace-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const writeJson = async (path, value) => {
+    await mkdir(join(root, path, '..'), { recursive: true });
+    await writeFile(join(root, path), JSON.stringify(value));
+  };
+  await writeJson('package.json', { name: 'root', private: true });
+  await writeFile(join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
+  await writeJson('packages/tokens/package.json', { name: 'tokens', version: '1.0.0' });
+  await writeJson('packages/ui/package.json', {
+    name: 'ui',
+    version: '1.0.0',
+    dependencies: { tokens: 'workspace:*' },
+  });
+  await writeJson('packages/shell/package.json', {
+    name: 'shell',
+    version: '1.0.0',
+    devDependencies: { tokens: 'workspace:*' },
+  });
+  await writeJson('packages/other/package.json', { name: 'other', version: '1.0.0' });
+  await writeJson('.changeset/config.json', {
+    changelog: false,
+    commit: false,
+    access: 'public',
+    baseBranch: 'main',
+    updateInternalDependencies: 'patch',
+  });
+  await writeFile(
+    join(root, '.changeset/tokens.md'),
+    "---\n'tokens': patch\n'other': none\n---\n\nChange a token.\n",
+  );
+
+  const { versioned, rewritten } = await readVersioning(root);
+  assert.deepEqual([...versioned].sort(), ['tokens', 'ui']);
+  assert.deepEqual([...rewritten], [['shell', ['tokens']]]);
+});
+
+test('uses the same Changesets libraries as the Changesets CLI', () => {
+  // The prediction is only exact while it runs the code `changeset version`
+  // runs. Update these devDependencies together with @changesets/cli.
+  const root = createRequire(import.meta.url);
+  const cli = createRequire(root.resolve('@changesets/cli/package.json'));
+  for (const name of [
+    '@changesets/assemble-release-plan',
+    '@changesets/config',
+    '@changesets/pre',
+    '@changesets/read',
+    '@manypkg/get-packages',
+  ]) {
+    assert.equal(
+      root.resolve(`${name}/package.json`),
+      cli.resolve(`${name}/package.json`),
+      `${name} resolves to a different copy than @changesets/cli uses`,
+    );
+  }
 });
