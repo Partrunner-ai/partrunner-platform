@@ -27,9 +27,10 @@
     "typecheck": "turbo run typecheck",
     "lint": "eslint \"packages/**/*.{ts,tsx}\" \"scripts/*.mjs\" --max-warnings 0",
     "release:plan": "node scripts/release-plan.mjs",
-    "release:config:test": "node --test scripts/changeset-changelog.test.mjs scripts/prepare-bootstrap-artifacts.test.mjs scripts/public-release-config.test.mjs scripts/publish-verified-artifacts.test.mjs scripts/release-plan.test.mjs",
+    "release:config:test": "node --test scripts/changeset-changelog.test.mjs scripts/prepare-bootstrap-artifacts.test.mjs scripts/public-release-config.test.mjs scripts/publish-verified-artifacts.test.mjs scripts/release-plan.test.mjs scripts/verify-published-contents.test.mjs",
     "bootstrap:artifacts": "node scripts/prepare-bootstrap-artifacts.mjs",
     "packages:check": "pnpm run release:config:test && node scripts/verify-package-artifacts.mjs",
+    "packages:published-check": "node scripts/verify-published-contents.mjs",
     "clean": "turbo run clean && rm -rf node_modules",
     "release": "node scripts/publish-verified-artifacts.mjs .artifacts/release",
     "version": "changeset version"

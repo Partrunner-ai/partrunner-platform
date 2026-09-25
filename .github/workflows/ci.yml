@@ -31,6 +31,9 @@ jobs:
       - name: Verify publishable package artifacts
         run: pnpm packages:check
 
+      - name: Verify published versions are unchanged
+        run: pnpm packages:published-check
+
       - name: Typecheck
         run: pnpm typecheck
 
