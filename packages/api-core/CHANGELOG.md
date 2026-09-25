@@ -1,5 +1,13 @@
 # @partrunner-ai/api-core
 
+## 1.1.3
+
+### Patch Changes
+
+- Republish with updated development tooling: Vitest 4.1.11, and Next 15.5.24
+  for seamless's own tests. The published package.json lists devDependencies, so
+  the tarball changed; runtime code, dependencies, and peer ranges are unchanged.
+
 ## 1.1.2
 
 ### Patch Changes
