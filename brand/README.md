@@ -30,7 +30,7 @@ Full logos are 1153×135 (~8.6:1); isotypes 340×320 (~1.06:1).
 - On yellow `#FDD238` → `logo-full-black` / `icon-black`.
 - On white/cream → `logo-full-bicolor` (default).
 - On light product chrome (app toolbars, headers, and panels on a white or
-  neutral surface) → `logo-full-black`.
+  neutral surface) → `logo-full-black` (overrides the white/cream default).
 - On dark → `logo-full-color` (preferred) or `logo-full-white` / `icon-white`.
 - **Never** the white logo on yellow, never the yellow logo on white, never
   stretched: always `object-contain` + `w-auto` + a `max-w`.
