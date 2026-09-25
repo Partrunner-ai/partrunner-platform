@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -99,6 +99,8 @@ test('includes the cause of a failed request', () => {
   assert.match(describeError(error), /caused by: getaddrinfo ENOTFOUND/);
 });
 
+const FIXED_TIME = new Date('2026-01-01T00:00:00Z');
+
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'published-contents-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -108,7 +110,10 @@ async function fixture(t) {
     for (const [path, contents] of Object.entries(files)) {
       await writeFile(join(source, 'package', path), contents);
       await chmod(join(source, 'package', path), modes[path] ?? 0o644);
+      await utimes(join(source, 'package', path), FIXED_TIME, FIXED_TIME);
     }
+    // Fixed mtimes leave file modes as the only tar metadata that can differ.
+    await utimes(join(source, 'package'), FIXED_TIME, FIXED_TIME);
     const file = join(directory, `${name}.tgz`);
     execFileSync('tar', ['-czf', file, '-C', source, 'package']);
     return file;
@@ -357,10 +362,12 @@ test('uses the same Changesets libraries as the Changesets CLI', () => {
     '@changesets/read',
     '@manypkg/get-packages',
   ]) {
+    const rootCopy = root.resolve(`${name}/package.json`);
+    const cliCopy = cli.resolve(`${name}/package.json`);
     assert.equal(
-      root.resolve(`${name}/package.json`),
-      cli.resolve(`${name}/package.json`),
-      `${name} resolves to a different copy than @changesets/cli uses`,
+      rootCopy,
+      cliCopy,
+      `${name} differs from the copy @changesets/cli uses:\n  root: ${rootCopy}\n  cli:  ${cliCopy}`,
     );
   }
 });
