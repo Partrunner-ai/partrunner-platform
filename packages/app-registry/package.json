@@ -58,7 +58,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "lucide-react": "^0.460.0",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
