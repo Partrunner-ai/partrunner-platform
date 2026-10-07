@@ -629,7 +629,7 @@ describe('third review regressions', () => {
     const out = scrubEvent(
       {
         extra: { '/conductor/AbC123?folio=F-1': true },
-        contexts: { 'https://x.test/conductor/SecretTok': { ok: true } },
+        contexts: { 'https://x.test/conductor/AbC123': { ok: true } },
       },
       TOKEN_ROUTES
     );
@@ -696,5 +696,33 @@ describe('fifth review regressions', () => {
     expect(options.enableMetrics).toBe(false);
     expect(options.beforeSendMetric({ name: 'payout' })).toBeNull();
     expect(options.traceLifecycle).toBe('static');
+  });
+});
+
+describe('sixth review regressions', () => {
+  it('masks quoted credentials through their closing quote, and short values', () => {
+    expect(redactSensitiveText('{"password":"s;Tr0ng Pass!","ok":true}')).toBe(
+      '{"password":"******* *****","ok":true}'
+    );
+    expect(redactSensitiveText("auth token='a b;c' sent")).toBe("auth token='* ***' sent");
+    expect(redactSensitiveText('session=a')).toBe('session=*');
+  });
+
+  it('sanitises root paths that carry only a query or a hash', () => {
+    expect(scrubText('GET /?code=OAuthSecret done')).toBe('GET / done');
+    expect(scrubText('redirect to /#access_token=secret')).toBe('redirect to /');
+    expect(scrubText('ratio 3 / 4')).toBe('ratio 3 / 4');
+  });
+
+  it('applies key rules to context names', () => {
+    const out = scrubEvent({
+      contexts: {
+        session: { value: 'opaqueSecret' },
+        authorization: { scheme: 'x' },
+        customer_email: { primary: 'x' },
+        browser: { name: 'Chrome' },
+      },
+    });
+    expect(out.contexts).toEqual({ customer_email: '[redacted]', browser: { name: 'Chrome' } });
   });
 });

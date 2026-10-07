@@ -33,6 +33,8 @@ const SECRETS = [
   '203.0.113.9',
   '10.0.0.1',
   'opaqueSecret',
+  'Tr0ngPass',
+  'OAuthSecret',
 ];
 
 const bodies: string[] = [];
@@ -113,7 +115,9 @@ beforeAll(() => {
   logger.info('payout done for flota@example.com');
   metrics.count('payout', 1, { attributes: { email: 'flota@example.com' } });
   scope.addBreadcrumb({ category: 'console', message: 'Cookie: session=opaqueSecret' });
-  scope.captureMessage('retry with {"accessToken":"opaqueSecret"}');
+  scope.setContext('session', { value: 'opaqueSecret' });
+  scope.captureMessage('retry with {"accessToken":"opaqueSecret","password":"s;Tr0ngPass!"}');
+  scope.captureMessage('callback GET /?code=OAuthSecret failed');
 });
 
 afterAll(() => {

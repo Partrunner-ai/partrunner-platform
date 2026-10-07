@@ -44,8 +44,17 @@ const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
   },
   // Credential assignments in text and serialized JSON: `token=…`,
   // `"accessToken":"…"`, `session: …`, `x-api-key=…`. The key stays readable.
+  // Quoted values are masked up to their closing quote, punctuation included.
   {
-    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}["']?\s{0,3}[:=]\s{0,3}["']?)([^\s"',;&}]{3,2048})/gi,
+    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}"?\s{0,3}[:=]\s{0,3}")((?:[^"\\]|\\.){1,2048})/gi,
+    keepsValueOnly: true,
+  },
+  {
+    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}'?\s{0,3}[:=]\s{0,3}')((?:[^'\\]|\\.){1,2048})/gi,
+    keepsValueOnly: true,
+  },
+  {
+    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}["']?\s{0,3}[:=]\s{0,3})([^\s"',;&}]{1,2048})/gi,
     keepsValueOnly: true,
   },
   // Email address.
@@ -250,7 +259,7 @@ const HOST_PATH = new RegExp(
  * `GET /api/x?y=z`, `Request failed: /conductor/<token>?rfc=…`.
  */
 const RELATIVE_PATH = new RegExp(
-  `(^|[\\s'"(=,])(\\/[A-Za-z0-9_\\-.~%/\\[\\]]{1,2048}(?:[?#]${URL_CHARS})?)`,
+  `(^|[\\s'"(=,])(\\/(?:[A-Za-z0-9_\\-.~%/\\[\\]]{1,2048}(?:[?#]${URL_CHARS})?|[?#]${URL_CHARS}))`,
   'g'
 );
 
@@ -704,7 +713,15 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
   if (event.contexts) {
     const contexts: Record<string, unknown> = {};
     for (const [name, context] of Object.entries(event.contexts)) {
-      contexts[scrubText(name, options)] = scrubContext(name, context, options);
+      const normalized = normalizeKey(name);
+      // A context named after a credential or identity field gets the same
+      // key rules as `extra`. SDK context names are never such words.
+      if (SECRET_KEY.test(normalized)) continue;
+      const safeName = scrubText(name, options);
+      contexts[safeName] =
+        SENSITIVE_KEY.test(normalized) && !RUNTIME_NAMED_CONTEXTS.has(name)
+          ? REDACTED
+          : scrubContext(name, context, options);
     }
     out.contexts = contexts;
   }
