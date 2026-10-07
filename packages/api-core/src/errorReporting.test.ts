@@ -331,7 +331,7 @@ describe('createErrorReportingOptions', () => {
       beforeBreadcrumb({
         category: 'navigation',
         data: { to: '/afiliacion/tok_1' },
-      })?.data
+      }).data
     ).toEqual({
       to: '/afiliacion/[token]',
     });
@@ -875,55 +875,81 @@ function fakeElement(
 }
 
 describe('DOM interaction breadcrumbs', () => {
-  const selectorFor = (label: string) => {
-    const board = fakeElement('DIV', {}, 'board');
-    return htmlTreeAsString(
-      fakeElement('BUTTON', { 'aria-label': label, type: 'button' }, 'ticket-card', board) as never,
+  const board = () => fakeElement('DIV', {}, 'board');
+  const selectorFor = (label: string, parent: unknown = board()) =>
+    htmlTreeAsString(
+      fakeElement(
+        'BUTTON',
+        { 'aria-label': label, type: 'button' },
+        'ticket-card',
+        parent
+      ) as never,
       { maxStringLength: 4000 }
     );
-  };
 
   it.each([
     'Ticket de Juana Prueba: no puedo subir',
     'Ticket "urgente" ] de Juana Prueba',
     'Juana Prueba > div[title="x"]',
+    'x"] > span.Juana.Prueba[title="y',
     "Ticket de Juana Prueba' ] [x",
-    'Ticket de Juana Prueba"]',
-  ])('never keeps any part of an aria-label value: %s', label => {
+  ])('keeps only the real element path for aria-label %s', label => {
     const message = selectorFor(label);
     expect(message).toContain('Juana');
-    const out = scrubBreadcrumb({ category: 'ui.click', message }).message ?? '';
-    expect(out).not.toContain('Juana');
-    expect(out).not.toContain('Prueba');
-    expect(out.startsWith('div.board > button.ticket-card')).toBe(true);
+    const out = scrubBreadcrumb({ category: 'ui.click', message }).message;
+    expect(out).toBe('div.board > button.ticket-card[…]');
   });
 
-  it('keeps attribute names when the selector parses cleanly', () => {
+  it('stops at the first attribute, also on an ancestor', () => {
+    const labelled = fakeElement('SECTION', { title: 'Cliente Juana Prueba' }, 'panel');
+    const out = scrubBreadcrumb({
+      category: 'ui.click',
+      message: selectorFor('x', labelled),
+    }).message;
+    expect(out).toBe('section.panel[…]');
+  });
+
+  it('is idempotent through beforeBreadcrumb and beforeSend', () => {
+    const { beforeBreadcrumb, beforeSend } = createErrorReportingOptions({
+      app: 'fds',
+      surface: 'backoffice',
+    });
+    const crumb = beforeBreadcrumb({ category: 'ui.click', message: selectorFor('Juana Prueba') });
+    const event = beforeSend<ScrubbableEvent>({ breadcrumbs: [crumb] });
+    expect(event.breadcrumbs).toEqual([
+      { category: 'ui.click', message: 'div.board > button.ticket-card[…]' },
+    ]);
+  });
+
+  it('is idempotent on its own output', () => {
+    const once = stripDomAttributeValues(selectorFor('Juana Prueba'));
+    expect(stripDomAttributeValues(once)).toBe(once);
+  });
+
+  it('redacts license plates by key', () => {
     expect(
-      stripDomAttributeValues(
-        'div.board > button.ticket-card[aria-label="Ticket de Juana Prueba"][type="button"]'
-      )
-    ).toBe('div.board > button.ticket-card[aria-label][type]');
+      scrubEvent({ extra: { placa: 'ABC-123-D', vehicle: { licensePlate: '123ABC4' } } }).extra
+    ).toEqual({ placa: '[redacted]', vehicle: { licensePlate: '[redacted]' } });
   });
 
-  it('applies to ui.* breadcrumbs only', () => {
+  it('leaves non-DOM breadcrumbs alone', () => {
     expect(scrubBreadcrumb({ category: 'navigation', message: 'value [a="b"]' }).message).toBe(
       'value [a="b"]'
     );
   });
 
-  it('drops console breadcrumbs entirely', () => {
-    const { beforeBreadcrumb } = createErrorReportingOptions({
-      app: 'sales',
-      surface: 'backoffice',
+  it('removes console breadcrumbs from outgoing events', () => {
+    const { beforeSend } = createErrorReportingOptions({ app: 'sales', surface: 'backoffice' });
+    const event = beforeSend<ScrubbableEvent>({
+      breadcrumbs: [
+        {
+          category: 'console',
+          message: 'tool createClient {"company":"Transportes Juana","notes":"llamar"}',
+          data: { arguments: [{ company: 'Transportes Juana' }] },
+        },
+        { category: 'navigation', data: { to: '/x' } },
+      ],
     });
-    expect(
-      beforeBreadcrumb({
-        category: 'console',
-        message: 'tool createClient {"company":"Transportes Juana","notes":"llamar"}',
-        data: { arguments: [{ company: 'Transportes Juana' }] },
-      })
-    ).toBeNull();
-    expect(beforeBreadcrumb({ category: 'ui.click', message: 'button.x' })).not.toBeNull();
+    expect(event.breadcrumbs).toEqual([{ category: 'navigation', data: { to: '/x' } }]);
   });
 });

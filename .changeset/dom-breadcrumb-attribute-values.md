@@ -1,5 +1,5 @@
 ---
-'@partrunner-ai/api-core': patch
+'@partrunner-ai/api-core': minor
 ---
 
-`./observability`: DOM interaction breadcrumbs (`ui.click`, `ui.input`, …) keep the element path and attribute names but drop attribute values; the SDK serialises `aria-label`, `title`, `alt` and `name` without escaping, so a selector that does not parse cleanly keeps only the part before the first `[`. Console breadcrumbs are dropped (browser and server): their text and arguments are free-form and carry names and notes no pattern recognises. Adds `stripDomAttributeValues` and `DROPPED_BREADCRUMB_CATEGORIES`.
+`./observability`: DOM interaction breadcrumbs (`ui.click`, `ui.input`, …) keep only the element path before the first `[`; the SDK appends `aria-label`, `title`, `alt` and `name` values without escaping, so nothing after it can be trusted. Console breadcrumbs are removed from every outgoing event (browser and server): their text and arguments are free-form. License-plate keys (`placa`, `plate`, `licensePlate`, `matricula`) are redacted like other identity keys. Adds `stripDomAttributeValues` and `DROPPED_BREADCRUMB_CATEGORIES`; existing signatures are unchanged.

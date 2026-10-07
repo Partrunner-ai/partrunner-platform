@@ -370,7 +370,7 @@ const SECRET_KEY = keyWords(
 );
 /** Money and identity: the value is replaced whatever its type. */
 const SENSITIVE_KEY = keyWords(
-  'amount|monto|importe|subtotal|price|precio|salary|salario|balance|saldo|clabe|rfc|curp|phone|telefono|tel|email|correo|mail|account_number|cuenta|card|tarjeta|name|username|nombre|apellidos?|razon_social|address|direccion|ip|ip_address'
+  'amount|monto|importe|subtotal|price|precio|salary|salario|balance|saldo|clabe|rfc|curp|phone|telefono|tel|email|correo|mail|account_number|cuenta|card|tarjeta|name|username|nombre|apellidos?|razon_social|address|direccion|ip|ip_address|placa|placas|plate|plates|license_plate|matricula'
 );
 /** Numbers under these keys are times, not phones or accounts. */
 const TEMPORAL_KEY = keyWords(
@@ -486,35 +486,20 @@ function scrubContext(name: string, context: unknown, options: UrlScrubOptions):
 }
 
 /**
- * One element of a Sentry DOM selector (`htmlTreeAsString`): a tag or a
- * `data-sentry-component` name, an optional `#id`, classes, then
- * `[attr="value"]` pairs. The SDK does NOT escape quotes or brackets inside
- * values, so a value can only be removed safely when the whole selector
- * parses with plain values; anything else fails closed.
- */
-const SELECTOR_ELEMENT =
-  '[A-Za-z][\\w-]{0,80}(?:#[^\\s.#\\[\\]>"]{1,200})?(?:\\.[^\\s.#\\[\\]>"]{1,200}){0,40}(?:\\[[A-Za-z][\\w:.-]{0,64}="[^"]{0,4000}"\\]){0,10}';
-const STRICT_SELECTOR = new RegExp(`^${SELECTOR_ELEMENT}(?: > ${SELECTOR_ELEMENT}){0,10}$`);
-const SELECTOR_ATTRIBUTE = /\[([A-Za-z][\w:.-]{0,64})="[^"]{0,4000}"\]/g;
-
-/**
- * DOM interaction breadcrumbs (`ui.click`, `ui.input`, …): the SDK writes
- * `aria-label`, `title`, `alt`, `name` and `type` VALUES into the selector,
- * and labels often hold names and free text that no pattern recognises.
- * Keep the element path and attribute names; when the selector does not
- * parse cleanly (a value with a quote, a bracket or ` > `), keep only the
- * part before the first `[`.
+ * DOM interaction breadcrumbs (`ui.click`, `ui.input`, …): the SDK appends
+ * `aria-label`, `title`, `alt`, `name` and `type` VALUES to the selector
+ * without escaping quotes or brackets, so no parser can tell where a value
+ * ends, and a value can even imitate more path (`x"] > span.Name[title="y`).
+ * Everything before the first `[` is the real element path (tags, ids,
+ * classes); everything from the first `[` on is dropped. Idempotent.
  */
 export function stripDomAttributeValues(selector: string): string {
-  if (STRICT_SELECTOR.test(selector)) {
-    return selector.replace(SELECTOR_ATTRIBUTE, (_match, name: string) => `[${name}]`);
-  }
   const cut = selector.indexOf('[');
   return cut === -1 ? selector : `${selector.slice(0, cut)}[…]`;
 }
 
 /**
- * Breadcrumb categories that are dropped before they are recorded. Console
+ * Breadcrumb categories removed from every outgoing event. Console
  * breadcrumbs carry free-form log text and arguments (tool inputs, names,
  * notes) that no pattern recognises, in the browser and on the server.
  */
@@ -782,8 +767,8 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
   }
 
   if (event.breadcrumbs) {
-    // Breadcrumbs added straight on a scope skip `beforeBreadcrumb`: drop the
-    // same categories here too.
+    // Every outgoing event passes here, including breadcrumbs added straight
+    // on a scope (they skip `beforeBreadcrumb`).
     out.breadcrumbs = event.breadcrumbs
       .filter(
         crumb =>
@@ -916,8 +901,7 @@ export interface ErrorReportingOptions {
   beforeSendMetric: <M>(metric: M) => M | null;
   /** Spans are sent inside transactions, where `beforeSendTransaction` scrubs them. */
   traceLifecycle: 'static';
-  /** Drops `DROPPED_BREADCRUMB_CATEGORIES`; scrubs the rest. */
-  beforeBreadcrumb: <B extends ScrubbableBreadcrumb>(breadcrumb: B) => B | null;
+  beforeBreadcrumb: <B extends ScrubbableBreadcrumb>(breadcrumb: B) => B;
 }
 
 /**
@@ -985,10 +969,6 @@ export function createErrorReportingOptions(config: ErrorReportingConfig): Error
     // Streamed spans (`traceLifecycle: 'stream'`) use another callback shape
     // with names and attributes that `beforeSendSpan` does not visit.
     traceLifecycle: 'static',
-    beforeBreadcrumb: breadcrumb =>
-      typeof breadcrumb.category === 'string' &&
-      DROPPED_BREADCRUMB_CATEGORIES.has(breadcrumb.category)
-        ? null
-        : scrubBreadcrumb(breadcrumb, urlOptions),
+    beforeBreadcrumb: breadcrumb => scrubBreadcrumb(breadcrumb, urlOptions),
   };
 }
