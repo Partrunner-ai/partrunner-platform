@@ -205,7 +205,7 @@ function safeOrigin(url: URL): string {
 /**
  * Absolute or relative URL → same origin, sanitised path, no query string and
  * no hash. The query carries RFCs, folios and session tokens; it is dropped
- * whole. A URL that does not parse comes back redacted, without its query.
+ * whole. A URL that does not parse becomes `[unparsed-url]`.
  */
 export function sanitizeUrl(raw: string, options: UrlScrubOptions = {}): string {
   if (!raw) return raw;
@@ -217,7 +217,8 @@ export function sanitizeUrl(raw: string, options: UrlScrubOptions = {}): string 
     const isAbsolute = ABSOLUTE_URL.test(raw) || raw.startsWith('//');
     return `${isAbsolute ? safeOrigin(url) : ''}${sanitizePath(url.pathname, options)}`;
   } catch {
-    return redactSensitiveText(raw.split(/[?#]/)[0] ?? '');
+    // Fail closed: a URL that does not parse could still hold a token route.
+    return '[unparsed-url]';
   }
 }
 

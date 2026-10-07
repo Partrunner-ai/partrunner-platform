@@ -844,3 +844,14 @@ describe('session integrations', () => {
     expect(withoutUnsafeIntegrations(defaults)).toEqual([{ name: 'Dedupe' }]);
   });
 });
+
+describe('tenth review regressions', () => {
+  it('fails closed on URLs that do not parse', () => {
+    expect(sanitizeUrl('https://example.test:bad/conductor/SecretTok', TOKEN_ROUTES)).toBe(
+      '[unparsed-url]'
+    );
+    expect(
+      scrubText('fetch https://example.test:bad/conductor/SecretTok failed', TOKEN_ROUTES)
+    ).toBe('fetch [unparsed-url] failed');
+  });
+});

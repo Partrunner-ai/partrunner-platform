@@ -167,7 +167,9 @@ accepts these rules:
   into the envelope header (dynamic sampling context) before any hook runs.
 - **No attachments, no Session Replay, no screenshots, no user-feedback
   widget, no Sentry Logs or Metrics, no span streaming, no session
-  tracking.** Their payloads bypass these hooks. Do not override
+  tracking, no profiling.** Their payloads (including `profile` and
+  `profile_chunk` items, which carry their own frame paths) bypass these
+  hooks. Do not override
   `enableLogs`, `enableMetrics` or `traceLifecycle`. Build `integrations`
   with `withoutUnsafeIntegrations(defaults)`: it removes `BrowserSession`
   and `ProcessSession`, whose session envelopes carry the raw user agent.
