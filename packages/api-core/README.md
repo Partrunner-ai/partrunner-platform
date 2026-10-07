@@ -107,13 +107,21 @@ What the options guarantee:
 - `scrubEvent` runs on every error and transaction:
   - It pattern-redacts JWTs, bearer values, emails, CURP, RFC, IP addresses, amounts, phones, CLABE
     and 10+ digit runs.
-  - It sanitises URLs and paths inside text. URLs lose their query and hash, ids become `[id]`,
-    and token-route secrets become `[token]`.
-  - The request keeps only its URL and allowlisted headers. The user keeps only `id`.
-  - It scrubs tags set by app code, fingerprints, mechanism data, breadcrumbs, `extra`, spans,
-    `trace` data, `otel` and custom contexts.
-  - It keeps exception types, stack frames and trace ids, so grouping and source maps still work.
-    It drops frame local variables. Frame file names lose only their query and token-route secret.
+  - It sanitises URLs and paths inside text. URLs lose their query and hash, IP-literal hosts
+    become `[ip]`, ids become `[id]`, and token-route secrets become `[token]`.
+  - Key rules apply whatever the value type. Credential and raw-request keys (`token`, `session`,
+    `cookie`, `authorization`, `apiKey`, `body`, `query`) are dropped. Money and identity keys
+    (`amount`, `rfc`, `curp`, `clabe`, `phone`, `email`, `name` variants, `address`, `ip`)
+    become `[redacted]`. Numbers with 10+ digits become `[redacted]` unless the key names a time.
+    Keys that are data themselves are masked.
+  - The request keeps its method, URL and allowlisted headers, with scrubbed values. The user
+    keeps only `id`.
+  - It scrubs tags set by app code, fingerprints, mechanism data, breadcrumbs (message, category,
+    data), `extra`, spans and every context field by field. `response` keeps only its status code
+    and body size. Unknown top-level fields such as `server_name` are scrubbed too.
+  - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
+    metadata, so grouping, source maps and runtime facts still work. It drops frame local
+    variables. Frame file names lose only their query, IP host and token-route secret.
 - `beforeSendSpan` and `beforeSendLog` scrub streamed spans and logs the same way.
 - Shared noise (`ResizeObserver`, aborted requests, browser extensions) is
   ignored. Network failures stay visible.

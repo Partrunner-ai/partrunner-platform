@@ -213,15 +213,15 @@ describe('scrubEvent', () => {
     expect(out.user).toEqual({ id: 'u-1' });
   });
 
-  it('redacts extra and custom contexts but not SDK contexts', () => {
+  it('redacts extra and contexts but keeps trace ids', () => {
     expect(out.extra).toEqual({
       note: 'mail *****************',
-      nested: { amount: '*********' },
+      nested: { amount: '[redacted]' },
     });
     expect(out.contexts?.trace).toEqual(event.contexts?.trace);
     expect(out.contexts?.feedback).toEqual({
       message: 'my RFC is ************',
-      contact_email: '*****************',
+      contact_email: '[redacted]',
     });
   });
 
@@ -416,7 +416,7 @@ describe('review regressions', () => {
         'http.target': '/conductor/[token]',
         'url.full': 'https://a.com/conductor/[token]',
         'url.path': '/conductor/[token]',
-        'client.address': '***********',
+        'client.address': '[redacted]',
       },
     });
     expect(JSON.stringify(out.contexts?.otel)).not.toContain('SecretTok');
@@ -456,8 +456,8 @@ describe('review regressions', () => {
       lineno: 3,
     };
     expect(out.tags).toEqual({
-      rfc: '*************',
-      email: '*******',
+      rfc: '[redacted]',
+      email: '[redacted]',
       app: 'stf',
       release_channel: 'stable',
     });
@@ -488,10 +488,131 @@ describe('review regressions', () => {
       })
     ).toEqual({
       description: 'GET /conductor/[token]',
-      data: { 'user.email': '*******', 'user.ip_address': '********' },
+      data: { 'user.email': '[redacted]', 'user.ip_address': '[redacted]' },
     });
     expect(
       beforeSendLog({ message: 'payout for ABC010203XY1', attributes: { url: '/x?y=1' } })
     ).toEqual({ message: 'payout for ************', attributes: { url: '/x' } });
+  });
+});
+
+describe('second review regressions', () => {
+  it('reduces the response context to status and size, and scrubs trace tags', () => {
+    const out = scrubEvent({
+      contexts: {
+        response: {
+          status_code: 500,
+          body_size: 12,
+          cookies: { session: 'abc' },
+          headers: { 'set-cookie': 'nexus_token=x' },
+        },
+        trace: { trace_id: 't1', span_id: 's1', tags: { owner: 'flota@example.com' } },
+      },
+    });
+    expect(out.contexts?.response).toEqual({ type: undefined, status_code: 500, body_size: 12 });
+    expect(out.contexts?.trace).toEqual({
+      trace_id: 't1',
+      span_id: 's1',
+      tags: { owner: '*****************' },
+    });
+  });
+
+  it('keeps runtime versions that look like IPs but scrubs other runtime fields', () => {
+    const out = scrubEvent({
+      contexts: {
+        browser: { name: 'Chrome', version: '129.0.0.0' },
+        os: { name: 'iOS', version: '17.4.1', build: '21E236' },
+        device: { model: 'iPhone15,2', owner: 'flota@example.com' },
+      },
+    });
+    expect(out.contexts?.browser).toEqual({ name: 'Chrome', version: '129.0.0.0' });
+    expect(out.contexts?.os).toEqual({ name: 'iOS', version: '17.4.1', build: '21E236' });
+    expect(out.contexts?.device).toEqual({ model: 'iPhone15,2', owner: '*****************' });
+  });
+
+  it('scrubs top-level fields it does not know and keeps SDK metadata', () => {
+    const debugMeta = { images: [{ type: 'sourcemap', debug_id: 'abc', code_file: '/a.js' }] };
+    const out = scrubEvent({
+      server_name: '203.0.113.45',
+      event_id: '0123456789abcdef0123456789abcdef',
+      release: '1.2.3-20261007123456',
+      debug_meta: debugMeta,
+      custom: 'flota@example.com',
+    } as ScrubbableEvent);
+    const record = out as Record<string, unknown>;
+    expect(record.server_name).toBe('************');
+    expect(record.event_id).toBe('0123456789abcdef0123456789abcdef');
+    expect(record.release).toBe('1.2.3-20261007123456');
+    expect(record.debug_meta).toBe(debugMeta);
+    expect(record.custom).toBe('*****************');
+  });
+
+  it('scrubs breadcrumb categories', () => {
+    expect(scrubBreadcrumb({ category: 'flota@example.com' }).category).toBe('*****************');
+    expect(scrubBreadcrumb({ category: 'ui.click' }).category).toBe('ui.click');
+  });
+
+  it('applies key rules whatever the value type, and masks keys that are data', () => {
+    const out = scrubEvent({
+      extra: {
+        amount: 1234.56,
+        phone: 5512345678,
+        accessToken: 'opaqueSecret',
+        'x-api-key': 'k',
+        'flota@example.com': true,
+        count: 3,
+        startedAt: 1791393615188,
+        orderNumber: 12345678901,
+      },
+    });
+    expect(out.extra).toEqual({
+      amount: '[redacted]',
+      phone: '[redacted]',
+      '*****************': true,
+      count: 3,
+      startedAt: 1791393615188,
+      orderNumber: '[redacted]',
+    });
+  });
+
+  it('scrubs allowlisted header values', () => {
+    const out = scrubEvent({
+      request: {
+        method: 'POST',
+        url: 'https://x.test/a',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0) Chrome/129.0.0.0 Safari/537.36',
+          'Content-Type': 'text/plain; owner=flota@example.com',
+          Host: '203.0.113.45',
+          Accept: 'text/html',
+        },
+      },
+    });
+    expect(out.request).toEqual({
+      method: 'POST',
+      url: 'https://x.test/a',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0) Chrome/129.0.0.0 Safari/537.36',
+        'Content-Type': 'text/plain; owner=*****************',
+        Host: '************',
+        Accept: 'text/html',
+      },
+    });
+    const weird = scrubEvent({ request: { headers: { 'user-agent': 'bot flota@example.com' } } });
+    expect(weird.request?.headers).toEqual({});
+  });
+
+  it('hides IP-literal hosts in URLs and frame file names', () => {
+    expect(sanitizeUrl('http://203.0.113.45:8080/api?token=secret')).toBe('http://[ip]:8080/api');
+    expect(sanitizeUrl('http://[2001:db8::1]/x/42')).toBe('http://[ip]/x/[id]');
+    expect(scrubText('fetch http://10.0.0.1/api failed')).toBe('fetch http://[ip]/api failed');
+    const out = scrubEvent({
+      exception: {
+        values: [{ stacktrace: { frames: [{ filename: 'http://10.1.2.3/assets/app.js?v=1' }] } }],
+      },
+    });
+    expect(out.exception?.values?.[0]?.stacktrace).toEqual({
+      frames: [{ filename: 'http://[ip]/assets/app.js' }],
+    });
   });
 });
