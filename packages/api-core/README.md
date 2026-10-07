@@ -127,7 +127,9 @@ What the options guarantee:
     keeps only `id`. User-agent product versions stay; its comments, URLs and IPs are scrubbed.
   - It scrubs tags set by app code, fingerprints, mechanism data, breadcrumbs (message, category,
     data; DOM click and input breadcrumbs keep the element path and attribute names but never
-    attribute values such as `aria-label` or `title`), `extra`, spans and every context field by field. `response` keeps only its status code
+    attribute values such as `aria-label` or `title`, and fall back to the path before the first
+    `[` when a value breaks the selector syntax; console breadcrumbs are dropped, in the browser
+    and on the server, because log text and arguments are free-form), `extra`, spans and every context field by field. `response` keeps only its status code
     and body size. Unknown top-level fields such as `server_name` are scrubbed too.
   - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
     metadata, so grouping, source maps and runtime facts still work. It drops frame local

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { htmlTreeAsString } from '@sentry/core';
 import { describe, expect, it } from 'vitest';
 import {
   createErrorReportingOptions,
@@ -330,7 +331,7 @@ describe('createErrorReportingOptions', () => {
       beforeBreadcrumb({
         category: 'navigation',
         data: { to: '/afiliacion/tok_1' },
-      }).data
+      })?.data
     ).toEqual({
       to: '/afiliacion/[token]',
     });
@@ -857,27 +858,72 @@ describe('tenth review regressions', () => {
   });
 });
 
+/** A minimal element for Sentry's real `htmlTreeAsString` (no DOM in Node). */
+function fakeElement(
+  tagName: string,
+  attrs: Record<string, string> = {},
+  className = '',
+  parentNode: unknown = null
+) {
+  return {
+    tagName,
+    className,
+    id: attrs.id ?? '',
+    parentNode,
+    getAttribute: (name: string) => attrs[name] ?? null,
+  };
+}
+
 describe('DOM interaction breadcrumbs', () => {
-  it('keeps the element path and attribute names, never the values', () => {
+  const selectorFor = (label: string) => {
+    const board = fakeElement('DIV', {}, 'board');
+    return htmlTreeAsString(
+      fakeElement('BUTTON', { 'aria-label': label, type: 'button' }, 'ticket-card', board) as never,
+      { maxStringLength: 4000 }
+    );
+  };
+
+  it.each([
+    'Ticket de Juana Prueba: no puedo subir',
+    'Ticket "urgente" ] de Juana Prueba',
+    'Juana Prueba > div[title="x"]',
+    "Ticket de Juana Prueba' ] [x",
+    'Ticket de Juana Prueba"]',
+  ])('never keeps any part of an aria-label value: %s', label => {
+    const message = selectorFor(label);
+    expect(message).toContain('Juana');
+    const out = scrubBreadcrumb({ category: 'ui.click', message }).message ?? '';
+    expect(out).not.toContain('Juana');
+    expect(out).not.toContain('Prueba');
+    expect(out.startsWith('div.board > button.ticket-card')).toBe(true);
+  });
+
+  it('keeps attribute names when the selector parses cleanly', () => {
     expect(
       stripDomAttributeValues(
-        'div.board > button.ticket-card[aria-label="Ticket de Juana Prueba: no puedo subir"][title=\'Juana\'][type=button]'
+        'div.board > button.ticket-card[aria-label="Ticket de Juana Prueba"][type="button"]'
       )
-    ).toBe('div.board > button.ticket-card[aria-label][title][type]');
-    expect(stripDomAttributeValues('form#alta > input.rfc[name="rfc"]')).toBe(
-      'form#alta > input.rfc[name]'
-    );
+    ).toBe('div.board > button.ticket-card[aria-label][type]');
   });
 
   it('applies to ui.* breadcrumbs only', () => {
-    expect(
-      scrubBreadcrumb({
-        category: 'ui.click',
-        message: 'li.flota[aria-label="Transportes Juana Prueba"]',
-      }).message
-    ).toBe('li.flota[aria-label]');
-    expect(scrubBreadcrumb({ category: 'console', message: 'value [a="b"]' }).message).toBe(
+    expect(scrubBreadcrumb({ category: 'navigation', message: 'value [a="b"]' }).message).toBe(
       'value [a="b"]'
     );
+  });
+
+  it('drops console breadcrumbs entirely', () => {
+    const { beforeBreadcrumb } = createErrorReportingOptions({
+      app: 'sales',
+      surface: 'backoffice',
+    });
+    expect(
+      beforeBreadcrumb({
+        category: 'console',
+        message: 'tool createClient {"company":"Transportes Juana","notes":"llamar"}',
+        data: { arguments: [{ company: 'Transportes Juana' }] },
+      })
+    ).toBeNull();
+    expect(beforeBreadcrumb({ category: 'ui.click', message: 'button.x' })).not.toBeNull();
   });
 });

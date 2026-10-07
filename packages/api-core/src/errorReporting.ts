@@ -486,21 +486,39 @@ function scrubContext(name: string, context: unknown, options: UrlScrubOptions):
 }
 
 /**
- * Attribute values in a DOM selector: `[aria-label="Ticket de Juana: …"]`.
- * The SDK serialises `aria-label`, `title`, `alt`, `name` and `type` into
- * click and input breadcrumbs, and those labels often hold names and free
- * text that no pattern can recognise.
+ * One element of a Sentry DOM selector (`htmlTreeAsString`): a tag or a
+ * `data-sentry-component` name, an optional `#id`, classes, then
+ * `[attr="value"]` pairs. The SDK does NOT escape quotes or brackets inside
+ * values, so a value can only be removed safely when the whole selector
+ * parses with plain values; anything else fails closed.
  */
-const DOM_ATTRIBUTE_VALUE =
-  /\[([A-Za-z_:][\w:.-]{0,64})=(?:"(?:[^"\\]|\\.){0,4000}"|'(?:[^'\\]|\\.){0,4000}'|[^\]]{0,4000})\]/g;
+const SELECTOR_ELEMENT =
+  '[A-Za-z][\\w-]{0,80}(?:#[^\\s.#\\[\\]>"]{1,200})?(?:\\.[^\\s.#\\[\\]>"]{1,200}){0,40}(?:\\[[A-Za-z][\\w:.-]{0,64}="[^"]{0,4000}"\\]){0,10}';
+const STRICT_SELECTOR = new RegExp(`^${SELECTOR_ELEMENT}(?: > ${SELECTOR_ELEMENT}){0,10}$`);
+const SELECTOR_ATTRIBUTE = /\[([A-Za-z][\w:.-]{0,64})="[^"]{0,4000}"\]/g;
 
 /**
- * DOM interaction breadcrumbs (`ui.click`, `ui.input`, …) keep the element
- * path (tags, ids, classes) and the attribute NAMES, never their values.
+ * DOM interaction breadcrumbs (`ui.click`, `ui.input`, …): the SDK writes
+ * `aria-label`, `title`, `alt`, `name` and `type` VALUES into the selector,
+ * and labels often hold names and free text that no pattern recognises.
+ * Keep the element path and attribute names; when the selector does not
+ * parse cleanly (a value with a quote, a bracket or ` > `), keep only the
+ * part before the first `[`.
  */
 export function stripDomAttributeValues(selector: string): string {
-  return selector.replace(DOM_ATTRIBUTE_VALUE, (_match, name: string) => `[${name}]`);
+  if (STRICT_SELECTOR.test(selector)) {
+    return selector.replace(SELECTOR_ATTRIBUTE, (_match, name: string) => `[${name}]`);
+  }
+  const cut = selector.indexOf('[');
+  return cut === -1 ? selector : `${selector.slice(0, cut)}[…]`;
 }
+
+/**
+ * Breadcrumb categories that are dropped before they are recorded. Console
+ * breadcrumbs carry free-form log text and arguments (tool inputs, names,
+ * notes) that no pattern recognises, in the browser and on the server.
+ */
+export const DROPPED_BREADCRUMB_CATEGORIES: ReadonlySet<string> = new Set(['console']);
 
 /** `beforeBreadcrumb`: URLs normalised, messages and data redacted. */
 export function scrubBreadcrumb<B extends ScrubbableBreadcrumb>(
@@ -764,7 +782,14 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
   }
 
   if (event.breadcrumbs) {
-    out.breadcrumbs = event.breadcrumbs.map(crumb => scrubBreadcrumb(crumb, options));
+    // Breadcrumbs added straight on a scope skip `beforeBreadcrumb`: drop the
+    // same categories here too.
+    out.breadcrumbs = event.breadcrumbs
+      .filter(
+        crumb =>
+          !(typeof crumb.category === 'string' && DROPPED_BREADCRUMB_CATEGORIES.has(crumb.category))
+      )
+      .map(crumb => scrubBreadcrumb(crumb, options));
   }
   if (event.extra) out.extra = scrubRecord(event.extra, options);
   if (event.contexts) {
@@ -891,7 +916,8 @@ export interface ErrorReportingOptions {
   beforeSendMetric: <M>(metric: M) => M | null;
   /** Spans are sent inside transactions, where `beforeSendTransaction` scrubs them. */
   traceLifecycle: 'static';
-  beforeBreadcrumb: <B extends ScrubbableBreadcrumb>(breadcrumb: B) => B;
+  /** Drops `DROPPED_BREADCRUMB_CATEGORIES`; scrubs the rest. */
+  beforeBreadcrumb: <B extends ScrubbableBreadcrumb>(breadcrumb: B) => B | null;
 }
 
 /**
@@ -959,6 +985,10 @@ export function createErrorReportingOptions(config: ErrorReportingConfig): Error
     // Streamed spans (`traceLifecycle: 'stream'`) use another callback shape
     // with names and attributes that `beforeSendSpan` does not visit.
     traceLifecycle: 'static',
-    beforeBreadcrumb: breadcrumb => scrubBreadcrumb(breadcrumb, urlOptions),
+    beforeBreadcrumb: breadcrumb =>
+      typeof breadcrumb.category === 'string' &&
+      DROPPED_BREADCRUMB_CATEGORIES.has(breadcrumb.category)
+        ? null
+        : scrubBreadcrumb(breadcrumb, urlOptions),
   };
 }

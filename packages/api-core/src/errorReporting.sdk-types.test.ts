@@ -25,7 +25,7 @@ describe('Sentry SDK compatibility', () => {
       transaction: 'GET /x/1',
     };
     const crumb: Breadcrumb = {
-      category: 'console',
+      category: 'navigation',
       message: 'flota@example.com',
     };
 

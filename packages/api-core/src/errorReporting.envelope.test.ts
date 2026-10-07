@@ -94,7 +94,11 @@ beforeAll(() => {
   scope.addBreadcrumb({ category: 'console', message: 'payout for flota@example.com' });
   scope.addBreadcrumb({
     category: 'ui.click',
-    message: 'div.board > button.ticket-card[aria-label="Ticket de Ana Operadora: no puedo subir"]',
+    message: 'div.board > button.ticket-card[aria-label="Ticket "urgente" ] de Ana Operadora"]',
+  });
+  scope.addBreadcrumb({
+    category: 'console',
+    message: 'tool createClient {"company":"Juan Perez Transportes"}',
   });
   getIsolationScope().setAttributes?.({ 'user.email': 'flota@example.com' });
 
