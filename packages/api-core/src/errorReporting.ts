@@ -485,15 +485,39 @@ function scrubContext(name: string, context: unknown, options: UrlScrubOptions):
   return out;
 }
 
+/**
+ * Attribute values in a DOM selector: `[aria-label="Ticket de Juana: …"]`.
+ * The SDK serialises `aria-label`, `title`, `alt`, `name` and `type` into
+ * click and input breadcrumbs, and those labels often hold names and free
+ * text that no pattern can recognise.
+ */
+const DOM_ATTRIBUTE_VALUE =
+  /\[([A-Za-z_:][\w:.-]{0,64})=(?:"(?:[^"\\]|\\.){0,4000}"|'(?:[^'\\]|\\.){0,4000}'|[^\]]{0,4000})\]/g;
+
+/**
+ * DOM interaction breadcrumbs (`ui.click`, `ui.input`, …) keep the element
+ * path (tags, ids, classes) and the attribute NAMES, never their values.
+ */
+export function stripDomAttributeValues(selector: string): string {
+  return selector.replace(DOM_ATTRIBUTE_VALUE, (_match, name: string) => `[${name}]`);
+}
+
 /** `beforeBreadcrumb`: URLs normalised, messages and data redacted. */
 export function scrubBreadcrumb<B extends ScrubbableBreadcrumb>(
   breadcrumb: B,
   options: UrlScrubOptions = {}
 ): B {
+  const isDomInteraction =
+    typeof breadcrumb.category === 'string' && breadcrumb.category.startsWith('ui.');
   return {
     ...breadcrumb,
     ...(breadcrumb.message !== undefined
-      ? { message: scrubText(breadcrumb.message, options) }
+      ? {
+          message: scrubText(
+            isDomInteraction ? stripDomAttributeValues(breadcrumb.message) : breadcrumb.message,
+            options
+          ),
+        }
       : {}),
     ...(breadcrumb.category !== undefined
       ? { category: scrubText(breadcrumb.category, options) }

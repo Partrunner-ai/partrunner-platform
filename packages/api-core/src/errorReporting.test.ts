@@ -10,6 +10,7 @@ import {
   scrubBreadcrumb,
   scrubEvent,
   scrubText,
+  stripDomAttributeValues,
   stripUrlSecrets,
   withoutUnsafeIntegrations,
   type ScrubbableEvent,
@@ -853,5 +854,30 @@ describe('tenth review regressions', () => {
     expect(
       scrubText('fetch https://example.test:bad/conductor/SecretTok failed', TOKEN_ROUTES)
     ).toBe('fetch [unparsed-url] failed');
+  });
+});
+
+describe('DOM interaction breadcrumbs', () => {
+  it('keeps the element path and attribute names, never the values', () => {
+    expect(
+      stripDomAttributeValues(
+        'div.board > button.ticket-card[aria-label="Ticket de Juana Prueba: no puedo subir"][title=\'Juana\'][type=button]'
+      )
+    ).toBe('div.board > button.ticket-card[aria-label][title][type]');
+    expect(stripDomAttributeValues('form#alta > input.rfc[name="rfc"]')).toBe(
+      'form#alta > input.rfc[name]'
+    );
+  });
+
+  it('applies to ui.* breadcrumbs only', () => {
+    expect(
+      scrubBreadcrumb({
+        category: 'ui.click',
+        message: 'li.flota[aria-label="Transportes Juana Prueba"]',
+      }).message
+    ).toBe('li.flota[aria-label]');
+    expect(scrubBreadcrumb({ category: 'console', message: 'value [a="b"]' }).message).toBe(
+      'value [a="b"]'
+    );
   });
 });
