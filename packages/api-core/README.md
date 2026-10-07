@@ -104,15 +104,20 @@ What the options guarantee:
 - Every event and transaction gets the `app` and `surface` tags. An explicit
   `surface` tag wins; otherwise `surfaceForPath` classifies the raw page or
   route path; otherwise the configured default applies.
-- `scrubEvent` runs on every event: exception and log messages are
-  pattern-redacted (JWT, bearer values, email, CURP, RFC, amounts, phones,
-  CLABE and 10+ digit runs); URLs lose their query and hash, ids become `[id]`
-  and token-route secrets become `[token]`; the request keeps only its URL and
-  allowlisted headers; the user keeps only `id`; breadcrumbs, `extra`, custom
-  contexts and spans are redacted. Exception types and stack frames are kept,
-  so grouping and source maps still work.
+- `scrubEvent` runs on every error and transaction:
+  - It pattern-redacts JWTs, bearer values, emails, CURP, RFC, IP addresses, amounts, phones, CLABE
+    and 10+ digit runs.
+  - It sanitises URLs and paths inside text. URLs lose their query and hash, ids become `[id]`,
+    and token-route secrets become `[token]`.
+  - The request keeps only its URL and allowlisted headers. The user keeps only `id`.
+  - It scrubs tags set by app code, fingerprints, mechanism data, breadcrumbs, `extra`, spans,
+    `trace` data, `otel` and custom contexts.
+  - It keeps exception types, stack frames and trace ids, so grouping and source maps still work.
+    It drops frame local variables. Frame file names lose only their query and token-route secret.
+- `beforeSendSpan` and `beforeSendLog` scrub streamed spans and logs the same way.
 - Shared noise (`ResizeObserver`, aborted requests, browser extensions) is
   ignored. Network failures stay visible.
+- The entry contains no lookbehind regex, so it parses on iOS Safari before 16.4.
 
 Vercel Node functions built on `withHandler` report the exceptions that the
 500 envelope hides through `configureErrorReporter`. The reporter runs before
@@ -128,6 +133,9 @@ configureErrorReporter(async ({ err, ctx }) => {
   await Sentry.flush(1500);
 });
 ```
+
+Set a custom transaction name only from a sanitised path (`sanitizeUrl`): the
+SDK copies it into the trace header before `beforeSend` runs.
 
 The app still owns SDK initialisation, integrations, source-map upload, user
 identity, and any business context it adds. `redactSensitiveText`,

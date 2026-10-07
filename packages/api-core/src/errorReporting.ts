@@ -11,6 +11,9 @@
  * event types below are structural, so `@sentry/react`, `@sentry/nextjs` and
  * `@sentry/node` events all fit, and the app keeps its own SDK version.
  *
+ * Browser support: no lookbehind or other syntax that older Safari (iOS < 16.4)
+ * cannot parse. A parse error here would stop the whole app from loading.
+ *
  * What is deliberately NOT here: SDK initialisation, user identity and
  * authorization. The app calls `Sentry.init(createErrorReportingOptions(...))`
  * and sets `Sentry.setUser({ id })` from its own session.
@@ -18,27 +21,43 @@
 
 // ── Text redaction ──────────────────────────────────────────────────────────
 
+interface SensitivePattern {
+  re: RegExp;
+  /** The first capture group is a boundary character that stays unmasked. */
+  keepsBoundary?: true;
+}
+
 // Bounded quantifiers only: no unbounded runs that backtrack on long text.
-const SENSITIVE_PATTERNS: readonly RegExp[] = [
-  // JSON Web Tokens (session cookies, signed links).
-  /\beyJ[A-Za-z0-9_-]{5,2048}\.[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,2048}/g,
+const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
+  // JSON Web Tokens (session cookies, signed links), also cut after the payload.
+  { re: /\beyJ[A-Za-z0-9_-]{5,2048}\.[A-Za-z0-9_-]{2,4096}(?:\.[A-Za-z0-9_-]{0,2048})?/g },
   // Authorization header values.
-  /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,4096}/gi,
+  { re: /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,4096}/gi },
   // Email address.
-  /[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,253}\.[A-Z]{2,24}/gi,
+  { re: /[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,253}\.[A-Z]{2,24}/gi },
   // CURP (18): 4 letters, date, sex, state, consonants, check digits.
-  /\b[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d\b/gi,
+  { re: /\b[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d\b/gi },
   // RFC for companies (12) or people (13), with or without separators. The
-  // explicit boundaries replace `\b`, which is ASCII-only and misses Ñ and &.
-  /(?<![A-Z0-9ÑÁÉÍÓÚÜ&])[A-ZÑ&]{3,4}[\s-]?\d{6}[\s-]?[A-Z0-9]{3}(?![A-Z0-9])/gi,
+  // boundary group replaces `\b` (ASCII-only, misses Ñ and &) and a
+  // lookbehind (unsupported before iOS 16.4).
+  {
+    re: /(^|[^A-Z0-9ÑÁÉÍÓÚÜ&])([A-ZÑ&]{3,4}[\s-]?\d{6}[\s-]?[A-Z0-9]{3})(?![A-Z0-9])/gi,
+    keepsBoundary: true,
+  },
+  // IPv6, compressed (`2001:db8::1`) or full. Clock times never contain `::`.
+  {
+    re: /\b(?:[0-9A-F]{1,4}:){1,7}:(?:[0-9A-F]{1,4}(?::[0-9A-F]{1,4}){0,6})?\b|\b(?:[0-9A-F]{1,4}:){7}[0-9A-F]{1,4}\b/gi,
+  },
+  // IPv4.
+  { re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g },
   // Amounts: $1,234.56 · $ 1234 · 1,234.56 MXN · MXN 1234.
-  /(?:\$|MXN)\s?-?\d[\d,]{0,20}(?:\.\d{1,4})?/gi,
-  /-?\d[\d,]{0,20}(?:\.\d{1,4})?\s?MXN\b/gi,
+  { re: /(?:\$|MXN)\s?-?\d[\d,]{0,20}(?:\.\d{1,4})?/gi },
+  { re: /-?\d[\d,]{0,20}(?:\.\d{1,4})?\s?MXN\b/gi },
   // Phone numbers with separators: +52 55 1234 5678, (55) 1234-5678.
-  /\+?\d{1,3}?[\s.-]?\(?\d{2,3}\)?[\s.-]\d{3,4}[\s.-]\d{4}\b/g,
+  { re: /\+?\d{1,3}?[\s.-]?\(?\d{2,3}\)?[\s.-]\d{3,4}[\s.-]\d{4}\b/g },
   // CLABE (18), cards, accounts and bare phone numbers: 10+ digits in a row,
   // optionally grouped by spaces or dashes.
-  /\b\d(?:[\s-]?\d){9,40}\b/g,
+  { re: /\b\d(?:[\s-]?\d){9,40}\b/g },
 ];
 
 /** A string longer than this is masked whole instead of scanned. */
@@ -47,14 +66,19 @@ const MAX_REDACT_LENGTH = 4000;
 const mask = (match: string) => match.replace(/\S/g, '*');
 
 /**
- * Masks text shaped like a token, email, CURP, RFC, amount, phone, CLABE or
- * account number. Spaces are kept so the shape of a message stays readable.
+ * Masks text shaped like a token, email, CURP, RFC, IP address, amount, phone,
+ * CLABE or account number. Spaces are kept so the shape of a message stays
+ * readable.
  */
 export function redactSensitiveText(text: string): string {
   if (!text) return text;
   if (text.length > MAX_REDACT_LENGTH) return mask(text);
   let out = text;
-  for (const pattern of SENSITIVE_PATTERNS) out = out.replace(pattern, mask);
+  for (const { re, keepsBoundary } of SENSITIVE_PATTERNS) {
+    out = keepsBoundary
+      ? out.replace(re, (_match, boundary: string, value: string) => `${boundary}${mask(value)}`)
+      : out.replace(re, mask);
+  }
   return out;
 }
 
@@ -62,18 +86,29 @@ export function redactSensitiveText(text: string): string {
 
 const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NUMERIC_SEGMENT = /^\d+$/;
-const OPAQUE_SEGMENT = /^[0-9a-z_-]{20,}$/i;
+/** Long ids and tokens. The digit keeps long kebab-case route names readable. */
+const OPAQUE_SEGMENT = /^(?=[0-9a-z_-]*\d)[0-9a-z_-]{20,}$/i;
+/** Markers this module writes. Kept as they are so sanitising is idempotent. */
+const MARKER_SEGMENT = /^\[(?:id|token|redacted)\]$/;
 
 export interface UrlScrubOptions {
   /**
-   * Public routes whose second path segment is a secret token, such as
-   * `/conductor/<token>`. That segment never leaves the app.
+   * Public routes whose next path segment is a secret token, such as
+   * `/conductor` for `/conductor/<token>`. Matching ignores case and trailing
+   * slashes; the segment right after the prefix never leaves the app.
    */
   tokenRoutePrefixes?: readonly string[];
 }
 
-function matchesPrefix(path: string, prefixes: readonly string[]): boolean {
-  return prefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
+/** Index of the token segment in `path.split('/')`, or -1. */
+function tokenSegmentIndex(path: string, prefixes: readonly string[]): number {
+  const lower = path.toLowerCase();
+  for (const raw of prefixes) {
+    const prefix = raw.toLowerCase().replace(/\/+$/, '');
+    if (!prefix) continue;
+    if (lower === prefix || lower.startsWith(`${prefix}/`)) return prefix.split('/').length;
+  }
+  return -1;
 }
 
 /**
@@ -83,13 +118,13 @@ function matchesPrefix(path: string, prefixes: readonly string[]): boolean {
  */
 export function sanitizePath(pathname: string, options: UrlScrubOptions = {}): string {
   const path = (pathname || '/').replace(/\/+$/, '') || '/';
-  const tokenRoute = matchesPrefix(path, options.tokenRoutePrefixes ?? []);
+  const tokenIndex = tokenSegmentIndex(path, options.tokenRoutePrefixes ?? []);
   return (
     path
       .split('/')
       .map((segment, index) => {
-        if (!segment) return segment;
-        if (tokenRoute && index === 2) return '[token]';
+        if (!segment || MARKER_SEGMENT.test(segment)) return segment;
+        if (index === tokenIndex) return '[token]';
         if (
           UUID_SEGMENT.test(segment) ||
           NUMERIC_SEGMENT.test(segment) ||
@@ -130,13 +165,42 @@ export function sanitizeUrl(raw: string, options: UrlScrubOptions = {}): string 
   }
 }
 
-const EMBEDDED_URL = /\bhttps?:\/\/[^\s"'<>`]{1,2048}/gi;
-/** `GET /api/x?y=z` in transaction names, span descriptions and fetch errors. */
-const METHOD_PATH = /\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\/[^\s"'<>`]{0,2048})/g;
+/**
+ * Stack-frame file names: drops the query and hash and hides a token-route
+ * secret, but keeps every other segment, so hashed bundle names still match
+ * their source maps.
+ */
+export function stripUrlSecrets(raw: string, options: UrlScrubOptions = {}): string {
+  if (!raw) return raw;
+  const [base = ''] = raw.split(/[?#]/);
+  const match = /^([a-z][a-z0-9+.-]*:\/\/[^/]*)?(\/.*)?$/i.exec(base);
+  if (!match?.[2]) return base;
+  const tokenIndex = tokenSegmentIndex(match[2], options.tokenRoutePrefixes ?? []);
+  if (tokenIndex < 0) return base;
+  const segments = match[2].split('/');
+  if (segments[tokenIndex]) segments[tokenIndex] = '[token]';
+  return `${match[1] ?? ''}${segments.join('/')}`;
+}
+
+const URL_CHARS = `[^\\s"'<>\`]{1,2048}`;
+const EMBEDDED_URL = new RegExp(`\\bhttps?:\\/\\/${URL_CHARS}`, 'gi');
+/** `app.partrunner.com/conductor/<token>` without a scheme. */
+const HOST_PATH = new RegExp(
+  `(^|[\\s'"(=,])((?:[a-z0-9-]{1,63}\\.){1,10}[a-z]{2,24}(?::\\d{1,5})?\\/${URL_CHARS.replace('{1,2048}', '{0,2048}')})`,
+  'gi'
+);
+/**
+ * A path at the start of the text or after a space, quote, `(`, `=` or `,`:
+ * `GET /api/x?y=z`, `Request failed: /conductor/<token>?rfc=…`.
+ */
+const RELATIVE_PATH = new RegExp(
+  `(^|[\\s'"(=,])(\\/[A-Za-z0-9_\\-.~%/\\[\\]]{1,2048}(?:[?#]${URL_CHARS})?)`,
+  'g'
+);
 
 /**
- * Sanitises every absolute URL and every `METHOD /path` inside free text, then
- * redacts the rest.
+ * Sanitises every URL and path inside free text (with or without a scheme or
+ * host), then redacts the rest.
  */
 export function scrubText(text: string, options: UrlScrubOptions = {}): string {
   if (!text) return text;
@@ -144,9 +208,12 @@ export function scrubText(text: string, options: UrlScrubOptions = {}): string {
   return redactSensitiveText(
     text
       .replace(EMBEDDED_URL, url => sanitizeUrl(url, options))
+      .replace(HOST_PATH, (_match, boundary: string, hostPath: string) => {
+        return `${boundary}${sanitizeUrl(`https://${hostPath}`, options).replace(/^https:\/\//, '')}`;
+      })
       .replace(
-        METHOD_PATH,
-        (_match, method: string, path: string) => `${method} ${sanitizeUrl(path, options)}`
+        RELATIVE_PATH,
+        (_match, boundary: string, path: string) => `${boundary}${sanitizeUrl(path, options)}`
       )
   );
 }
@@ -162,9 +229,16 @@ export interface ScrubbableEvent {
   message?: string;
   logentry?: { message?: string; params?: unknown[] };
   transaction?: string;
+  fingerprint?: string[];
   exception?: {
-    values?: Array<{ type?: string; value?: string; stacktrace?: unknown }>;
+    values?: Array<{
+      type?: string;
+      value?: string;
+      stacktrace?: unknown;
+      mechanism?: { data?: Record<string, unknown> };
+    }>;
   };
+  threads?: { values?: Array<{ stacktrace?: unknown }> };
   request?: {
     url?: string;
     query_string?: unknown;
@@ -178,13 +252,23 @@ export interface ScrubbableEvent {
   extra?: Record<string, unknown>;
   contexts?: Record<string, unknown>;
   tags?: Record<string, unknown>;
-  spans?: Array<{ description?: string; data?: Record<string, unknown> }>;
+  spans?: ScrubbableSpan[];
 }
 
 export interface ScrubbableBreadcrumb {
   category?: string;
   message?: string;
   data?: Record<string, unknown>;
+}
+
+export interface ScrubbableSpan {
+  description?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface ScrubbableLog {
+  message?: unknown;
+  attributes?: Record<string, unknown>;
 }
 
 /** Request headers that carry no identity. Every other header is dropped. */
@@ -198,9 +282,11 @@ const SAFE_HEADERS = new Set([
 ]);
 
 /**
- * Contexts the SDK fills with runtime facts (versions, trace ids, status
- * codes). Pattern redaction would mangle their ids, so they pass unchanged.
- * Every other context, including user feedback, is redacted.
+ * Contexts the SDK fills only with runtime facts (versions, device classes,
+ * status codes). Pattern redaction would mangle their values, so they pass
+ * unchanged. `trace` keeps its ids but its `data` (root-span attributes such
+ * as the raw target URL and client address) is scrubbed. Every other context,
+ * including `otel` attributes and user feedback, is scrubbed.
  */
 const SDK_CONTEXTS = new Set([
   'app',
@@ -209,14 +295,15 @@ const SDK_CONTEXTS = new Set([
   'culture',
   'device',
   'os',
-  'otel',
   'react',
   'response',
   'runtime',
-  'trace',
 ]);
 
-const URL_KEY = /(?:^|[._])(?:url|href|from|to|referrer|referer)$/i;
+/** Tags this module sets. App code tags pass through the scrubber. */
+const OWN_TAGS = new Set(['app', 'surface']);
+
+const URL_KEY = /(?:^|[._])(?:url|uri|href|from|to|referrer|referer|target|path|full)$/i;
 const DROPPED_DATA_KEY = /(?:^|[._])(?:query|fragment|cookies?|authorization|password|token)$/i;
 const MAX_DEPTH = 8;
 
@@ -224,11 +311,11 @@ function scrubValue(key: string, value: unknown, options: UrlScrubOptions, depth
   if (typeof value === 'string') {
     return URL_KEY.test(key) ? sanitizeUrl(value, options) : scrubText(value, options);
   }
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
   if (depth >= MAX_DEPTH) return '[depth]';
   if (Array.isArray(value)) return value.map(item => scrubValue(key, item, options, depth + 1));
-  if (value && typeof value === 'object')
-    return scrubRecord(value as Record<string, unknown>, options, depth + 1);
-  return value;
+  return scrubRecord(value as Record<string, unknown>, options, depth + 1);
 }
 
 function scrubRecord(
@@ -258,6 +345,30 @@ export function scrubBreadcrumb<B extends ScrubbableBreadcrumb>(
   };
 }
 
+/** `beforeSendSpan`: description and attributes scrubbed (streamed and standalone spans). */
+export function scrubSpan<S extends ScrubbableSpan>(span: S, options: UrlScrubOptions = {}): S {
+  return {
+    ...span,
+    ...(span.description !== undefined
+      ? { description: scrubText(span.description, options) }
+      : {}),
+    ...(span.data ? { data: scrubRecord(span.data, options) } : {}),
+  };
+}
+
+/** `beforeSendLog`: message and attributes scrubbed. */
+export function scrubLog<L extends ScrubbableLog>(log: L, options: UrlScrubOptions = {}): L {
+  const message =
+    typeof log.message === 'string' || log.message instanceof String
+      ? scrubText(String(log.message), options)
+      : log.message;
+  return {
+    ...log,
+    message,
+    ...(log.attributes ? { attributes: scrubRecord(log.attributes, options) } : {}),
+  };
+}
+
 function scrubHeaders(headers: Record<string, string>, options: UrlScrubOptions) {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(headers)) {
@@ -266,6 +377,33 @@ function scrubHeaders(headers: Record<string, string>, options: UrlScrubOptions)
     out[name] = lower === 'referer' ? sanitizeUrl(value, options) : value;
   }
   return out;
+}
+
+/** Frames keep everything grouping and source maps need; local variables go. */
+function scrubStacktrace(stacktrace: unknown, options: UrlScrubOptions): unknown {
+  if (!stacktrace || typeof stacktrace !== 'object') return stacktrace;
+  const { frames } = stacktrace as { frames?: unknown };
+  if (!Array.isArray(frames)) return stacktrace;
+  return {
+    ...stacktrace,
+    frames: frames.map(frame => {
+      if (!frame || typeof frame !== 'object') return frame;
+      const rest = { ...(frame as Record<string, unknown>) };
+      delete rest.vars;
+      for (const key of ['filename', 'abs_path']) {
+        const value = rest[key];
+        if (typeof value === 'string') rest[key] = stripUrlSecrets(value, options);
+      }
+      return rest;
+    }),
+  };
+}
+
+function scrubTraceContext(context: unknown, options: UrlScrubOptions): unknown {
+  if (!context || typeof context !== 'object') return context;
+  const { data } = context as { data?: unknown };
+  if (!data || typeof data !== 'object') return context;
+  return { ...context, data: scrubRecord(data as Record<string, unknown>, options) };
 }
 
 /** Path of the page or route that produced the event, before sanitising. */
@@ -285,13 +423,16 @@ export function eventPath(event: ScrubbableEvent): string | undefined {
 /**
  * Removes identity and sensitive text from an error or transaction event.
  *
- * - Exception and log messages: URLs sanitised, then pattern-redacted.
+ * - Messages, exception values, fingerprints, tags set by app code and
+ *   exception mechanism data: URLs sanitised, then pattern-redacted.
  *   Exception types and stack frames are kept, so grouping and source maps
- *   still work.
+ *   still work; frame local variables are dropped and frame file names lose
+ *   their query and token-route secret.
  * - Request: URL sanitised; query string, cookies, body and env dropped;
  *   headers reduced to an allowlist.
  * - User: only `id` is kept. No email, name or IP address.
- * - Breadcrumbs, `extra`, custom contexts and span descriptions: redacted.
+ * - Breadcrumbs, `extra`, spans, `trace` data, `otel` and custom contexts:
+ *   scrubbed.
  */
 export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScrubOptions = {}): E {
   const out: ScrubbableEvent = { ...event };
@@ -315,12 +456,34 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
       ? sanitizeUrl(event.transaction, options)
       : scrubText(event.transaction, options);
   }
+  if (event.fingerprint) {
+    out.fingerprint = event.fingerprint.map(part =>
+      typeof part === 'string' ? scrubText(part, options) : part
+    );
+  }
 
   if (event.exception?.values) {
     out.exception = {
       ...event.exception,
-      values: event.exception.values.map(value =>
-        value.value !== undefined ? { ...value, value: scrubText(value.value, options) } : value
+      values: event.exception.values.map(value => ({
+        ...value,
+        ...(value.value !== undefined ? { value: scrubText(value.value, options) } : {}),
+        ...(value.stacktrace !== undefined
+          ? { stacktrace: scrubStacktrace(value.stacktrace, options) }
+          : {}),
+        ...(value.mechanism?.data
+          ? { mechanism: { ...value.mechanism, data: scrubRecord(value.mechanism.data, options) } }
+          : {}),
+      })),
+    };
+  }
+  if (event.threads?.values) {
+    out.threads = {
+      ...event.threads,
+      values: event.threads.values.map(thread =>
+        thread.stacktrace !== undefined
+          ? { ...thread, stacktrace: scrubStacktrace(thread.stacktrace, options) }
+          : thread
       ),
     };
   }
@@ -337,6 +500,17 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
     out.user = event.user.id !== undefined ? { id: event.user.id } : {};
   }
 
+  if (event.tags) {
+    const tags: Record<string, unknown> = {};
+    for (const [name, value] of Object.entries(event.tags)) {
+      tags[name] =
+        OWN_TAGS.has(name) || typeof value !== 'string'
+          ? value
+          : scrubValue(name, value, options, 0);
+    }
+    out.tags = tags;
+  }
+
   if (event.breadcrumbs) {
     out.breadcrumbs = event.breadcrumbs.map(crumb => scrubBreadcrumb(crumb, options));
   }
@@ -344,19 +518,16 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
   if (event.contexts) {
     const contexts: Record<string, unknown> = {};
     for (const [name, context] of Object.entries(event.contexts)) {
-      contexts[name] = SDK_CONTEXTS.has(name) ? context : scrubValue(name, context, options, 0);
+      contexts[name] =
+        name === 'trace'
+          ? scrubTraceContext(context, options)
+          : SDK_CONTEXTS.has(name)
+            ? context
+            : scrubValue(name, context, options, 0);
     }
     out.contexts = contexts;
   }
-  if (event.spans) {
-    out.spans = event.spans.map(span => ({
-      ...span,
-      ...(span.description !== undefined
-        ? { description: scrubText(span.description, options) }
-        : {}),
-      ...(span.data ? { data: scrubRecord(span.data, options) } : {}),
-    }));
-  }
+  if (event.spans) out.spans = event.spans.map(span => scrubSpan(span, options));
 
   return out as E;
 }
@@ -426,12 +597,15 @@ export interface ErrorReportingOptions {
   denyUrls: RegExp[];
   beforeSend: <E extends ScrubbableEvent>(event: E) => E;
   beforeSendTransaction: <E extends ScrubbableEvent>(event: E) => E;
+  beforeSendSpan: <S extends ScrubbableSpan>(span: S) => S;
+  beforeSendLog: <L extends ScrubbableLog>(log: L) => L;
   beforeBreadcrumb: <B extends ScrubbableBreadcrumb>(breadcrumb: B) => B;
 }
 
 /**
  * Options to spread into `Sentry.init`. Every event gets the `app` and
- * `surface` tags and passes through `scrubEvent` before it leaves the app.
+ * `surface` tags and passes through `scrubEvent` before it leaves the app;
+ * spans, logs and breadcrumbs pass through their own scrubbers.
  *
  * ```ts
  * Sentry.init({
@@ -481,6 +655,8 @@ export function createErrorReportingOptions(config: ErrorReportingConfig): Error
     denyUrls: [...DEFAULT_DENY_URLS],
     beforeSend: tag,
     beforeSendTransaction: tag,
+    beforeSendSpan: span => scrubSpan(span, urlOptions),
+    beforeSendLog: log => scrubLog(log, urlOptions),
     beforeBreadcrumb: breadcrumb => scrubBreadcrumb(breadcrumb, urlOptions),
   };
 }

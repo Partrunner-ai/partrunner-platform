@@ -181,9 +181,13 @@ export function withHandler(opts: HandlerOptions, fn: Handler) {
     }
 
     const startedAt = Date.now();
+    // Set when the handler throws, so the recorded duration excludes the time
+    // spent reporting the error.
+    let failedAt: number | undefined;
     try {
       await fn(req, res, logger);
     } catch (err) {
+      failedAt = Date.now();
       logger.error(opts.ctx, 'Unhandled error', { err });
       await reportError({ err, req, ctx: opts.ctx });
       if (!res.headersSent) {
@@ -211,7 +215,7 @@ export function withHandler(opts: HandlerOptions, fn: Handler) {
           await recorder({
             req,
             statusCode: res.statusCode ?? null,
-            durationMs: Date.now() - startedAt,
+            durationMs: (failedAt ?? Date.now()) - startedAt,
           });
         } catch {
           /* instrumentation never breaks the business path */

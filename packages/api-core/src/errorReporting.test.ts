@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createErrorReportingOptions,
@@ -329,5 +331,167 @@ describe('createErrorReportingOptions', () => {
     ).toEqual({
       to: '/afiliacion/[token]',
     });
+  });
+});
+
+describe('review regressions', () => {
+  it('ships no lookbehind, which older iOS Safari cannot parse', () => {
+    const source = readFileSync(join(import.meta.dirname, 'errorReporting.ts'), 'utf8');
+    expect(source).not.toMatch(/\(\?<[!=]/);
+  });
+
+  it('keeps the RFC boundary character when masking', () => {
+    expect(redactSensitiveText('(ABC010203XY1)')).toBe('(************)');
+    expect(redactSensitiveText('ABC010203XY1')).toBe('************');
+  });
+
+  it('masks IP addresses and truncated JWTs', () => {
+    expect(redactSensitiveText('connect ECONNREFUSED 203.0.113.45:5432 from 2001:db8::1')).toBe(
+      'connect ECONNREFUSED ************:5432 from ***********'
+    );
+    expect(redactSensitiveText('at 12:30:45')).toBe('at 12:30:45');
+    expect(redactSensitiveText('eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFAYi5jb20ifQ')).not.toContain(
+      'eyJ'
+    );
+  });
+
+  it('sanitises relative paths and host paths without a scheme in free text', () => {
+    expect(
+      scrubText('Request failed: /conductor/AbCdEf12345?rfc=foo&folio=F-998', TOKEN_ROUTES)
+    ).toBe('Request failed: /conductor/[token]');
+    expect(scrubText('see app.partrunner.com/conductor/AbCdEf12345?x=1', TOKEN_ROUTES)).toBe(
+      'see app.partrunner.com/conductor/[token]'
+    );
+    expect(scrubText('ratio 3 / 4 and 10/07/2026')).toBe('ratio 3 / 4 and 10/07/2026');
+  });
+
+  it('is idempotent on its own output', () => {
+    const once = scrubText('GET /afiliacion/tok_abc/paso?x=1 https://a.test/u/42', TOKEN_ROUTES);
+    expect(scrubText(once, TOKEN_ROUTES)).toBe(once);
+  });
+
+  it('matches token routes nested, with trailing slashes and in any case', () => {
+    const options = { tokenRoutePrefixes: ['/api/conductor/', '/Afiliacion'] };
+    expect(sanitizePath('/api/conductor/AbCdEf12345/docs', options)).toBe(
+      '/api/conductor/[token]/docs'
+    );
+    expect(sanitizePath('/AFILIACION/tok.short~1', options)).toBe('/AFILIACION/[token]');
+  });
+
+  it('keeps long kebab-case route names readable', () => {
+    expect(sanitizePath('/api/weekly-adjustments-approve/x')).toBe(
+      '/api/weekly-adjustments-approve/x'
+    );
+    expect(sanitizePath('/api/finance/payment-receipt-archive')).toBe(
+      '/api/finance/payment-receipt-archive'
+    );
+    expect(sanitizePath('/r/a1b2c3d4e5f6g7h8i9j0k')).toBe('/r/[id]');
+  });
+
+  it('scrubs trace data and otel attributes but keeps trace ids', () => {
+    const out = scrubEvent(
+      {
+        contexts: {
+          trace: {
+            trace_id: '0123456789abcdef0123456789abcdef',
+            span_id: '0123456789abcdef',
+            op: 'http.server',
+            data: {
+              'http.target': '/conductor/SecretTok?rfc=XAXX010101000',
+              'url.full': 'https://a.com/conductor/SecretTok?x=1',
+              'url.path': '/conductor/SecretTok',
+              'client.address': '203.0.113.9',
+            },
+          },
+          otel: { attributes: { 'http.target': '/conductor/SecretTok?x=1' } },
+        },
+      },
+      TOKEN_ROUTES
+    );
+    expect(out.contexts?.trace).toEqual({
+      trace_id: '0123456789abcdef0123456789abcdef',
+      span_id: '0123456789abcdef',
+      op: 'http.server',
+      data: {
+        'http.target': '/conductor/[token]',
+        'url.full': 'https://a.com/conductor/[token]',
+        'url.path': '/conductor/[token]',
+        'client.address': '***********',
+      },
+    });
+    expect(JSON.stringify(out.contexts?.otel)).not.toContain('SecretTok');
+  });
+
+  it('scrubs app tags, fingerprints, mechanism data, frame vars, frame URLs and threads', () => {
+    const frames = [
+      {
+        filename: 'https://www.partrunner.app/conductor/SecretTok?x=1',
+        abs_path: '/assets/index-Dz8k2a9QpL3mN7vX1yB4.js',
+        function: 'onSubmit',
+        lineno: 3,
+        vars: { rfc: 'ABC010203XY1' },
+      },
+    ];
+    const out = scrubEvent(
+      {
+        tags: { rfc: 'XAXX010101000', email: 'a@b.com', app: 'stf', release_channel: 'stable' },
+        fingerprint: ['{{ default }}', 'flota@example.com'],
+        exception: {
+          values: [
+            {
+              type: 'Error',
+              mechanism: { data: { url: '/x?rfc=ABC010203XY1' } },
+              stacktrace: { frames },
+            },
+          ],
+        },
+        threads: { values: [{ stacktrace: { frames } }] },
+      },
+      TOKEN_ROUTES
+    );
+    const expectedFrame = {
+      filename: 'https://www.partrunner.app/conductor/[token]',
+      abs_path: '/assets/index-Dz8k2a9QpL3mN7vX1yB4.js',
+      function: 'onSubmit',
+      lineno: 3,
+    };
+    expect(out.tags).toEqual({
+      rfc: '*************',
+      email: '*******',
+      app: 'stf',
+      release_channel: 'stable',
+    });
+    expect(out.fingerprint).toEqual(['{{ default }}', '*****************']);
+    expect(out.exception?.values?.[0]?.mechanism).toEqual({ data: { url: '/x' } });
+    expect(out.exception?.values?.[0]?.stacktrace).toEqual({ frames: [expectedFrame] });
+    expect(out.threads?.values?.[0]?.stacktrace).toEqual({ frames: [expectedFrame] });
+  });
+
+  it('keeps dates and deep primitives readable', () => {
+    const deep = { a: { b: { c: { d: { e: { f: { g: { h: { i: 1 } } } } } } } } };
+    const out = scrubEvent({ extra: { when: new Date('2026-10-07T00:00:00Z'), deep } });
+    expect(out.extra?.when).toBe('2026-10-07T00:00:00.000Z');
+    expect(JSON.stringify(out.extra?.deep)).toContain('[depth]');
+    expect(scrubEvent({ extra: { n: 5 } }).extra).toEqual({ n: 5 });
+  });
+
+  it('scrubs streamed spans and logs', () => {
+    const { beforeSendSpan, beforeSendLog } = createErrorReportingOptions({
+      app: 'fds',
+      surface: 'backoffice',
+      ...TOKEN_ROUTES,
+    });
+    expect(
+      beforeSendSpan({
+        description: 'GET /conductor/SecretTok?x=1',
+        data: { 'user.email': 'a@b.com', 'user.ip_address': '10.0.0.1', 'http.query': 'x=1' },
+      })
+    ).toEqual({
+      description: 'GET /conductor/[token]',
+      data: { 'user.email': '*******', 'user.ip_address': '********' },
+    });
+    expect(
+      beforeSendLog({ message: 'payout for ABC010203XY1', attributes: { url: '/x?y=1' } })
+    ).toEqual({ message: 'payout for ************', attributes: { url: '/x' } });
   });
 });

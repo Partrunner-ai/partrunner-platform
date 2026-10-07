@@ -270,4 +270,20 @@ describe('withHandler error reporter', () => {
     await done;
     expect(r.status).toHaveBeenCalledWith(500);
   });
+
+  it('records the handler duration without the time spent reporting', async () => {
+    vi.useFakeTimers();
+    const recorder = vi.fn();
+    configureRequestRecorder(recorder);
+    configureErrorReporter(() => new Promise<void>(resolve => setTimeout(resolve, 1500)));
+
+    const done = withHandler(options, async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      throw new Error('boom');
+    })(req(), res());
+    await vi.advanceTimersByTimeAsync(2000);
+    await done;
+
+    expect(recorder).toHaveBeenCalledWith(expect.objectContaining({ durationMs: 100 }));
+  });
 });
