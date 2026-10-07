@@ -120,13 +120,17 @@ What the options guarantee:
     become `[ip]`, ids become `[id]`, and token-route secrets become `[token]`.
   - Key rules apply whatever the value type. Credential and raw-request keys (`token`, `session`,
     `cookie`, `authorization`, `apiKey`, `body`, `query`) are dropped. Money and identity keys
-    (`amount`, `rfc`, `curp`, `clabe`, `phone`, `email`, `name` variants, `address`, `ip`)
+    (`amount`, `rfc`, `curp`, `clabe`, `phone`, `email`, `name` variants, `address`, `ip`,
+    `placa`/`plate`)
     become `[redacted]`. Numbers with 10+ digits become `[redacted]` unless the key names a time.
     Keys that are data themselves are masked.
   - The request keeps its method, URL and allowlisted headers, with scrubbed values. The user
     keeps only `id`. User-agent product versions stay; its comments, URLs and IPs are scrubbed.
   - It scrubs tags set by app code, fingerprints, mechanism data, breadcrumbs (message, category,
-    data), `extra`, spans and every context field by field. `response` keeps only its status code
+    data; DOM click and input breadcrumbs keep only the element path before the first `[`,
+    because the SDK appends unescaped `aria-label`/`title`/`alt`/`name` values; console
+    breadcrumbs are removed from outgoing events, in the browser and on the server, because log
+    text and arguments are free-form), `extra`, spans and every context field by field. `response` keeps only its status code
     and body size. Unknown top-level fields such as `server_name` are scrubbed too.
   - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
     metadata, so grouping, source maps and runtime facts still work. It drops frame local

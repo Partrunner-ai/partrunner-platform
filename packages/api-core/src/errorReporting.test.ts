@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { htmlTreeAsString } from '@sentry/core';
 import { describe, expect, it } from 'vitest';
 import {
   createErrorReportingOptions,
@@ -10,6 +11,7 @@ import {
   scrubBreadcrumb,
   scrubEvent,
   scrubText,
+  stripDomAttributeValues,
   stripUrlSecrets,
   withoutUnsafeIntegrations,
   type ScrubbableEvent,
@@ -853,5 +855,101 @@ describe('tenth review regressions', () => {
     expect(
       scrubText('fetch https://example.test:bad/conductor/SecretTok failed', TOKEN_ROUTES)
     ).toBe('fetch [unparsed-url] failed');
+  });
+});
+
+/** A minimal element for Sentry's real `htmlTreeAsString` (no DOM in Node). */
+function fakeElement(
+  tagName: string,
+  attrs: Record<string, string> = {},
+  className = '',
+  parentNode: unknown = null
+) {
+  return {
+    tagName,
+    className,
+    id: attrs.id ?? '',
+    parentNode,
+    getAttribute: (name: string) => attrs[name] ?? null,
+  };
+}
+
+describe('DOM interaction breadcrumbs', () => {
+  const board = () => fakeElement('DIV', {}, 'board');
+  const selectorFor = (label: string, parent: unknown = board()) =>
+    htmlTreeAsString(
+      fakeElement(
+        'BUTTON',
+        { 'aria-label': label, type: 'button' },
+        'ticket-card',
+        parent
+      ) as never,
+      { maxStringLength: 4000 }
+    );
+
+  it.each([
+    'Ticket de Juana Prueba: no puedo subir',
+    'Ticket "urgente" ] de Juana Prueba',
+    'Juana Prueba > div[title="x"]',
+    'x"] > span.Juana.Prueba[title="y',
+    "Ticket de Juana Prueba' ] [x",
+  ])('keeps only the real element path for aria-label %s', label => {
+    const message = selectorFor(label);
+    expect(message).toContain('Juana');
+    const out = scrubBreadcrumb({ category: 'ui.click', message }).message;
+    expect(out).toBe('div.board > button.ticket-card[…]');
+  });
+
+  it('stops at the first attribute, also on an ancestor', () => {
+    const labelled = fakeElement('SECTION', { title: 'Cliente Juana Prueba' }, 'panel');
+    const out = scrubBreadcrumb({
+      category: 'ui.click',
+      message: selectorFor('x', labelled),
+    }).message;
+    expect(out).toBe('section.panel[…]');
+  });
+
+  it('is idempotent through beforeBreadcrumb and beforeSend', () => {
+    const { beforeBreadcrumb, beforeSend } = createErrorReportingOptions({
+      app: 'fds',
+      surface: 'backoffice',
+    });
+    const crumb = beforeBreadcrumb({ category: 'ui.click', message: selectorFor('Juana Prueba') });
+    const event = beforeSend<ScrubbableEvent>({ breadcrumbs: [crumb] });
+    expect(event.breadcrumbs).toEqual([
+      { category: 'ui.click', message: 'div.board > button.ticket-card[…]' },
+    ]);
+  });
+
+  it('is idempotent on its own output', () => {
+    const once = stripDomAttributeValues(selectorFor('Juana Prueba'));
+    expect(stripDomAttributeValues(once)).toBe(once);
+  });
+
+  it('redacts license plates by key', () => {
+    expect(
+      scrubEvent({ extra: { placa: 'ABC-123-D', vehicle: { licensePlate: '123ABC4' } } }).extra
+    ).toEqual({ placa: '[redacted]', vehicle: { licensePlate: '[redacted]' } });
+  });
+
+  it('leaves non-DOM breadcrumbs alone', () => {
+    expect(scrubBreadcrumb({ category: 'navigation', message: 'value [a="b"]' }).message).toBe(
+      'value [a="b"]'
+    );
+  });
+
+  it('removes console breadcrumbs from outgoing events', () => {
+    const { beforeSend } = createErrorReportingOptions({ app: 'sales', surface: 'backoffice' });
+    const event = beforeSend<ScrubbableEvent>({
+      breadcrumbs: [
+        {
+          category: 'console',
+          message: 'tool createClient {"company":"Transportes Juana","notes":"llamar"}',
+          data: { arguments: [{ company: 'Transportes Juana' }] },
+        },
+        { category: 'navigation', data: { to: '/x' } },
+      ],
+    });
+    expect(event.breadcrumbs).toEqual([{ category: 'navigation', data: { to: '/x' } }]);
   });
 });

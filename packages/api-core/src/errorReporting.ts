@@ -370,7 +370,7 @@ const SECRET_KEY = keyWords(
 );
 /** Money and identity: the value is replaced whatever its type. */
 const SENSITIVE_KEY = keyWords(
-  'amount|monto|importe|subtotal|price|precio|salary|salario|balance|saldo|clabe|rfc|curp|phone|telefono|tel|email|correo|mail|account_number|cuenta|card|tarjeta|name|username|nombre|apellidos?|razon_social|address|direccion|ip|ip_address'
+  'amount|monto|importe|subtotal|price|precio|salary|salario|balance|saldo|clabe|rfc|curp|phone|telefono|tel|email|correo|mail|account_number|cuenta|card|tarjeta|name|username|nombre|apellidos?|razon_social|address|direccion|ip|ip_address|placa|placas|plate|plates|license_plate|matricula'
 );
 /** Numbers under these keys are times, not phones or accounts. */
 const TEMPORAL_KEY = keyWords(
@@ -485,15 +485,42 @@ function scrubContext(name: string, context: unknown, options: UrlScrubOptions):
   return out;
 }
 
+/**
+ * DOM interaction breadcrumbs (`ui.click`, `ui.input`, …): the SDK appends
+ * `aria-label`, `title`, `alt`, `name` and `type` VALUES to the selector
+ * without escaping quotes or brackets, so no parser can tell where a value
+ * ends, and a value can even imitate more path (`x"] > span.Name[title="y`).
+ * Everything before the first `[` is the real element path (tags, ids,
+ * classes); everything from the first `[` on is dropped. Idempotent.
+ */
+export function stripDomAttributeValues(selector: string): string {
+  const cut = selector.indexOf('[');
+  return cut === -1 ? selector : `${selector.slice(0, cut)}[…]`;
+}
+
+/**
+ * Breadcrumb categories removed from every outgoing event. Console
+ * breadcrumbs carry free-form log text and arguments (tool inputs, names,
+ * notes) that no pattern recognises, in the browser and on the server.
+ */
+export const DROPPED_BREADCRUMB_CATEGORIES: ReadonlySet<string> = new Set(['console']);
+
 /** `beforeBreadcrumb`: URLs normalised, messages and data redacted. */
 export function scrubBreadcrumb<B extends ScrubbableBreadcrumb>(
   breadcrumb: B,
   options: UrlScrubOptions = {}
 ): B {
+  const isDomInteraction =
+    typeof breadcrumb.category === 'string' && breadcrumb.category.startsWith('ui.');
   return {
     ...breadcrumb,
     ...(breadcrumb.message !== undefined
-      ? { message: scrubText(breadcrumb.message, options) }
+      ? {
+          message: scrubText(
+            isDomInteraction ? stripDomAttributeValues(breadcrumb.message) : breadcrumb.message,
+            options
+          ),
+        }
       : {}),
     ...(breadcrumb.category !== undefined
       ? { category: scrubText(breadcrumb.category, options) }
@@ -740,7 +767,14 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
   }
 
   if (event.breadcrumbs) {
-    out.breadcrumbs = event.breadcrumbs.map(crumb => scrubBreadcrumb(crumb, options));
+    // Every outgoing event passes here, including breadcrumbs added straight
+    // on a scope (they skip `beforeBreadcrumb`).
+    out.breadcrumbs = event.breadcrumbs
+      .filter(
+        crumb =>
+          !(typeof crumb.category === 'string' && DROPPED_BREADCRUMB_CATEGORIES.has(crumb.category))
+      )
+      .map(crumb => scrubBreadcrumb(crumb, options));
   }
   if (event.extra) out.extra = scrubRecord(event.extra, options);
   if (event.contexts) {
