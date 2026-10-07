@@ -11,6 +11,7 @@ import {
   scrubEvent,
   scrubText,
   stripUrlSecrets,
+  withoutUnsafeIntegrations,
   type ScrubbableEvent,
 } from './observability';
 
@@ -808,5 +809,38 @@ describe('performance', () => {
     for (const input of inputs) scrubText(input.slice(0, 3999), TOKEN_ROUTES);
     // Measured at ~10 ms in total; the bound only catches catastrophic backtracking.
     expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+describe('ninth review regressions', () => {
+  it('masks a whole Authorization header, Digest parameters included', () => {
+    expect(
+      redactSensitiveText(
+        'Authorization: Digest username="alice", nonce="opaqueNonce", response="opaqueResponse"'
+      )
+    ).not.toMatch(/alice|opaqueNonce|opaqueResponse/);
+  });
+
+  it('removes URL credentials from frame and debug file names', () => {
+    expect(stripUrlSecrets('https://alice:opaquePassword@example.test/app.js')).toBe(
+      'https://example.test/app.js'
+    );
+    expect(stripUrlSecrets('https://alice:pw@10.0.0.1/app.js')).toBe('https://[ip]/app.js');
+    expect(sanitizeUrl('https://alice:pw@example.test/x')).toBe('https://example.test/x');
+  });
+
+  it('masks IPv6 addresses that end in compression', () => {
+    expect(redactSensitiveText('connect ECONNREFUSED 2001:db8::')).toBe(
+      'connect ECONNREFUSED **********'
+    );
+    expect(redactSensitiveText('fe80:: up')).toBe('****** up');
+    expect(redactSensitiveText('std::vector Foo::bar')).toBe('std::vector Foo::bar');
+  });
+});
+
+describe('session integrations', () => {
+  it('removes integrations whose payloads bypass the hooks', () => {
+    const defaults = [{ name: 'BrowserSession' }, { name: 'Dedupe' }, { name: 'ProcessSession' }];
+    expect(withoutUnsafeIntegrations(defaults)).toEqual([{ name: 'Dedupe' }]);
   });
 });

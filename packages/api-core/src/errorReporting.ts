@@ -35,9 +35,10 @@ const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
   { re: /\beyJ[A-Za-z0-9_-]{5,4000}\.[A-Za-z0-9_-]{2,4000}(?:\.[A-Za-z0-9_-]{0,4000})?/g },
   // Authorization header values.
   { re: /\b(?:Bearer|Basic|Digest|Token)\s+[A-Za-z0-9._~+/=-]{1,4000}/gi },
-  // Cookie headers: everything after the header name.
+  // Cookie and Authorization headers: everything after the header name
+  // (Digest parameters, quoted values and all).
   {
-    re: /(^|[^A-Za-z0-9_-])((?:set-)?cookie\s{0,3}:\s{0,3})([^\r\n]{1,4000})/gi,
+    re: /(^|[^A-Za-z0-9_-])((?:set-)?cookie\s{0,3}:\s{0,3}|(?:proxy-)?authorization\s{0,3}:\s{0,3})([^\r\n]{1,4000})/gi,
     keepsValueOnly: true,
   },
   // Credential assignments in text and serialized JSON: `token=…`,
@@ -68,7 +69,7 @@ const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
   },
   // IPv6, compressed (`2001:db8::1`) or full. Clock times never contain `::`.
   {
-    re: /\b(?:[0-9A-F]{1,4}:){1,7}:(?:[0-9A-F]{1,4}(?::[0-9A-F]{1,4}){0,6})?\b|\b(?:[0-9A-F]{1,4}:){7}[0-9A-F]{1,4}\b/gi,
+    re: /\b(?:[0-9A-F]{1,4}:){1,7}:(?:[0-9A-F]{1,4}(?::[0-9A-F]{1,4}){0,6})?(?![0-9A-Z:])|\b(?:[0-9A-F]{1,4}:){7}[0-9A-F]{1,4}\b/gi,
   },
   // IPv6 with leading compression (`::1`, `::ffff:10.0.0.1`). The boundary
   // group keeps `std::vector` and `Foo::bar` readable.
@@ -230,10 +231,10 @@ export function stripUrlSecrets(raw: string, options: UrlScrubOptions = {}): str
   const [base = ''] = raw.split(/[?#]/);
   const match = /^([a-z][a-z0-9+.-]*:\/\/[^/]*)?(\/.*)?$/i.exec(base);
   if (!match) return base;
-  const origin = (match[1] ?? '').replace(
-    /^([a-z][a-z0-9+.-]*:\/\/)(?:\d{1,3}(?:\.\d{1,3}){3}|\[[^\]]*\])/i,
-    '$1[ip]'
-  );
+  const origin = (match[1] ?? '')
+    // URL credentials (`user:password@`) never leave.
+    .replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@]*@/i, '$1')
+    .replace(/^([a-z][a-z0-9+.-]*:\/\/)(?:\d{1,3}(?:\.\d{1,3}){3}|\[[^\]]*\])/i, '$1[ip]');
   const path = match[2] ?? '';
   const tokenIndex = tokenSegmentIndex(path, options.tokenRoutePrefixes ?? []);
   if (tokenIndex < 0) return `${origin}${path}`;
@@ -822,6 +823,26 @@ export const DEFAULT_DENY_URLS: ReadonlyArray<RegExp> = [
 ];
 
 export const DEFAULT_TRACES_SAMPLE_RATE = 0.05;
+
+/**
+ * Default integrations whose payloads bypass every hook. Session envelopes
+ * (release health) carry the raw user agent.
+ */
+export const UNSAFE_DEFAULT_INTEGRATIONS: ReadonlySet<string> = new Set([
+  'BrowserSession',
+  'ProcessSession',
+]);
+
+/**
+ * Removes `UNSAFE_DEFAULT_INTEGRATIONS` from the SDK defaults:
+ *
+ * ```ts
+ * integrations: defaults => [...withoutUnsafeIntegrations(defaults), Sentry.browserTracingIntegration()]
+ * ```
+ */
+export function withoutUnsafeIntegrations<I extends { name: string }>(integrations: I[]): I[] {
+  return integrations.filter(integration => !UNSAFE_DEFAULT_INTEGRATIONS.has(integration.name));
+}
 
 export interface ErrorReportingOptions {
   dsn: string | undefined;

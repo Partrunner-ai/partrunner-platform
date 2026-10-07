@@ -83,7 +83,10 @@ and `@sentry/node` 10.
 
 ```ts
 import * as Sentry from '@sentry/react';
-import { createErrorReportingOptions } from '@partrunner-ai/api-core/observability';
+import {
+  createErrorReportingOptions,
+  withoutUnsafeIntegrations,
+} from '@partrunner-ai/api-core/observability';
 
 Sentry.init({
   ...createErrorReportingOptions({
@@ -95,7 +98,10 @@ Sentry.init({
     tokenRoutePrefixes: ['/conductor', '/afiliacion'],
     surfaceForPath: path => (path.startsWith('/admin') ? 'backoffice' : undefined),
   }),
-  integrations: [Sentry.browserTracingIntegration()],
+  integrations: defaults => [
+    ...withoutUnsafeIntegrations(defaults),
+    Sentry.browserTracingIntegration(),
+  ],
 });
 Sentry.setUser({ id: session.userId }); // id only: the scrubber drops everything else
 ```
@@ -160,9 +166,11 @@ accepts these rules:
   (`sanitizeUrl`, router patterns). The SDK copies a custom transaction name
   into the envelope header (dynamic sampling context) before any hook runs.
 - **No attachments, no Session Replay, no screenshots, no user-feedback
-  widget, no Sentry Logs or Metrics, no span streaming.** Their payloads
-  bypass these hooks. Do not override `enableLogs`, `enableMetrics` or
-  `traceLifecycle`.
+  widget, no Sentry Logs or Metrics, no span streaming, no session
+  tracking.** Their payloads bypass these hooks. Do not override
+  `enableLogs`, `enableMetrics` or `traceLifecycle`. Build `integrations`
+  with `withoutUnsafeIntegrations(defaults)`: it removes `BrowserSession`
+  and `ProcessSession`, whose session envelopes carry the raw user agent.
 - **`setUser({ id })` only.** Never set email, username or IP on the scope.
 - **No `includeLocalVariables`** on Node. Frame variables are dropped, but
   they should not be collected at all.
