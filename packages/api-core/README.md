@@ -72,6 +72,53 @@ compatible boolean API for existing callers. `parseTargetingResult` exposes
 the same strict parser to admin forms and import checks. The `./feature-flags`
 entry is browser-safe and has no database, logger, or environment imports.
 
+## Error reporting
+
+`./observability` is the shared privacy policy for error tracking. Every app
+sends crashes, exceptions and traces to Sentry through these options, so one
+filter decides what leaves every app. The entry is browser-safe, has no SDK
+dependency, and fits `@sentry/react`, `@sentry/nextjs` and `@sentry/node` 10.
+
+```ts
+import * as Sentry from '@sentry/react';
+import { createErrorReportingOptions } from '@partrunner-ai/api-core/observability';
+
+Sentry.init({
+  ...createErrorReportingOptions({
+    app: 'sube-tu-factura', // app registry id
+    surface: 'fleet', // fleet | backoffice | client
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.VITE_VERCEL_ENV,
+    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA,
+    tokenRoutePrefixes: ['/conductor', '/afiliacion'],
+    surfaceForPath: path => (path.startsWith('/admin') ? 'backoffice' : undefined),
+  }),
+  integrations: [Sentry.browserTracingIntegration()],
+});
+Sentry.setUser({ id: session.userId }); // id only: the scrubber drops everything else
+```
+
+What the options guarantee:
+
+- `sendDefaultPii: false`, and the SDK stays disabled without a DSN.
+- Every event and transaction gets the `app` and `surface` tags. An explicit
+  `surface` tag wins; otherwise `surfaceForPath` classifies the raw page or
+  route path; otherwise the configured default applies.
+- `scrubEvent` runs on every event: exception and log messages are
+  pattern-redacted (JWT, bearer values, email, CURP, RFC, amounts, phones,
+  CLABE and 10+ digit runs); URLs lose their query and hash, ids become `[id]`
+  and token-route secrets become `[token]`; the request keeps only its URL and
+  allowlisted headers; the user keeps only `id`; breadcrumbs, `extra`, custom
+  contexts and spans are redacted. Exception types and stack frames are kept,
+  so grouping and source maps still work.
+- Shared noise (`ResizeObserver`, aborted requests, browser extensions) is
+  ignored. Network failures stay visible.
+
+The app still owns SDK initialisation, integrations, source-map upload, user
+identity, and any business context it adds. `redactSensitiveText`,
+`sanitizeUrl` and `sanitizePath` are exported for apps that need the same rules
+elsewhere, such as analytics `before_send` hooks.
+
 ## Security boundaries
 
 - API keys are accepted only through `X-API-Key`.

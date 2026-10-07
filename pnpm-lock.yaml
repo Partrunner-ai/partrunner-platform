@@ -93,6 +93,9 @@ importers:
 
   packages/api-core:
     devDependencies:
+      '@sentry/core':
+        specifier: ^10.76.1
+        version: 10.76.1
       '@supabase/supabase-js':
         specifier: ^2.90.1
         version: 2.112.1
@@ -1634,6 +1637,14 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@sentry/conventions@0.16.0':
+    resolution: {integrity: sha512-fO9PLmHdVURcSPUpWCItWAtgKiMwGdJHbovoSEyLplX5sxs2ugvI4CBPTrkkgqhObnZOD0CnWBKDzSVQYBKEyQ==}
+    engines: {node: '>=14'}
+
+  '@sentry/core@10.76.1':
+    resolution: {integrity: sha512-WZ1D30FDrvZPWcEgbCgaVHROBOaVGxNUcEeF5O5xRAdGu6UB7Epg+CQBeoatw/SxEctQq0BPbMIwtBgbe1QK3g==}
+    engines: {node: '>=18'}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -4409,6 +4420,12 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@sentry/conventions@0.16.0': {}
+
+  '@sentry/core@10.76.1':
+    dependencies:
+      '@sentry/conventions': 0.16.0
 
   '@standard-schema/spec@1.1.0': {}
 
