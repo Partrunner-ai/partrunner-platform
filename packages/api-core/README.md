@@ -107,7 +107,7 @@ What the options guarantee:
   `surface` tag wins; otherwise `surfaceForPath` classifies the raw page or
   route path; otherwise the configured default applies.
 - `scrubEvent` runs on every error and transaction:
-  - It pattern-redacts JWTs, bearer values, cookie headers, credential assignments
+  - It pattern-redacts JWTs, authorization values, cookie headers, credential assignments
     (`token=…`, `"accessToken":"…"`), emails, CURP, RFC, IP addresses, amounts, phones, CLABE
     and 10+ digit runs.
   - It sanitises URLs and paths inside text. URLs lose their query and hash, IP-literal hosts
@@ -118,7 +118,7 @@ What the options guarantee:
     become `[redacted]`. Numbers with 10+ digits become `[redacted]` unless the key names a time.
     Keys that are data themselves are masked.
   - The request keeps its method, URL and allowlisted headers, with scrubbed values. The user
-    keeps only `id`.
+    keeps only `id`. User-agent product versions stay; its comments, URLs and IPs are scrubbed.
   - It scrubs tags set by app code, fingerprints, mechanism data, breadcrumbs (message, category,
     data), `extra`, spans and every context field by field. `response` keeps only its status code
     and body size. Unknown top-level fields such as `server_name` are scrubbed too.

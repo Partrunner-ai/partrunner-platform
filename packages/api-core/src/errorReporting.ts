@@ -25,8 +25,6 @@ interface SensitivePattern {
   re: RegExp;
   /** The first capture group is a boundary character that stays unmasked. */
   keepsBoundary?: true;
-  /** An IP address pattern; `ipAddresses: false` skips it (version strings). */
-  ip?: true;
   /** Groups: boundary, key (both kept), value (masked). */
   keepsValueOnly?: true;
 }
@@ -34,27 +32,27 @@ interface SensitivePattern {
 // Bounded quantifiers only: no unbounded runs that backtrack on long text.
 const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
   // JSON Web Tokens (session cookies, signed links), also cut after the payload.
-  { re: /\beyJ[A-Za-z0-9_-]{5,2048}\.[A-Za-z0-9_-]{2,4096}(?:\.[A-Za-z0-9_-]{0,2048})?/g },
+  { re: /\beyJ[A-Za-z0-9_-]{5,4000}\.[A-Za-z0-9_-]{2,4000}(?:\.[A-Za-z0-9_-]{0,4000})?/g },
   // Authorization header values.
-  { re: /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,4096}/gi },
+  { re: /\b(?:Bearer|Basic|Digest|Token)\s+[A-Za-z0-9._~+/=-]{1,4000}/gi },
   // Cookie headers: everything after the header name.
   {
-    re: /(^|[^A-Za-z0-9_-])((?:set-)?cookie\s{0,3}:\s{0,3})([^\r\n]{1,4096})/gi,
+    re: /(^|[^A-Za-z0-9_-])((?:set-)?cookie\s{0,3}:\s{0,3})([^\r\n]{1,4000})/gi,
     keepsValueOnly: true,
   },
   // Credential assignments in text and serialized JSON: `token=…`,
   // `"accessToken":"…"`, `session: …`, `x-api-key=…`. The key stays readable.
   // Quoted values are masked up to their closing quote, punctuation included.
   {
-    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}"?\s{0,3}[:=]\s{0,3}")((?:[^"\\]|\\.){1,2048})/gi,
+    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}"?\s{0,3}[:=]\s{0,3}")((?:[^"\\]|\\.){1,4000})/gi,
     keepsValueOnly: true,
   },
   {
-    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}'?\s{0,3}[:=]\s{0,3}')((?:[^'\\]|\\.){1,2048})/gi,
+    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}'?\s{0,3}[:=]\s{0,3}')((?:[^'\\]|\\.){1,4000})/gi,
     keepsValueOnly: true,
   },
   {
-    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}["']?\s{0,3}[:=]\s{0,3})([^\s"',;&}]{1,2048})/gi,
+    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}["']?\s{0,3}[:=]\s{0,3})([^\s"',;&}]{1,4000})/gi,
     keepsValueOnly: true,
   },
   // Email address.
@@ -71,17 +69,15 @@ const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
   // IPv6, compressed (`2001:db8::1`) or full. Clock times never contain `::`.
   {
     re: /\b(?:[0-9A-F]{1,4}:){1,7}:(?:[0-9A-F]{1,4}(?::[0-9A-F]{1,4}){0,6})?\b|\b(?:[0-9A-F]{1,4}:){7}[0-9A-F]{1,4}\b/gi,
-    ip: true,
   },
   // IPv6 with leading compression (`::1`, `::ffff:10.0.0.1`). The boundary
   // group keeps `std::vector` and `Foo::bar` readable.
   {
     re: /(^|[^0-9A-F:])(::[0-9A-F]{1,4}(?::[0-9A-F]{1,4}){0,6}(?::(?:\d{1,3}\.){3}\d{1,3})?)(?![0-9A-Z.])/gi,
     keepsBoundary: true,
-    ip: true,
   },
   // IPv4.
-  { re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ip: true },
+  { re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g },
   // Amounts: $1,234.56 · $ 1234 · 1,234.56 MXN · MXN 1234.
   { re: /(?:\$|MXN)\s?-?\d[\d,]{0,20}(?:\.\d{1,4})?/gi },
   { re: /-?\d[\d,]{0,20}(?:\.\d{1,4})?\s?MXN\b/gi },
@@ -102,12 +98,11 @@ const mask = (match: string) => match.replace(/\S/g, '*');
  * CLABE or account number. Spaces are kept so the shape of a message stays
  * readable.
  */
-export function redactSensitiveText(text: string, options: { ipAddresses?: boolean } = {}): string {
+export function redactSensitiveText(text: string): string {
   if (!text) return text;
   if (text.length > MAX_REDACT_LENGTH) return mask(text);
   let out = text;
-  for (const { re, keepsBoundary, keepsValueOnly, ip } of SENSITIVE_PATTERNS) {
-    if (ip && options.ipAddresses === false) continue;
+  for (const { re, keepsBoundary, keepsValueOnly } of SENSITIVE_PATTERNS) {
     if (keepsValueOnly) {
       out = out.replace(
         re,
@@ -247,11 +242,15 @@ export function stripUrlSecrets(raw: string, options: UrlScrubOptions = {}): str
   return `${origin}${segments.join('/')}`;
 }
 
-const URL_CHARS = `[^\\s"'<>\`]{1,2048}`;
+/**
+ * Every length bound in this file covers the whole `MAX_REDACT_LENGTH` input,
+ * so a match is never cut short and a value's tail never survives.
+ */
+const URL_CHARS = `[^\\s"'<>\`]{1,4000}`;
 const EMBEDDED_URL = new RegExp(`\\bhttps?:\\/\\/${URL_CHARS}`, 'gi');
 /** `app.partrunner.com/conductor/<token>` without a scheme. */
 const HOST_PATH = new RegExp(
-  `(^|[\\s'"(=,])((?:[a-z0-9-]{1,63}\\.){1,10}[a-z]{2,24}(?::\\d{1,5})?\\/${URL_CHARS.replace('{1,2048}', '{0,2048}')})`,
+  `(^|[\\s'"(=,])((?:[a-z0-9-]{1,63}\\.){1,10}[a-z]{2,24}(?::\\d{1,5})?\\/${URL_CHARS.replace('{1,4000}', '{0,4000}')})`,
   'gi'
 );
 /**
@@ -259,7 +258,7 @@ const HOST_PATH = new RegExp(
  * `GET /api/x?y=z`, `Request failed: /conductor/<token>?rfc=…`.
  */
 const RELATIVE_PATH = new RegExp(
-  `(^|[\\s'"(=,])(\\/(?:[^\\s"'<>\`?#]{1,2048}(?:[?#]${URL_CHARS})?|[?#]${URL_CHARS}))`,
+  `(^|[\\s'"(=,])(\\/(?:[^\\s"'<>\`?#]{1,4000}(?:[?#]${URL_CHARS})?|[?#]${URL_CHARS}))`,
   'g'
 );
 
@@ -521,6 +520,16 @@ export function scrubSpan<S extends ScrubbableSpan>(span: S, options: UrlScrubOp
 
 /** A user agent is printable ASCII without `@`; anything else is dropped. */
 const SAFE_USER_AGENT = /^[A-Za-z0-9 .,;:/()+_~-]{1,512}$/;
+/** `Chrome/129.0.0.0`: a product token whose version looks like an IPv4 address. */
+const PRODUCT_TOKEN = /^[A-Za-z][A-Za-z0-9._-]{0,40}\/\d[\w.+-]{0,40}$/;
+
+/** Product/version tokens stay; everything else (comments, URLs, IPs) is scrubbed. */
+function scrubUserAgent(value: string, options: UrlScrubOptions): string {
+  return value
+    .split(' ')
+    .map(token => (PRODUCT_TOKEN.test(token) ? token : scrubText(token, options)))
+    .join(' ');
+}
 
 function scrubHeaders(headers: Record<string, string>, options: UrlScrubOptions) {
   const out: Record<string, string> = {};
@@ -530,9 +539,7 @@ function scrubHeaders(headers: Record<string, string>, options: UrlScrubOptions)
     if (lower === 'referer') {
       out[name] = sanitizeUrl(value, options);
     } else if (lower === 'user-agent') {
-      // Browser versions look like IPv4 (`Chrome/129.0.0.0`): keep them, mask the rest.
-      if (SAFE_USER_AGENT.test(value))
-        out[name] = redactSensitiveText(value, { ipAddresses: false });
+      if (SAFE_USER_AGENT.test(value)) out[name] = scrubUserAgent(value, options);
     } else {
       out[name] = scrubText(value, options);
     }

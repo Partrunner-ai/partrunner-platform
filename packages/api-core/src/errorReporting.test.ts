@@ -761,3 +761,52 @@ describe('seventh review regressions', () => {
     });
   });
 });
+
+describe('eighth review regressions', () => {
+  it('never cuts a long value short inside the length bound', () => {
+    const url = `https://x.test/?padding=${'a'.repeat(2100)}&code=OAuthSecret`;
+    expect(scrubText(`failed ${url}`)).toBe('failed https://x.test/');
+    const quoted = `{"token":"${'b'.repeat(2100)}Secret"}`;
+    expect(redactSensitiveText(quoted)).not.toContain('Secret');
+  });
+
+  it('masks short authorization values', () => {
+    expect(redactSensitiveText('Authorization: Basic YTpi')).toBe('Authorization: ***** ****');
+    expect(redactSensitiveText('Bearer abc')).toBe('****** ***');
+  });
+
+  it('scrubs IPs and URLs in user agents but keeps product versions', () => {
+    const out = scrubEvent(
+      {
+        request: {
+          headers: {
+            'User-Agent':
+              'ExampleBot/1.0 (+http://203.0.113.9/conductor/SecretTok) Chrome/129.0.0.0',
+          },
+        },
+      },
+      TOKEN_ROUTES
+    );
+    expect(out.request?.headers).toEqual({
+      'User-Agent': 'ExampleBot/1.0 (+http://[ip]/conductor/[token] Chrome/129.0.0.0',
+    });
+  });
+});
+
+describe('performance', () => {
+  it('stays linear on adversarial inputs at the length bound', () => {
+    const inputs = [
+      '/'.repeat(3999),
+      ' /a'.repeat(1333),
+      'token='.repeat(666),
+      '1-'.repeat(1999),
+      ':a'.repeat(1999),
+      `https://${'a/'.repeat(1990)}`,
+      ('abc@' + '1'.repeat(10) + ' ').repeat(250),
+    ];
+    const started = performance.now();
+    for (const input of inputs) scrubText(input.slice(0, 3999), TOKEN_ROUTES);
+    // Measured at ~10 ms in total; the bound only catches catastrophic backtracking.
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});
