@@ -124,7 +124,8 @@ What the options guarantee:
     and body size. Unknown top-level fields such as `server_name` are scrubbed too.
   - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
     metadata, so grouping, source maps and runtime facts still work. It drops frame local
-    variables. Frame file names lose only their query, IP host and token-route secret.
+    variables. Frame file names and `debug_meta` image files lose only their query, IP host and
+    token-route secret.
 - `beforeSendSpan` scrubs standalone spans the same way. Tracing stays static
   (`traceLifecycle: 'static'`): streamed spans use another callback shape.
 - Sentry Logs and Metrics stay off (`enableLogs: false`, `enableMetrics: false`, and both

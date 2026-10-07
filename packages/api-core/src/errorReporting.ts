@@ -259,7 +259,7 @@ const HOST_PATH = new RegExp(
  * `GET /api/x?y=z`, `Request failed: /conductor/<token>?rfc=…`.
  */
 const RELATIVE_PATH = new RegExp(
-  `(^|[\\s'"(=,])(\\/(?:[A-Za-z0-9_\\-.~%/\\[\\]]{1,2048}(?:[?#]${URL_CHARS})?|[?#]${URL_CHARS}))`,
+  `(^|[\\s'"(=,])(\\/(?:[^\\s"'<>\`?#]{1,2048}(?:[?#]${URL_CHARS})?|[?#]${URL_CHARS}))`,
   'g'
 );
 
@@ -319,6 +319,7 @@ export interface ScrubbableEvent {
   contexts?: Record<string, unknown>;
   tags?: Record<string, unknown>;
   spans?: ScrubbableSpan[];
+  debug_meta?: unknown;
 }
 
 export interface ScrubbableBreadcrumb {
@@ -559,6 +560,29 @@ function scrubStacktrace(stacktrace: unknown, options: UrlScrubOptions): unknown
   };
 }
 
+/**
+ * Debug ids map frames to source maps and stay. The SDK copies each frame's
+ * file name into `code_file`, so that URL loses its query and token secret
+ * the same way the frame's file name does.
+ */
+function scrubDebugMeta(debugMeta: unknown, options: UrlScrubOptions): unknown {
+  if (!debugMeta || typeof debugMeta !== 'object') return debugMeta;
+  const { images } = debugMeta as { images?: unknown };
+  if (!Array.isArray(images)) return debugMeta;
+  return {
+    ...debugMeta,
+    images: images.map(image => {
+      if (!image || typeof image !== 'object') return image;
+      const out = { ...(image as Record<string, unknown>) };
+      for (const key of ['code_file', 'debug_file']) {
+        const value = out[key];
+        if (typeof value === 'string') out[key] = stripUrlSecrets(value, options);
+      }
+      return out;
+    }),
+  };
+}
+
 /** Fields `scrubEvent` rewrites explicitly. */
 const HANDLED_FIELDS = new Set([
   'message',
@@ -574,6 +598,7 @@ const HANDLED_FIELDS = new Set([
   'extra',
   'contexts',
   'spans',
+  'debug_meta',
 ]);
 
 /**
@@ -593,7 +618,6 @@ const STRUCTURAL_FIELDS = new Set([
   'type',
   'sdk',
   'modules',
-  'debug_meta',
   'measurements',
   'transaction_info',
   'sdkProcessingMetadata',
@@ -726,6 +750,7 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
     out.contexts = contexts;
   }
   if (event.spans) out.spans = event.spans.map(span => scrubSpan(span, options));
+  if (event.debug_meta) out.debug_meta = scrubDebugMeta(event.debug_meta, options);
 
   // Every other top-level field is scrubbed unless it is structural SDK
   // metadata that carries no user content (ids, times, release, debug ids).

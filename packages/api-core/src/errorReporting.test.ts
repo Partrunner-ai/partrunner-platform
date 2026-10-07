@@ -543,7 +543,7 @@ describe('second review regressions', () => {
     expect(record.server_name).toBe('[redacted]');
     expect(record.event_id).toBe('0123456789abcdef0123456789abcdef');
     expect(record.release).toBe('1.2.3-20261007123456');
-    expect(record.debug_meta).toBe(debugMeta);
+    expect(record.debug_meta).toEqual(debugMeta);
     expect(record.custom).toBe('*****************');
   });
 
@@ -724,5 +724,40 @@ describe('sixth review regressions', () => {
       },
     });
     expect(out.contexts).toEqual({ customer_email: '[redacted]', browser: { name: 'Chrome' } });
+  });
+});
+
+describe('seventh review regressions', () => {
+  it('consumes the whole relative path, punctuation included', () => {
+    expect(scrubText('GET /conductor/abc+SecretTok?code=OAuthSecret', TOKEN_ROUTES)).toBe(
+      'GET /conductor/[token]'
+    );
+    expect(scrubText('see /files/a;b@c/x?y=1 now')).toBe('see /files/a;b@c/x now');
+  });
+
+  it('strips URL secrets from debug_meta but keeps debug ids', () => {
+    const out = scrubEvent(
+      {
+        debug_meta: {
+          images: [
+            {
+              type: 'sourcemap',
+              debug_id: '11111111-1111-1111-1111-111111111111',
+              code_file: 'https://app.test/conductor/SecretTok/app.js?token=x',
+            },
+          ],
+        },
+      },
+      TOKEN_ROUTES
+    );
+    expect(out.debug_meta).toEqual({
+      images: [
+        {
+          type: 'sourcemap',
+          debug_id: '11111111-1111-1111-1111-111111111111',
+          code_file: 'https://app.test/conductor/[token]/app.js',
+        },
+      ],
+    });
   });
 });

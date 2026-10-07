@@ -63,6 +63,13 @@ beforeAll(() => {
   setCurrentClient(client);
   client.init();
 
+  // A debug-id-instrumented bundle whose URL carries a secret query: the SDK
+  // copies the frame file name into debug_meta.images[].code_file.
+  const bundleFrame = '    at upload (https://app.test/assets/app.js?token=SecretTok:1:1)';
+  (globalThis as { _sentryDebugIds?: Record<string, string> })._sentryDebugIds = {
+    [`Error\n${bundleFrame}`]: '11111111-1111-1111-1111-111111111111',
+  };
+
   const scope = getCurrentScope();
   scope.setUser({
     id: 'fleet:1',
@@ -118,6 +125,9 @@ beforeAll(() => {
   scope.setContext('session', { value: 'opaqueSecret' });
   scope.captureMessage('retry with {"accessToken":"opaqueSecret","password":"s;Tr0ngPass!"}');
   scope.captureMessage('callback GET /?code=OAuthSecret failed');
+  const bundled = new Error('bundle failure');
+  bundled.stack = `Error: bundle failure\n${bundleFrame}`;
+  scope.captureException(bundled);
 });
 
 afterAll(() => {
@@ -134,6 +144,13 @@ describe('outbound envelopes', () => {
     expect(all).toContain('"surface":"fleet"');
     expect(all).toContain('"id":"fleet:1"');
     expect(all).toContain('/conductor/[token]');
+  });
+
+  it('keeps debug ids for source maps without the bundle URL secret', async () => {
+    await client.flush(2000);
+    const all = bodies.join('\n');
+    expect(all).toContain('"debug_id":"11111111-1111-1111-1111-111111111111"');
+    expect(all).toContain('"code_file":"https://app.test/assets/app.js"');
   });
 
   it('carries no sensitive value anywhere, headers included', async () => {
