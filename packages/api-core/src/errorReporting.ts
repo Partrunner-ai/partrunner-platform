@@ -51,6 +51,13 @@ const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
     re: /\b(?:[0-9A-F]{1,4}:){1,7}:(?:[0-9A-F]{1,4}(?::[0-9A-F]{1,4}){0,6})?\b|\b(?:[0-9A-F]{1,4}:){7}[0-9A-F]{1,4}\b/gi,
     ip: true,
   },
+  // IPv6 with leading compression (`::1`, `::ffff:10.0.0.1`). The boundary
+  // group keeps `std::vector` and `Foo::bar` readable.
+  {
+    re: /(^|[^0-9A-F:])(::[0-9A-F]{1,4}(?::[0-9A-F]{1,4}){0,6}(?::(?:\d{1,3}\.){3}\d{1,3})?)(?![0-9A-Z.])/gi,
+    keepsBoundary: true,
+    ip: true,
+  },
   // IPv4.
   { re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ip: true },
   // Amounts: $1,234.56 · $ 1234 · 1,234.56 MXN · MXN 1234.
@@ -105,8 +112,20 @@ export interface UrlScrubOptions {
 }
 
 /** Index of the token segment in `path.split('/')`, or -1. */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 function tokenSegmentIndex(path: string, prefixes: readonly string[]): number {
-  const lower = path.toLowerCase();
+  // Match on decoded segments: `/%63onductor/<token>` is the same route.
+  const lower = path
+    .split('/')
+    .map(segment => decodeSegment(segment).toLowerCase())
+    .join('/');
   for (const raw of prefixes) {
     const prefix = raw.toLowerCase().replace(/\/+$/, '');
     if (!prefix) continue;
@@ -363,7 +382,7 @@ function scrubEntry(
   const normalized = normalizeKey(key);
   if (SECRET_KEY.test(normalized)) return;
   // A key can itself be data (`{ 'flota@example.com': true }`).
-  const safeKey = redactSensitiveText(key);
+  const safeKey = scrubText(key, options);
   if (SENSITIVE_KEY.test(normalized) && value !== null && value !== undefined) {
     out[safeKey] = REDACTED;
     return;
@@ -671,7 +690,7 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
   if (event.contexts) {
     const contexts: Record<string, unknown> = {};
     for (const [name, context] of Object.entries(event.contexts)) {
-      contexts[name] = scrubContext(name, context, options);
+      contexts[scrubText(name, options)] = scrubContext(name, context, options);
     }
     out.contexts = contexts;
   }
@@ -682,7 +701,8 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E, options: UrlScru
   const extraFields = out as Record<string, unknown>;
   for (const [key, value] of Object.entries(event)) {
     if (HANDLED_FIELDS.has(key) || STRUCTURAL_FIELDS.has(key)) continue;
-    extraFields[key] = scrubValue(key, value, options, 0);
+    delete extraFields[key];
+    scrubEntry(extraFields, key, value, options, 0);
   }
 
   return out as E;

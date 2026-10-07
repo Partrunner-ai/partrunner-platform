@@ -10,6 +10,7 @@ import {
   scrubBreadcrumb,
   scrubEvent,
   scrubText,
+  stripUrlSecrets,
   type ScrubbableEvent,
 } from './observability';
 
@@ -614,5 +615,47 @@ describe('second review regressions', () => {
     expect(out.exception?.values?.[0]?.stacktrace).toEqual({
       frames: [{ filename: 'http://[ip]/assets/app.js' }],
     });
+  });
+});
+
+describe('third review regressions', () => {
+  it('matches token routes through percent-encoding', () => {
+    expect(sanitizePath('/%63onductor/SecretTok', TOKEN_ROUTES)).toBe('/%63onductor/[token]');
+    expect(stripUrlSecrets('https://x.test/%63onductor/SecretTok/a.js', TOKEN_ROUTES)).toBe(
+      'https://x.test/%63onductor/[token]/a.js'
+    );
+  });
+
+  it('sanitises keys and context names that carry URLs', () => {
+    const out = scrubEvent(
+      {
+        extra: { '/conductor/AbC123?folio=F-1': true },
+        contexts: { 'https://x.test/conductor/SecretTok': { ok: true } },
+      },
+      TOKEN_ROUTES
+    );
+    expect(out.extra).toEqual({ '/conductor/[token]': true });
+    expect(out.contexts).toEqual({ 'https://x.test/conductor/[token]': { ok: true } });
+  });
+
+  it('applies key rules to unknown top-level fields', () => {
+    const out = scrubEvent({
+      accessToken: 'opaqueSecret',
+      amount: 1234.56,
+      note: 'flota@example.com',
+    } as ScrubbableEvent) as Record<string, unknown>;
+    expect(out).not.toHaveProperty('accessToken');
+    expect(out.amount).toBe('[redacted]');
+    expect(out.note).toBe('*****************');
+  });
+
+  it('masks IPv6 addresses with leading compression and keeps code paths readable', () => {
+    expect(redactSensitiveText('connect ECONNREFUSED ::1:5432')).toBe(
+      'connect ECONNREFUSED ********'
+    );
+    expect(redactSensitiveText('from ::ffff:10.0.0.1 now')).toBe('from *************** now');
+    expect(redactSensitiveText('std::vector Foo::bar at 12:30:45')).toBe(
+      'std::vector Foo::bar at 12:30:45'
+    );
   });
 });
