@@ -1,7 +1,7 @@
 {
   "name": "@partrunner-ai/api-core",
   "version": "1.1.3",
-  "description": "Framework-agnostic Node backend primitives shared by PartRunner apps: Nexus DB access, structured logging, audit trail, feature flags, maintenance mode and pagination. Vercel HTTP adapters live under the ./vercel subpath.",
+  "description": "Framework-agnostic Node backend primitives shared by PartRunner apps: Nexus DB access, structured logging, audit trail, feature flags, maintenance mode, pagination and the shared error-reporting privacy policy. Vercel HTTP adapters live under the ./vercel subpath.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -61,6 +61,16 @@
         "types": "./dist/feature-flags.d.cts",
         "default": "./dist/feature-flags.cjs"
       }
+    },
+    "./observability": {
+      "import": {
+        "types": "./dist/observability.d.ts",
+        "default": "./dist/observability.js"
+      },
+      "require": {
+        "types": "./dist/observability.d.cts",
+        "default": "./dist/observability.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
@@ -83,6 +93,7 @@
     }
   },
   "devDependencies": {
+    "@sentry/core": "^10.76.1",
     "@supabase/supabase-js": "^2.90.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.2",

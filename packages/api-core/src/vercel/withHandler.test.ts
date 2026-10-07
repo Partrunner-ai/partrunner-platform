@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { configureRequestRecorder, withHandler } from './withHandler';
+import {
+  configureErrorReporter,
+  configureRequestRecorder,
+  ERROR_REPORT_TIMEOUT_MS,
+  withHandler,
+} from './withHandler';
 
 function res() {
   const r = {
@@ -30,6 +35,8 @@ const options = {
 
 afterEach(() => {
   configureRequestRecorder(null);
+  configureErrorReporter(null);
+  vi.useRealTimers();
 });
 
 describe('withHandler CORS contract', () => {
@@ -202,5 +209,81 @@ describe('withHandler request recorder', () => {
       res(),
     );
     expect(recorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('withHandler error reporter', () => {
+  it('reports the thrown error with its context before the 500 is written', async () => {
+    const order: string[] = [];
+    const boom = new Error('boom');
+    const reporter = vi.fn(async () => {
+      order.push('report');
+    });
+    configureErrorReporter(reporter);
+
+    const r = res();
+    r.status.mockImplementation((code: number) => {
+      order.push(`status ${code}`);
+      r.statusCode = code;
+      return r;
+    });
+    const request = req();
+    await withHandler(options, async () => {
+      throw boom;
+    })(request, r);
+
+    expect(reporter).toHaveBeenCalledWith({ err: boom, req: request, ctx: 'test' });
+    expect(order).toEqual(['report', 'status 500']);
+  });
+
+  it('does not report when the handler succeeds', async () => {
+    const reporter = vi.fn();
+    configureErrorReporter(reporter);
+    await withHandler(options, async (_q, s) => {
+      s.status(400);
+    })(req(), res());
+    expect(reporter).not.toHaveBeenCalled();
+  });
+
+  it('still answers 500 when the reporter throws', async () => {
+    configureErrorReporter(() => {
+      throw new Error('tracker is down');
+    });
+    const r = res();
+    await withHandler(options, async () => {
+      throw new Error('boom');
+    })(req(), r);
+    expect(r.status).toHaveBeenCalledWith(500);
+  });
+
+  it('stops waiting for a hung reporter after the timeout', async () => {
+    vi.useFakeTimers();
+    configureErrorReporter(() => new Promise<void>(() => {}));
+    const r = res();
+    const done = withHandler(options, async () => {
+      throw new Error('boom');
+    })(req(), r);
+
+    await vi.advanceTimersByTimeAsync(ERROR_REPORT_TIMEOUT_MS - 1);
+    expect(r.status).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await done;
+    expect(r.status).toHaveBeenCalledWith(500);
+  });
+
+  it('records the handler duration without the time spent reporting', async () => {
+    vi.useFakeTimers();
+    const recorder = vi.fn();
+    configureRequestRecorder(recorder);
+    configureErrorReporter(() => new Promise<void>(resolve => setTimeout(resolve, 1500)));
+
+    const done = withHandler(options, async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      throw new Error('boom');
+    })(req(), res());
+    await vi.advanceTimersByTimeAsync(2000);
+    await done;
+
+    expect(recorder).toHaveBeenCalledWith(expect.objectContaining({ durationMs: 100 }));
   });
 });

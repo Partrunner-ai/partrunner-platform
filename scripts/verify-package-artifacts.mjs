@@ -2944,6 +2944,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as apiCore from '@partrunner-ai/api-core';
 import * as apiFeatureFlags from '@partrunner-ai/api-core/feature-flags';
+import * as apiObservability from '@partrunner-ai/api-core/observability';
 import * as appRegistry from '@partrunner-ai/app-registry';
 import * as seamless from '@partrunner-ai/seamless';
 import * as shell from '@partrunner-ai/shell';
@@ -2952,6 +2953,7 @@ import * as ui from '@partrunner-ai/ui';
 
 assert.equal(typeof apiCore.tbl, 'function');
 assert.equal(typeof apiFeatureFlags.evaluateFlagDecision, 'function');
+assert.equal(apiObservability.sanitizePath('/conductor/abc', { tokenRoutePrefixes: ['/conductor'] }), '/conductor/[token]');
 assert.equal(typeof appRegistry.buildAppUrl, 'function');
 assert.equal(seamless.safeNextPath('//evil.example'), '/');
 assert.equal(typeof shell.AppShell, 'function');
@@ -2975,6 +2977,7 @@ const assert = require('node:assert/strict');
 const subpaths = require('./verify-subpaths.json');
 const apiCore = require('@partrunner-ai/api-core');
 const apiFeatureFlags = require('@partrunner-ai/api-core/feature-flags');
+const apiObservability = require('@partrunner-ai/api-core/observability');
 const appRegistry = require('@partrunner-ai/app-registry');
 const seamless = require('@partrunner-ai/seamless');
 const shell = require('@partrunner-ai/shell');
@@ -2983,6 +2986,7 @@ const ui = require('@partrunner-ai/ui');
 
 assert.equal(typeof apiCore.tbl, 'function');
 assert.equal(typeof apiFeatureFlags.evaluateFlagDecision, 'function');
+assert.equal(apiObservability.sanitizePath('/conductor/abc', { tokenRoutePrefixes: ['/conductor'] }), '/conductor/[token]');
 assert.equal(typeof appRegistry.buildAppUrl, 'function');
 assert.equal(seamless.safeNextPath('//evil.example'), '/');
 assert.equal(typeof shell.AppShell, 'function');
@@ -3000,6 +3004,7 @@ const TYPES_FIXTURE = `
 import { type SchemaName } from '@partrunner-ai/api-core';
 import * as apiAuth from '@partrunner-ai/api-core/auth';
 import * as apiFeatureFlags from '@partrunner-ai/api-core/feature-flags';
+import * as apiObservability from '@partrunner-ai/api-core/observability';
 import { type HandlerOptions } from '@partrunner-ai/api-core/vercel';
 import * as apiWeek from '@partrunner-ai/api-core/week';
 import { APPS, type AppLink } from '@partrunner-ai/app-registry';
@@ -3072,6 +3077,7 @@ void [
   tint,
   apiAuth,
   apiFeatureFlags,
+  apiObservability,
   apiWeek,
   app,
   buildStandaloneUrl,

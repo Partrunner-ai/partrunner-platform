@@ -38,6 +38,52 @@ export function configureRequestRecorder(fn: RequestRecorder | null): void {
   recorder = fn;
 }
 
+/**
+ * Called when a handler throws, with the error the 500 envelope hides from the
+ * client. Where it goes — an error tracker, nowhere — is the app's business.
+ */
+export type ErrorReporter = (params: {
+  err: unknown;
+  req: VercelRequest;
+  ctx: string;
+}) => Promise<void> | void;
+
+let errorReporter: ErrorReporter | null = null;
+
+/** Upper bound on how long a report may delay the 500 response. */
+export const ERROR_REPORT_TIMEOUT_MS = 2000;
+
+/**
+ * Register error reporting for handler exceptions. Call once at startup; pass
+ * `null` to unset. Unset by default.
+ *
+ * The reporter runs BEFORE the 500 response is written: Vercel can freeze a
+ * function as soon as its response ends, so a report sent afterwards may never
+ * leave. It is awaited for at most `ERROR_REPORT_TIMEOUT_MS`, and a reporter
+ * that throws or hangs never changes the response. Make it flush its own
+ * transport (for Sentry: `captureException` then `await flush(1500)`).
+ */
+export function configureErrorReporter(fn: ErrorReporter | null): void {
+  errorReporter = fn;
+}
+
+async function reportError(params: Parameters<ErrorReporter>[0]): Promise<void> {
+  if (!errorReporter) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.resolve().then(() => errorReporter?.(params)),
+      new Promise<void>(resolve => {
+        timer = setTimeout(resolve, ERROR_REPORT_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    /* error reporting never breaks the business path */
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 type Handler = (
   req: VercelRequest,
   res: VercelResponse,
@@ -135,10 +181,15 @@ export function withHandler(opts: HandlerOptions, fn: Handler) {
     }
 
     const startedAt = Date.now();
+    // Set when the handler throws, so the recorded duration excludes the time
+    // spent reporting the error.
+    let failedAt: number | undefined;
     try {
       await fn(req, res, logger);
     } catch (err) {
+      failedAt = Date.now();
       logger.error(opts.ctx, 'Unhandled error', { err });
+      await reportError({ err, req, ctx: opts.ctx });
       if (!res.headersSent) {
         res.status(500).json({
           success: false,
@@ -164,7 +215,7 @@ export function withHandler(opts: HandlerOptions, fn: Handler) {
           await recorder({
             req,
             statusCode: res.statusCode ?? null,
-            durationMs: Date.now() - startedAt,
+            durationMs: (failedAt ?? Date.now()) - startedAt,
           });
         } catch {
           /* instrumentation never breaks the business path */

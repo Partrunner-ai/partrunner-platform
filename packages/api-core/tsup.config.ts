@@ -7,6 +7,7 @@ export default defineConfig({
     'src/auth.ts',
     'src/week.ts',
     'src/feature-flags.ts',
+    'src/observability.ts',
   ],
   format: ['esm', 'cjs'],
   dts: true,

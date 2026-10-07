@@ -13,8 +13,11 @@
  */
 
 export {
+  configureErrorReporter,
   configureRequestRecorder,
+  ERROR_REPORT_TIMEOUT_MS,
   withHandler,
+  type ErrorReporter,
   type HandlerOptions,
   type Method,
   type RequestRecorder,
