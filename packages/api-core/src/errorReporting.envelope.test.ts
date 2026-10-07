@@ -13,6 +13,7 @@ import {
   getCurrentScope,
   getIsolationScope,
   logger,
+  metrics,
   nodeStackLineParser,
   setCurrentClient,
   startSpan,
@@ -110,6 +111,9 @@ beforeAll(() => {
     }
   );
   logger.info('payout done for flota@example.com');
+  metrics.count('payout', 1, { attributes: { email: 'flota@example.com' } });
+  scope.addBreadcrumb({ category: 'console', message: 'Cookie: session=opaqueSecret' });
+  scope.captureMessage('retry with {"accessToken":"opaqueSecret"}');
 });
 
 afterAll(() => {
@@ -134,8 +138,10 @@ describe('outbound envelopes', () => {
     for (const secret of SECRETS) expect(all, secret).not.toContain(secret);
   });
 
-  it('sends no log items', async () => {
+  it('sends no log or metric items', async () => {
     await client.flush(2000);
-    expect(bodies.join('\n')).not.toContain('"type":"log"');
+    const all = bodies.join('\n');
+    expect(all).not.toContain('"type":"log"');
+    expect(all).not.toMatch(/"type":"(?:trace_metric|metric)"/);
   });
 });

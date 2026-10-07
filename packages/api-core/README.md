@@ -107,7 +107,8 @@ What the options guarantee:
   `surface` tag wins; otherwise `surfaceForPath` classifies the raw page or
   route path; otherwise the configured default applies.
 - `scrubEvent` runs on every error and transaction:
-  - It pattern-redacts JWTs, bearer values, emails, CURP, RFC, IP addresses, amounts, phones, CLABE
+  - It pattern-redacts JWTs, bearer values, cookie headers, credential assignments
+    (`token=…`, `"accessToken":"…"`), emails, CURP, RFC, IP addresses, amounts, phones, CLABE
     and 10+ digit runs.
   - It sanitises URLs and paths inside text. URLs lose their query and hash, IP-literal hosts
     become `[ip]`, ids become `[id]`, and token-route secrets become `[token]`.
@@ -124,9 +125,11 @@ What the options guarantee:
   - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
     metadata, so grouping, source maps and runtime facts still work. It drops frame local
     variables. Frame file names lose only their query, IP host and token-route secret.
-- `beforeSendSpan` scrubs streamed and standalone spans the same way.
-- Sentry Logs stay off (`enableLogs: false`, `beforeSendLog` drops every log). The SDK merges
-  scope attributes into a log after `beforeSendLog` runs, so no hook can scrub them.
+- `beforeSendSpan` scrubs standalone spans the same way. Tracing stays static
+  (`traceLifecycle: 'static'`): streamed spans use another callback shape.
+- Sentry Logs and Metrics stay off (`enableLogs: false`, `enableMetrics: false`, and both
+  `beforeSendLog` and `beforeSendMetric` drop everything). The SDK merges scope attributes into
+  a log or metric after those hooks run, so no hook can scrub them.
 - Shared noise (`ResizeObserver`, aborted requests, browser extensions) is
   ignored. Network failures stay visible.
 - The entry contains no lookbehind regex, so it parses on iOS Safari before 16.4.
@@ -156,7 +159,9 @@ accepts these rules:
   (`sanitizeUrl`, router patterns). The SDK copies a custom transaction name
   into the envelope header (dynamic sampling context) before any hook runs.
 - **No attachments, no Session Replay, no screenshots, no user-feedback
-  widget, no Sentry Logs.** Their payloads bypass `beforeSend`.
+  widget, no Sentry Logs or Metrics, no span streaming.** Their payloads
+  bypass these hooks. Do not override `enableLogs`, `enableMetrics` or
+  `traceLifecycle`.
 - **`setUser({ id })` only.** Never set email, username or IP on the scope.
 - **No `includeLocalVariables`** on Node. Frame variables are dropped, but
   they should not be collected at all.

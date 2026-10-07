@@ -673,3 +673,28 @@ describe('architecture review regressions', () => {
     expect(out.contexts?.device).toEqual({ name: '[redacted]', model: 'iPhone15,2' });
   });
 });
+
+describe('fifth review regressions', () => {
+  it('masks cookie headers and credential assignments in text and JSON strings', () => {
+    expect(redactSensitiveText('Cookie: session=opaqueSecret; theme=dark')).toBe(
+      'Cookie: ********************* **********'
+    );
+    expect(redactSensitiveText('retry with token=opaqueSecret&x=1')).toBe(
+      'retry with token=************&x=1'
+    );
+    expect(redactSensitiveText('{"accessToken":"opaqueSecret","ok":true}')).toBe(
+      '{"accessToken":"************","ok":true}'
+    );
+    expect(redactSensitiveText('x-api-key: abcdef123')).toBe('x-api-key: *********');
+    expect(redactSensitiveText('session expired, sign in again')).toBe(
+      'session expired, sign in again'
+    );
+  });
+
+  it('turns metrics off and pins static tracing', () => {
+    const options = createErrorReportingOptions({ app: 'fds', surface: 'backoffice' });
+    expect(options.enableMetrics).toBe(false);
+    expect(options.beforeSendMetric({ name: 'payout' })).toBeNull();
+    expect(options.traceLifecycle).toBe('static');
+  });
+});

@@ -27,6 +27,8 @@ interface SensitivePattern {
   keepsBoundary?: true;
   /** An IP address pattern; `ipAddresses: false` skips it (version strings). */
   ip?: true;
+  /** Groups: boundary, key (both kept), value (masked). */
+  keepsValueOnly?: true;
 }
 
 // Bounded quantifiers only: no unbounded runs that backtrack on long text.
@@ -35,6 +37,17 @@ const SENSITIVE_PATTERNS: readonly SensitivePattern[] = [
   { re: /\beyJ[A-Za-z0-9_-]{5,2048}\.[A-Za-z0-9_-]{2,4096}(?:\.[A-Za-z0-9_-]{0,2048})?/g },
   // Authorization header values.
   { re: /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,4096}/gi },
+  // Cookie headers: everything after the header name.
+  {
+    re: /(^|[^A-Za-z0-9_-])((?:set-)?cookie\s{0,3}:\s{0,3})([^\r\n]{1,4096})/gi,
+    keepsValueOnly: true,
+  },
+  // Credential assignments in text and serialized JSON: `token=…`,
+  // `"accessToken":"…"`, `session: …`, `x-api-key=…`. The key stays readable.
+  {
+    re: /(^|[^A-Za-z0-9_])([A-Za-z0-9_-]{0,32}(?:token|secret|password|passwd|api[_-]?key|session|sid|cookie|authorization|credential)[A-Za-z0-9_-]{0,32}["']?\s{0,3}[:=]\s{0,3}["']?)([^\s"',;&}]{3,2048})/gi,
+    keepsValueOnly: true,
+  },
   // Email address.
   { re: /[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,253}\.[A-Z]{2,24}/gi },
   // CURP (18): 4 letters, date, sex, state, consonants, check digits.
@@ -84,8 +97,15 @@ export function redactSensitiveText(text: string, options: { ipAddresses?: boole
   if (!text) return text;
   if (text.length > MAX_REDACT_LENGTH) return mask(text);
   let out = text;
-  for (const { re, keepsBoundary, ip } of SENSITIVE_PATTERNS) {
+  for (const { re, keepsBoundary, keepsValueOnly, ip } of SENSITIVE_PATTERNS) {
     if (ip && options.ipAddresses === false) continue;
+    if (keepsValueOnly) {
+      out = out.replace(
+        re,
+        (_match, boundary: string, key: string, value: string) => `${boundary}${key}${mask(value)}`
+      );
+      continue;
+    }
     out = keepsBoundary
       ? out.replace(re, (_match, boundary: string, value: string) => `${boundary}${mask(value)}`)
       : out.replace(re, mask);
@@ -771,6 +791,11 @@ export interface ErrorReportingOptions {
   /** Sentry Logs stay off: see `createErrorReportingOptions`. */
   enableLogs: false;
   beforeSendLog: <L extends ScrubbableLog>(log: L) => L | null;
+  /** Sentry Metrics stay off, for the same reason as logs. */
+  enableMetrics: false;
+  beforeSendMetric: <M>(metric: M) => M | null;
+  /** Spans are sent inside transactions, where `beforeSendTransaction` scrubs them. */
+  traceLifecycle: 'static';
   beforeBreadcrumb: <B extends ScrubbableBreadcrumb>(breadcrumb: B) => B;
 }
 
@@ -832,6 +857,13 @@ export function createErrorReportingOptions(config: ErrorReportingConfig): Error
     // `beforeSendLog` runs, so no hook can scrub them: logs are not sent.
     enableLogs: false,
     beforeSendLog: () => null,
+    // Same for metrics: on by default in Sentry 10, and scope attributes are
+    // merged after `beforeSendMetric`.
+    enableMetrics: false,
+    beforeSendMetric: () => null,
+    // Streamed spans (`traceLifecycle: 'stream'`) use another callback shape
+    // with names and attributes that `beforeSendSpan` does not visit.
+    traceLifecycle: 'static',
     beforeBreadcrumb: breadcrumb => scrubBreadcrumb(breadcrumb, urlOptions),
   };
 }
