@@ -75,9 +75,11 @@ entry is browser-safe and has no database, logger, or environment imports.
 ## Error reporting
 
 `./observability` is the shared privacy policy for error tracking. Every app
-sends crashes, exceptions and traces to Sentry through these options, so one
-filter decides what leaves every app. The entry is browser-safe, has no SDK
-dependency, and fits `@sentry/react`, `@sentry/nextjs` and `@sentry/node` 10.
+sends crashes, exceptions and traces to Sentry through these options, so the
+same scrubbers run in every app. The guarantee covers what passes through the
+SDK hooks; the consumer contract below covers the rest. The entry is
+browser-safe, has no SDK dependency, and fits `@sentry/react`, `@sentry/nextjs`
+and `@sentry/node` 10.
 
 ```ts
 import * as Sentry from '@sentry/react';
@@ -122,7 +124,9 @@ What the options guarantee:
   - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
     metadata, so grouping, source maps and runtime facts still work. It drops frame local
     variables. Frame file names lose only their query, IP host and token-route secret.
-- `beforeSendSpan` and `beforeSendLog` scrub streamed spans and logs the same way.
+- `beforeSendSpan` scrubs streamed and standalone spans the same way.
+- Sentry Logs stay off (`enableLogs: false`, `beforeSendLog` drops every log). The SDK merges
+  scope attributes into a log after `beforeSendLog` runs, so no hook can scrub them.
 - Shared noise (`ResizeObserver`, aborted requests, browser extensions) is
   ignored. Network failures stay visible.
 - The entry contains no lookbehind regex, so it parses on iOS Safari before 16.4.
@@ -142,8 +146,36 @@ configureErrorReporter(async ({ err, ctx }) => {
 });
 ```
 
-Set a custom transaction name only from a sanitised path (`sanitizeUrl`): the
-SDK copies it into the trace header before `beforeSend` runs.
+### Consumer contract
+
+The hooks scrub event, transaction, span and breadcrumb bodies. They cannot
+reach every channel the SDK sends, so an app that adopts these options also
+accepts these rules:
+
+- **Transaction and span names** come from sanitised or parameterised paths
+  (`sanitizeUrl`, router patterns). The SDK copies a custom transaction name
+  into the envelope header (dynamic sampling context) before any hook runs.
+- **No attachments, no Session Replay, no screenshots, no user-feedback
+  widget, no Sentry Logs.** Their payloads bypass `beforeSend`.
+- **`setUser({ id })` only.** Never set email, username or IP on the scope.
+- **No `includeLocalVariables`** on Node. Frame variables are dropped, but
+  they should not be collected at all.
+- **Organization settings** in Sentry: data scrubber and default scrubbers on,
+  "Prevent storing IP addresses" on. This is defence in depth, not proof:
+  data that reaches Sentry has already left the app.
+- **Proof before rollout:** `src/errorReporting.envelope.test.ts` runs the
+  real SDK with a capturing transport and asserts that no fixture secret
+  appears anywhere in the serialized envelopes. Each app's pilot repeats this
+  check with its own integrations before it turns on its DSN.
+
+Redaction is pattern- and key-based. Personal data in free text with no
+recognisable shape (for example a person's name inside an exception message)
+can still pass. Keep such data out of error messages.
+
+`configureErrorReporter` state lives in the loaded module instance. Register it
+from the same module format (ESM or CJS) and package copy that `withHandler`
+uses. The 2-second bound limits asynchronous waiting only; a reporter that
+blocks synchronously still blocks the response.
 
 The app still owns SDK initialisation, integrations, source-map upload, user
 identity, and any business context it adds. `redactSensitiveText`,

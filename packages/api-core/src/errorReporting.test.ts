@@ -476,14 +476,14 @@ describe('review regressions', () => {
     expect(scrubEvent({ extra: { n: 5 } }).extra).toEqual({ n: 5 });
   });
 
-  it('scrubs streamed spans and logs', () => {
-    const { beforeSendSpan, beforeSendLog } = createErrorReportingOptions({
+  it('scrubs streamed spans and never sends logs', () => {
+    const options = createErrorReportingOptions({
       app: 'fds',
       surface: 'backoffice',
       ...TOKEN_ROUTES,
     });
     expect(
-      beforeSendSpan({
+      options.beforeSendSpan({
         description: 'GET /conductor/SecretTok?x=1',
         data: { 'user.email': 'a@b.com', 'user.ip_address': '10.0.0.1', 'http.query': 'x=1' },
       })
@@ -491,9 +491,8 @@ describe('review regressions', () => {
       description: 'GET /conductor/[token]',
       data: { 'user.email': '[redacted]', 'user.ip_address': '[redacted]' },
     });
-    expect(
-      beforeSendLog({ message: 'payout for ABC010203XY1', attributes: { url: '/x?y=1' } })
-    ).toEqual({ message: 'payout for ************', attributes: { url: '/x' } });
+    expect(options.enableLogs).toBe(false);
+    expect(options.beforeSendLog({ message: 'payout for ABC010203XY1' })).toBeNull();
   });
 });
 
@@ -541,7 +540,7 @@ describe('second review regressions', () => {
       custom: 'flota@example.com',
     } as ScrubbableEvent);
     const record = out as Record<string, unknown>;
-    expect(record.server_name).toBe('************');
+    expect(record.server_name).toBe('[redacted]');
     expect(record.event_id).toBe('0123456789abcdef0123456789abcdef');
     expect(record.release).toBe('1.2.3-20261007123456');
     expect(record.debug_meta).toBe(debugMeta);
@@ -657,5 +656,20 @@ describe('third review regressions', () => {
     expect(redactSensitiveText('std::vector Foo::bar at 12:30:45')).toBe(
       'std::vector Foo::bar at 12:30:45'
     );
+  });
+});
+
+describe('architecture review regressions', () => {
+  it('redacts bare name keys in app data but keeps runtime product names', () => {
+    const out = scrubEvent({
+      extra: { customer: { name: 'Ana Operadora', username: 'ana' } },
+      contexts: {
+        browser: { name: 'Chrome', version: '129.0.0.0' },
+        device: { name: "Ana's iPhone", model: 'iPhone15,2' },
+      },
+    });
+    expect(out.extra).toEqual({ customer: { name: '[redacted]', username: '[redacted]' } });
+    expect(out.contexts?.browser).toEqual({ name: 'Chrome', version: '129.0.0.0' });
+    expect(out.contexts?.device).toEqual({ name: '[redacted]', model: 'iPhone15,2' });
   });
 });

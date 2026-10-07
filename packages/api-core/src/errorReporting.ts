@@ -339,7 +339,7 @@ const SECRET_KEY = keyWords(
 );
 /** Money and identity: the value is replaced whatever its type. */
 const SENSITIVE_KEY = keyWords(
-  'amount|monto|importe|subtotal|price|precio|salary|salario|balance|saldo|clabe|rfc|curp|phone|telefono|tel|email|correo|mail|account_number|cuenta|card|tarjeta|full_name|first_name|last_name|nombre|apellidos?|razon_social|legal_name|address|direccion|ip|ip_address'
+  'amount|monto|importe|subtotal|price|precio|salary|salario|balance|saldo|clabe|rfc|curp|phone|telefono|tel|email|correo|mail|account_number|cuenta|card|tarjeta|name|username|nombre|apellidos?|razon_social|address|direccion|ip|ip_address'
 );
 /** Numbers under these keys are times, not phones or accounts. */
 const TEMPORAL_KEY = keyWords(
@@ -348,6 +348,12 @@ const TEMPORAL_KEY = keyWords(
 /** Version-like values that pattern redaction would mangle (`129.0.0.0`). */
 const VERSION_KEY = keyWords('version|build|kernel_version');
 const SAFE_VERSION = /^[\w.+\- ()]{1,64}$/;
+/**
+ * SDK runtime contexts whose `name` is a product name (`Chrome`, `iOS`,
+ * `node`), not a person. `device` is not here: mobile SDKs put the owner's
+ * device name there.
+ */
+const RUNTIME_NAMED_CONTEXTS = new Set(['app', 'browser', 'os', 'runtime', 'cloud_resource']);
 const REDACTED = '[redacted]';
 const MAX_DEPTH = 8;
 
@@ -435,7 +441,8 @@ function scrubContext(name: string, context: unknown, options: UrlScrubOptions):
     if (name === 'trace' && TRACE_KEEP.has(key)) {
       out[key] = value;
     } else if (
-      VERSION_KEY.test(normalizeKey(key)) &&
+      (VERSION_KEY.test(normalizeKey(key)) ||
+        (key === 'name' && RUNTIME_NAMED_CONTEXTS.has(name))) &&
       typeof value === 'string' &&
       SAFE_VERSION.test(value)
     ) {
@@ -479,19 +486,6 @@ export function scrubSpan<S extends ScrubbableSpan>(span: S, options: UrlScrubOp
           ),
         }
       : {}),
-  };
-}
-
-/** `beforeSendLog`: message and attributes scrubbed. */
-export function scrubLog<L extends ScrubbableLog>(log: L, options: UrlScrubOptions = {}): L {
-  const message =
-    typeof log.message === 'string' || log.message instanceof String
-      ? scrubText(String(log.message), options)
-      : log.message;
-  return {
-    ...log,
-    message,
-    ...(log.attributes ? { attributes: scrubRecord(log.attributes, options) } : {}),
   };
 }
 
@@ -774,7 +768,9 @@ export interface ErrorReportingOptions {
   beforeSend: <E extends ScrubbableEvent>(event: E) => E;
   beforeSendTransaction: <E extends ScrubbableEvent>(event: E) => E;
   beforeSendSpan: <S extends ScrubbableSpan>(span: S) => S;
-  beforeSendLog: <L extends ScrubbableLog>(log: L) => L;
+  /** Sentry Logs stay off: see `createErrorReportingOptions`. */
+  enableLogs: false;
+  beforeSendLog: <L extends ScrubbableLog>(log: L) => L | null;
   beforeBreadcrumb: <B extends ScrubbableBreadcrumb>(breadcrumb: B) => B;
 }
 
@@ -832,7 +828,10 @@ export function createErrorReportingOptions(config: ErrorReportingConfig): Error
     beforeSend: tag,
     beforeSendTransaction: tag,
     beforeSendSpan: span => scrubSpan(span, urlOptions),
-    beforeSendLog: log => scrubLog(log, urlOptions),
+    // Fail closed. Sentry merges scope attributes into a log AFTER
+    // `beforeSendLog` runs, so no hook can scrub them: logs are not sent.
+    enableLogs: false,
+    beforeSendLog: () => null,
     beforeBreadcrumb: breadcrumb => scrubBreadcrumb(breadcrumb, urlOptions),
   };
 }
