@@ -114,6 +114,21 @@ What the options guarantee:
 - Shared noise (`ResizeObserver`, aborted requests, browser extensions) is
   ignored. Network failures stay visible.
 
+Vercel Node functions built on `withHandler` report the exceptions that the
+500 envelope hides through `configureErrorReporter`. The reporter runs before
+the 500 is written, because Vercel can freeze a function once its response
+ends, and it may delay that response by at most 2 seconds:
+
+```ts
+import * as Sentry from '@sentry/node';
+import { configureErrorReporter } from '@partrunner-ai/api-core/vercel';
+
+configureErrorReporter(async ({ err, ctx }) => {
+  Sentry.captureException(err, { tags: { handler: ctx } });
+  await Sentry.flush(1500);
+});
+```
+
 The app still owns SDK initialisation, integrations, source-map upload, user
 identity, and any business context it adds. `redactSensitiveText`,
 `sanitizeUrl` and `sanitizePath` are exported for apps that need the same rules
