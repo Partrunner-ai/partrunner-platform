@@ -3028,6 +3028,7 @@ import {
   type TableFrameProps,
   type TintTone,
 } from '@partrunner-ai/ui';
+import { Card, Slot, type CardProps, type SlotProps } from '@partrunner-ai/ui/server';
 
 const schema: SchemaName = 'core';
 const segmented: SegmentedControlProps<'all' | 'mine'> = {
@@ -3065,15 +3066,21 @@ const session: NexusSession = {
 };
 const theme: ThemeName = 'nexus';
 const button: ButtonProps = { children: THEMES[theme].light.accent };
+const cardProps: CardProps = { asChild: true, tone: 'neutral' };
+const slotProps: SlotProps = {};
 void [
   AppShell,
   Button,
+  Card,
   DateRangeFilter,
   SegmentedControl,
+  Slot,
   TableFrame,
+  cardProps,
   dateRange,
   frame,
   segmented,
+  slotProps,
   tint,
   apiAuth,
   apiFeatureFlags,
