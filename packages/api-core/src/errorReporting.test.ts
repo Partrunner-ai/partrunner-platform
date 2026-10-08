@@ -953,3 +953,67 @@ describe('DOM interaction breadcrumbs', () => {
     expect(event.breadcrumbs).toEqual([{ category: 'navigation', data: { to: '/x' } }]);
   });
 });
+
+describe('DOM selectors in spans and web vitals', () => {
+  const button = (label: string) =>
+    htmlTreeAsString(
+      fakeElement(
+        'BUTTON',
+        { 'aria-label': label, type: 'button' },
+        'ticket-card',
+        fakeElement('DIV', {}, 'board')
+      ) as never,
+      { maxStringLength: 4000 }
+    );
+  const article = (title: string) =>
+    htmlTreeAsString(
+      fakeElement('ARTICLE', { title }, 'ticket', fakeElement('MAIN')) as never,
+      { maxStringLength: 4000 }
+    );
+
+  it('cuts the INP interaction span description', () => {
+    const { beforeSendSpan } = createErrorReportingOptions({ app: 'fds', surface: 'backoffice' });
+    const description = button('Ticket de Juana Prueba');
+    expect(description).toContain('Juana');
+    const span = beforeSendSpan({
+      op: 'ui.interaction.click',
+      description,
+      data: { 'sentry.op': 'ui.interaction.click' },
+    } as never) as { description: string };
+    expect(span.description).toBe('div.board > button.ticket-card[…]');
+  });
+
+  it('cuts lcp.element and cls.source.N on the transaction', () => {
+    const event = scrubEvent({
+      type: 'transaction',
+      contexts: {
+        trace: {
+          data: {
+            'lcp.element': article('Cliente Juana Prueba'),
+            'cls.source.1': button('Juana Prueba'),
+          },
+        },
+      },
+      spans: [{ op: 'ui.interaction.click', description: button('Juana Prueba') }],
+    } as unknown as ScrubbableEvent);
+    const all = JSON.stringify(event);
+    expect(all).not.toContain('Juana');
+    expect(all).toContain('main > article.ticket[…]');
+    expect(all).toContain('div.board > button.ticket-card[…]');
+  });
+
+  it('cuts an attribute selector inside a message', () => {
+    expect(scrubText('Invalid value at input.rfc[name="Juana Prueba"] in form')).toBe(
+      'Invalid value at input.rfc[…]'
+    );
+  });
+
+  it('keeps brackets that are not SDK attribute selectors', () => {
+    expect(scrubText('items[0] failed: data-x=[1,2]')).toBe('items[0] failed: data-x=[1,2]');
+  });
+
+  it('is idempotent', () => {
+    const once = scrubText(button('Juana Prueba'));
+    expect(scrubText(once)).toBe(once);
+  });
+});

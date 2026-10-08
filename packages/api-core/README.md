@@ -130,7 +130,10 @@ What the options guarantee:
     data; DOM click and input breadcrumbs keep only the element path before the first `[`,
     because the SDK appends unescaped `aria-label`/`title`/`alt`/`name` values; console
     breadcrumbs are removed from outgoing events, in the browser and on the server, because log
-    text and arguments are free-form), `extra`, spans and every context field by field. `response` keeps only its status code
+    text and arguments are free-form), `extra`, spans and every context field by field. Any
+    scrubbed string is cut at the first SDK DOM attribute selector (`[aria-label=`, `[title=`,
+    `[alt=`, `[name=`, `[type=`, `[placeholder=`): browser tracing writes these, with unescaped
+    labels, into INP span names and the `lcp.element` and `cls.source.N` attributes. `response` keeps only its status code
     and body size. Unknown top-level fields such as `server_name` are scrubbed too.
   - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
     metadata, so grouping, source maps and runtime facts still work. It drops frame local

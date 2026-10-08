@@ -35,6 +35,7 @@ const SECRETS = [
   'opaqueSecret',
   'Tr0ngPass',
   'OAuthSecret',
+  'Rosa Ticket',
 ];
 
 const bodies: string[] = [];
@@ -125,6 +126,16 @@ beforeAll(() => {
         { name: 'POST https://api.test/conductor/SecretTok?x=1', op: 'http.client' },
         () => {}
       );
+      // Browser tracing names INP spans after the clicked element and puts
+      // the LCP element selector in an attribute (`htmlTreeAsString`).
+      startSpan(
+        {
+          name: 'div.board > button.ticket-card[aria-label="Ticket de Rosa Ticket"]',
+          op: 'ui.interaction.click',
+          attributes: { 'lcp.element': 'main > article.ticket[title="Rosa Ticket"]' },
+        },
+        () => {}
+      );
     }
   );
   logger.info('payout done for flota@example.com');
@@ -152,6 +163,8 @@ describe('outbound envelopes', () => {
     expect(all).toContain('"surface":"fleet"');
     expect(all).toContain('"id":"fleet:1"');
     expect(all).toContain('/conductor/[token]');
+    expect(all).toContain('div.board > button.ticket-card[…]');
+    expect(all).toContain('main > article.ticket[…]');
   });
 
   it('keeps debug ids for source maps without the bundle URL secret', async () => {

@@ -268,11 +268,25 @@ const RELATIVE_PATH = new RegExp(
  * Sanitises every URL and path inside free text (with or without a scheme or
  * host), then redacts the rest.
  */
+/**
+ * Start of an attribute the Sentry SDK writes into DOM selectors
+ * (`htmlTreeAsString`): click breadcrumbs, INP interaction spans, and
+ * web-vital attributes such as `lcp.element` and `cls.source.N`. The values
+ * are unescaped labels (names, ticket text), so the text is cut there.
+ */
+const DOM_SELECTOR_ATTRIBUTE = /\[(?:aria-label|title|alt|name|type|placeholder)=["']/;
+
+/** Cuts a string at the first SDK DOM-attribute selector: `button.x[…]`. */
+function cutDomSelectorAttributes(text: string): string {
+  const index = text.search(DOM_SELECTOR_ATTRIBUTE);
+  return index === -1 ? text : `${text.slice(0, index)}[…]`;
+}
+
 export function scrubText(text: string, options: UrlScrubOptions = {}): string {
   if (!text) return text;
   if (text.length > MAX_REDACT_LENGTH) return mask(text);
   return redactSensitiveText(
-    text
+    cutDomSelectorAttributes(text)
       .replace(EMBEDDED_URL, url => sanitizeUrl(url, options))
       .replace(HOST_PATH, (_match, boundary: string, hostPath: string) => {
         return `${boundary}${sanitizeUrl(`https://${hostPath}`, options).replace(/^https:\/\//, '')}`;
