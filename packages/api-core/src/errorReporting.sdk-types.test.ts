@@ -3,9 +3,16 @@
  * `@sentry/core` is a dev dependency only: the built entry never imports it.
  * `pnpm typecheck` fails here if a Sentry upgrade changes the option shapes.
  */
-import type { Breadcrumb, ErrorEvent, Options, TransactionEvent } from '@sentry/core';
+import type {
+  Breadcrumb,
+  Client,
+  ErrorEvent,
+  Integration,
+  Options,
+  TransactionEvent,
+} from '@sentry/core';
 import { describe, expect, it } from 'vitest';
-import { createErrorReportingOptions } from './observability';
+import { createErrorReportingOptions, dynamicSamplingContextScrubber } from './observability';
 
 describe('Sentry SDK compatibility', () => {
   it('spreads into Sentry options without casts', () => {
@@ -37,5 +44,11 @@ describe('Sentry SDK compatibility', () => {
     expect(sent.tags).toEqual({ app: 'fds', surface: 'backoffice' });
     expect(sentTransaction.transaction).toBe('GET /x/[id]');
     expect(kept.message).toBe('*****************');
+  });
+
+  it('passes the DSC scrubber as a Sentry integration without casts', () => {
+    const integration: Integration = dynamicSamplingContextScrubber();
+    const setup: ((client: Client) => void) | undefined = integration.setup;
+    expect(typeof setup).toBe('function');
   });
 });

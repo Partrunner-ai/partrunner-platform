@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createErrorReportingOptions,
   DEFAULT_IGNORE_ERRORS,
+  dynamicSamplingContextScrubber,
   redactSensitiveText,
   sanitizePath,
   sanitizeUrl,
@@ -951,5 +952,127 @@ describe('DOM interaction breadcrumbs', () => {
       ],
     });
     expect(event.breadcrumbs).toEqual([{ category: 'navigation', data: { to: '/x' } }]);
+  });
+});
+
+describe('DOM selectors in spans and web vitals', () => {
+  const button = (label: string) =>
+    htmlTreeAsString(
+      fakeElement(
+        'BUTTON',
+        { 'aria-label': label, type: 'button' },
+        'ticket-card',
+        fakeElement('DIV', {}, 'board')
+      ) as never,
+      { maxStringLength: 4000 }
+    );
+  const article = (title: string) =>
+    htmlTreeAsString(
+      fakeElement('ARTICLE', { title }, 'ticket', fakeElement('MAIN')) as never,
+      { maxStringLength: 4000 }
+    );
+
+  it('cuts the INP interaction span description', () => {
+    const { beforeSendSpan } = createErrorReportingOptions({ app: 'fds', surface: 'backoffice' });
+    const description = button('Ticket de Juana Prueba');
+    expect(description).toContain('Juana');
+    const span = beforeSendSpan({
+      op: 'ui.interaction.click',
+      description,
+      data: { 'sentry.op': 'ui.interaction.click' },
+    } as never) as { description: string };
+    expect(span.description).toBe('div.board > button.ticket-card[…]');
+  });
+
+  it('cuts lcp.element and cls.source.N on the transaction', () => {
+    const event = scrubEvent({
+      type: 'transaction',
+      contexts: {
+        trace: {
+          data: {
+            'lcp.element': article('Cliente Juana Prueba'),
+            'cls.source.1': button('Juana Prueba'),
+          },
+        },
+      },
+      spans: [{ op: 'ui.interaction.click', description: button('Juana Prueba') }],
+    } as unknown as ScrubbableEvent);
+    const all = JSON.stringify(event);
+    expect(all).not.toContain('Juana');
+    expect(all).toContain('main > article.ticket[…]');
+    expect(all).toContain('div.board > button.ticket-card[…]');
+  });
+
+  it('cuts an attribute selector inside a message', () => {
+    expect(scrubText('Invalid value at input.rfc[name="Juana Prueba"] in form')).toBe(
+      'Invalid value at input.rfc[…]'
+    );
+  });
+
+  it('keeps brackets that are not SDK attribute selectors', () => {
+    expect(scrubText('items[0] failed: data-x=[1,2]')).toBe('items[0] failed: data-x=[1,2]');
+  });
+
+  it('is idempotent', () => {
+    const once = scrubText(button('Juana Prueba'));
+    expect(scrubText(once)).toBe(once);
+  });
+
+  it.each([
+    ['type', 'input.rfc[type="text"][name="Juana Prueba"]'],
+    ['alt', 'img.avatar[alt="Foto de Juana Prueba"]'],
+    ['title', "td.cell[title='Juana Prueba']"],
+  ])('cuts when %s is the first attribute', (_attribute, selector) => {
+    expect(scrubText(selector)).toBe(`${selector.slice(0, selector.indexOf('['))}[…]`);
+  });
+
+  it('cuts before the length check, so a long label keeps the element path', () => {
+    const description = button(`Ticket de Juana Prueba ${'x '.repeat(3000)}`);
+    expect(description.length).toBeGreaterThan(4000);
+    // The SDK keeps the first element whole and drops ancestors past the limit.
+    expect(scrubText(description)).toBe('button.ticket-card[…]');
+  });
+});
+
+describe('dynamicSamplingContextScrubber', () => {
+  const hooks = () => {
+    const registered: Record<string, (value: never) => void> = {};
+    dynamicSamplingContextScrubber(TOKEN_ROUTES).setup({
+      on: (name: string, callback: (value: never) => void) => {
+        registered[name] = callback;
+      },
+    } as never);
+    return registered;
+  };
+  const run = (transaction: string | undefined) => {
+    const dsc: { transaction?: string; trace_id: string } = { transaction, trace_id: 'abc' };
+    hooks().createDsc?.(dsc as never);
+    return dsc;
+  };
+
+  it('cuts a selector name and scrubs paths in place', () => {
+    expect(run('div.board > button.ticket-card[aria-label="Juana Prueba"]').transaction).toBe(
+      'div.board > button.ticket-card[…]'
+    );
+    expect(run('GET /conductor/SecretTok').transaction).toBe('GET /conductor/[token]');
+  });
+
+  it('keeps parameterised names and other fields', () => {
+    expect(run('/tickets/:id')).toEqual({ transaction: '/tickets/:id', trace_id: 'abc' });
+    expect(run(undefined)).toEqual({ transaction: undefined, trace_id: 'abc' });
+  });
+
+  it('scrubs the envelope header on any runtime', () => {
+    const envelope = [
+      { trace: { transaction: 'payout GET /conductor/SecretTok', trace_id: 'abc' } },
+      [],
+    ];
+    hooks().beforeEnvelope?.(envelope as never);
+    expect(envelope[0]).toEqual({
+      trace: { transaction: 'payout GET /conductor/[token]', trace_id: 'abc' },
+    });
+    const noTrace = [{ sent_at: 'x' }, []];
+    hooks().beforeEnvelope?.(noTrace as never);
+    expect(noTrace[0]).toEqual({ sent_at: 'x' });
   });
 });

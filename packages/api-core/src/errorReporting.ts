@@ -265,14 +265,31 @@ const RELATIVE_PATH = new RegExp(
 );
 
 /**
- * Sanitises every URL and path inside free text (with or without a scheme or
- * host), then redacts the rest.
+ * Start of an attribute the Sentry SDK writes into DOM selectors
+ * (`htmlTreeAsString`: `aria-label`, `type`, `name`, `title`, `alt`; `placeholder`
+ * is defensive). Click breadcrumbs, INP interaction spans and the web-vital
+ * attributes `lcp.element` and `cls.source.N` carry them. The values are
+ * unescaped labels (names, ticket text), so the text is cut there.
+ */
+const DOM_SELECTOR_ATTRIBUTE = /\[(?:aria-label|title|alt|name|type|placeholder)=["']/;
+
+/** Cuts a string at the first SDK DOM-attribute selector: `button.x[…]`. */
+function cutDomSelectorAttributes(text: string): string {
+  const index = text.search(DOM_SELECTOR_ATTRIBUTE);
+  return index === -1 ? text : `${text.slice(0, index)}[…]`;
+}
+
+/**
+ * Cuts the text at the first SDK DOM-attribute selector, sanitises every URL
+ * and path inside it (with or without a scheme or host), then redacts the
+ * rest.
  */
 export function scrubText(text: string, options: UrlScrubOptions = {}): string {
   if (!text) return text;
-  if (text.length > MAX_REDACT_LENGTH) return mask(text);
+  const cut = cutDomSelectorAttributes(text);
+  if (cut.length > MAX_REDACT_LENGTH) return mask(cut);
   return redactSensitiveText(
-    text
+    cut
       .replace(EMBEDDED_URL, url => sanitizeUrl(url, options))
       .replace(HOST_PATH, (_match, boundary: string, hostPath: string) => {
         return `${boundary}${sanitizeUrl(`https://${hostPath}`, options).replace(/^https:\/\//, '')}`;
@@ -877,6 +894,79 @@ export const UNSAFE_DEFAULT_INTEGRATIONS: ReadonlySet<string> = new Set([
  */
 export function withoutUnsafeIntegrations<I extends { name: string }>(integrations: I[]): I[] {
   return integrations.filter(integration => !UNSAFE_DEFAULT_INTEGRATIONS.has(integration.name));
+}
+
+/** A dynamic sampling context: only its free-text field matters here. */
+export interface ScrubbableDynamicSamplingContext {
+  transaction?: string;
+}
+
+/** What the `createDsc` (a context) and `beforeEnvelope` (an envelope) hooks pass. */
+export type ErrorReportingHookValue =
+  | ScrubbableDynamicSamplingContext
+  | readonly [{ trace?: ScrubbableDynamicSamplingContext }, ...unknown[]];
+
+/**
+ * The client hooks that the SDK-free integrations use. One signature, so that
+ * Sentry's overloaded `Client.on` fits it.
+ */
+export interface ErrorReportingClient {
+  on(
+    hook: 'createDsc' | 'beforeEnvelope',
+    callback: (value: ErrorReportingHookValue) => void
+  ): unknown;
+}
+
+/** A Sentry integration, without the SDK types. */
+export interface ErrorReportingIntegration {
+  name: string;
+  setup(client: ErrorReportingClient): void;
+}
+
+/**
+ * Scrubs the transaction name in the dynamic sampling context. The SDK copies
+ * a root span name into the envelope header and the `baggage` header before
+ * any event hook runs. A standalone INP span is named after the clicked
+ * element, so without a frozen pageload context its label would leave the
+ * app there.
+ *
+ * Two hooks: `createDsc` scrubs the context where it is built (envelope and
+ * `baggage` header, browser SDKs), and `beforeEnvelope` scrubs every envelope
+ * header on every runtime. On `@sentry/node` an OpenTelemetry `createDsc`
+ * handler added after `init` sets the raw name again, so there only the
+ * envelope header is covered, not outgoing `baggage`.
+ *
+ * Pass the same config as `createErrorReportingOptions` (it is a
+ * `UrlScrubOptions`):
+ *
+ * ```ts
+ * integrations: defaults => [
+ *   ...withoutUnsafeIntegrations(defaults),
+ *   Sentry.browserTracingIntegration(),
+ *   dynamicSamplingContextScrubber(config),
+ * ]
+ * ```
+ */
+export function dynamicSamplingContextScrubber(
+  options: UrlScrubOptions = {}
+): ErrorReportingIntegration {
+  const urlOptions: UrlScrubOptions = { tokenRoutePrefixes: options.tokenRoutePrefixes ?? [] };
+  const scrub = (value: ErrorReportingHookValue) => {
+    // An envelope is `[headers, items]`; a context is a plain object.
+    const dsc = Array.isArray(value)
+      ? (value as readonly [{ trace?: ScrubbableDynamicSamplingContext }])[0]?.trace
+      : (value as ScrubbableDynamicSamplingContext);
+    if (typeof dsc?.transaction === 'string') {
+      dsc.transaction = scrubText(dsc.transaction, urlOptions);
+    }
+  };
+  return {
+    name: 'PartrunnerDynamicSamplingContextScrubber',
+    setup(client) {
+      client.on('createDsc', scrub);
+      client.on('beforeEnvelope', scrub);
+    },
+  };
 }
 
 export interface ErrorReportingOptions {
