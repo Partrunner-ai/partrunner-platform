@@ -193,6 +193,9 @@ function resolvedUrlOptions(options: UrlScrubOptions): UrlScrubOptions {
   };
 }
 
+/** `%2F` or `%5C` at any encoding depth (`%252F`, `%25252F`, …). */
+const ENCODED_SLASH = /%(?:25)*(?:2f|5c)/i;
+
 function decodeSegment(segment: string): string {
   try {
     return decodeURIComponent(segment);
@@ -211,9 +214,14 @@ function decodeSegment(segment: string): string {
 function tokenSegmentIndexes(path: string, options: UrlScrubOptions): Set<number> {
   const indexes = new Set<number>();
   // Match on decoded segments: `/%63onductor/<token>` is the same route.
-  const decoded = path.split('/').map(segment => decodeSegment(segment).toLowerCase());
+  const raw = path.split('/');
+  const decoded = raw.map(segment => decodeSegment(segment).toLowerCase());
   decoded.forEach((segment, index) => {
-    if (segment.includes('/') || segment.includes('\\')) indexes.add(index);
+    // Also the raw form: a malformed segment does not decode, and a
+    // double-encoded slash (`%252F`) only decodes to `%2F`.
+    if (segment.includes('/') || segment.includes('\\') || ENCODED_SLASH.test(raw[index] ?? '')) {
+      indexes.add(index);
+    }
   });
   const lower = decoded.map(segment => segment.replace(/[\\/]/g, '\u0000')).join('/');
   for (const raw of resolveTokenRoutePrefixes(options)) {

@@ -1262,6 +1262,14 @@ describe('encoded slashes in token routes', () => {
     expect(sanitizePath('/conductor/SecretTok/a%2Fb')).toBe('/conductor/[token]/[token]');
   });
 
+  it('masks malformed and double-encoded slash segments', () => {
+    expect(sanitizePath('/conductor%2F%E0%A4SecretTok/x')).toBe('/[token]/x');
+    expect(sanitizePath('/conductor%252FSecretTok/x')).toBe('/[token]/x');
+    expect(sanitizePath('/conductor%25252fSecretTok')).toBe('/[token]');
+    expect(stripUrlSecrets('https://h/conductor%252FSecretTok/app.js')).toBe('https://h/[token]/app.js');
+    expect(sanitizePath('/a%20b/c')).toBe('/a%20b/c');
+  });
+
   it('is idempotent', () => {
     const once = sanitizePath('/conductor%2FSecretTok/x');
     expect(sanitizePath(once)).toBe(once);

@@ -17,5 +17,5 @@ Behaviour change: calls with no options (`sanitizePath`, `sanitizeUrl`, `stripUr
 `scrubText`, `scrubEvent`) and configs with `tokenRoutePrefixes: []` now mask `/conductor/<x>` and
 `/afiliacion/<x>`; before, an empty or missing list meant "no token routes". This can change
 grouping keys or analytics for a consumer that uses `sanitizePath` outside Sentry. Set
-`includeDefaultTokenRoutes: false` to keep the old behaviour. A path segment whose decoded value
-holds a slash (`/conductor%2F<token>`) is now masked whole.
+`includeDefaultTokenRoutes: false` to keep the old behaviour. A path segment that holds an encoded slash
+(`/conductor%2F<token>`, also double-encoded `%252F` or with a malformed byte) is now masked whole.
