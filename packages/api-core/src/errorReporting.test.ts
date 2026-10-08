@@ -5,8 +5,10 @@ import { describe, expect, it } from 'vitest';
 import {
   createErrorReportingOptions,
   DEFAULT_IGNORE_ERRORS,
+  DEFAULT_TOKEN_ROUTE_PREFIXES,
   dynamicSamplingContextScrubber,
   redactSensitiveText,
+  resolveTokenRoutePrefixes,
   sanitizePath,
   sanitizeUrl,
   scrubBreadcrumb,
@@ -65,7 +67,9 @@ describe('sanitizePath and sanitizeUrl', () => {
     expect(sanitizePath('/conductor/abc123/documentos', TOKEN_ROUTES)).toBe(
       '/conductor/[token]/documentos'
     );
-    expect(sanitizePath('/conductor/abc123')).toBe('/conductor/abc123');
+    expect(sanitizePath('/conductor/abc123', { includeDefaultTokenRoutes: false })).toBe(
+      '/conductor/abc123'
+    );
   });
 
   it('redacts a segment that carries sensitive data', () => {
@@ -1074,5 +1078,172 @@ describe('dynamicSamplingContextScrubber', () => {
     const noTrace = [{ sent_at: 'x' }, []];
     hooks().beforeEnvelope?.(noTrace as never);
     expect(noTrace[0]).toEqual({ sent_at: 'x' });
+  });
+});
+
+describe('default token routes', () => {
+  const dscHooks = (options: Parameters<typeof dynamicSamplingContextScrubber>[0]) => {
+    const registered: Record<string, (value: never) => void> = {};
+    dynamicSamplingContextScrubber(options).setup({
+      on: (name: string, callback: (value: never) => void) => {
+        registered[name] = callback;
+      },
+    } as never);
+    return registered;
+  };
+  const dscName = (
+    options: Parameters<typeof dynamicSamplingContextScrubber>[0],
+    transaction: string
+  ) => {
+    const dsc = { transaction };
+    dscHooks(options).createDsc?.(dsc as never);
+    return dsc.transaction;
+  };
+  const app = {
+    app: 'fds',
+    surface: 'backoffice' as const,
+    dsn: 'https://k@o1.ingest.sentry.io/1',
+  };
+
+  it('exports the STF public link prefixes, frozen', () => {
+    expect(DEFAULT_TOKEN_ROUTE_PREFIXES).toEqual(['/conductor', '/afiliacion']);
+    expect(Object.isFrozen(DEFAULT_TOKEN_ROUTE_PREFIXES)).toBe(true);
+  });
+
+  it('masks the default routes without any app config', () => {
+    expect(sanitizePath('/conductor/abc123')).toBe('/conductor/[token]');
+    expect(sanitizePath('/afiliacion/tok_1/paso-2')).toBe('/afiliacion/[token]/paso-2');
+    expect(sanitizeUrl('https://www.partrunner.app/Afiliacion/tok_1?x=1')).toBe(
+      'https://www.partrunner.app/Afiliacion/[token]'
+    );
+    expect(stripUrlSecrets('https://app.test/conductor/tok_1/app.js?v=1')).toBe(
+      'https://app.test/conductor/[token]/app.js'
+    );
+    expect(scrubText('Request failed: /conductor/AbCdEf12345?rfc=foo')).toBe(
+      'Request failed: /conductor/[token]'
+    );
+
+    const options = createErrorReportingOptions(app);
+    expect(
+      options.beforeSend<ScrubbableEvent>({ request: { url: 'https://x.test/conductor/tok_1' } })
+        .request?.url
+    ).toBe('https://x.test/conductor/[token]');
+    expect(options.beforeBreadcrumb({ data: { to: '/afiliacion/tok_1' } }).data).toEqual({
+      to: '/afiliacion/[token]',
+    });
+    expect(options.beforeSendSpan({ description: 'GET /afiliacion/tok_1' }).description).toBe(
+      'GET /afiliacion/[token]'
+    );
+    expect(dscName(undefined, 'GET /conductor/SecretTok')).toBe('GET /conductor/[token]');
+  });
+
+  it('applies the defaults together with the app prefixes', () => {
+    const options = { tokenRoutePrefixes: ['/portal'] };
+    expect(sanitizePath('/portal/tok_1', options)).toBe('/portal/[token]');
+    expect(sanitizePath('/conductor/tok_1', options)).toBe('/conductor/[token]');
+    expect(sanitizePath('/afiliacion/tok_1', options)).toBe('/afiliacion/[token]');
+    const { beforeSend } = createErrorReportingOptions({ ...app, ...options });
+    expect(
+      beforeSend<ScrubbableEvent>({ message: 'GET /portal/tok_1 then /conductor/tok_2' }).message
+    ).toBe('GET /portal/[token] then /conductor/[token]');
+    expect(dscName(options, 'GET /portal/tok_1 /afiliacion/tok_2')).toBe(
+      'GET /portal/[token] /afiliacion/[token]'
+    );
+  });
+
+  it('masks each matching prefix when an app prefix nests under a default', () => {
+    // Fail closed: the longer app prefix never unmasks the default token segment.
+    const nested = { tokenRoutePrefixes: ['/conductor/perfil'] };
+    expect(sanitizePath('/conductor/perfil/tok_1', nested)).toBe('/conductor/[token]/[token]');
+  });
+
+  it('masks the next segment of any /afiliacion route (accepted trade-off)', () => {
+    // Supply's `/afiliacion/[collection]` pages lose the collection name: data
+    // is removed, never leaked. An app that needs it opts out explicitly.
+    expect(sanitizePath('/afiliacion/transportistas')).toBe('/afiliacion/[token]');
+    expect(
+      sanitizePath('/afiliacion/transportistas', {
+        includeDefaultTokenRoutes: false,
+        tokenRoutePrefixes: ['/conductor'],
+      })
+    ).toBe('/afiliacion/transportistas');
+  });
+
+  it('lets an app opt out of the defaults explicitly', () => {
+    const optOut = { includeDefaultTokenRoutes: false };
+    expect(sanitizePath('/conductor/abc123', optOut)).toBe('/conductor/abc123');
+    expect(scrubText('GET /afiliacion/abc123', optOut)).toBe('GET /afiliacion/abc123');
+    expect(stripUrlSecrets('https://a.test/conductor/abc123/x.js', optOut)).toBe(
+      'https://a.test/conductor/abc123/x.js'
+    );
+    expect(sanitizePath('/portal/tok_1', { ...optOut, tokenRoutePrefixes: ['/portal'] })).toBe(
+      '/portal/[token]'
+    );
+
+    const options = createErrorReportingOptions({ ...app, ...optOut });
+    expect(
+      options.beforeSend<ScrubbableEvent>({ request: { url: 'https://x.test/conductor/abc123' } })
+        .request?.url
+    ).toBe('https://x.test/conductor/abc123');
+    expect(dscName(optOut, 'GET /conductor/abc123')).toBe('GET /conductor/abc123');
+    // `true` is the same as leaving the option out.
+    expect(sanitizePath('/conductor/abc123', { includeDefaultTokenRoutes: true })).toBe(
+      '/conductor/[token]'
+    );
+  });
+
+  it('lists each prefix once', () => {
+    expect(resolveTokenRoutePrefixes()).toEqual(['/conductor', '/afiliacion']);
+    expect(resolveTokenRoutePrefixes(TOKEN_ROUTES)).toEqual(['/conductor', '/afiliacion']);
+    expect(
+      resolveTokenRoutePrefixes({
+        tokenRoutePrefixes: ['/Conductor/', '/afiliacion//', '/portal', '/portal/', ''],
+      })
+    ).toEqual(['/conductor', '/afiliacion', '/portal']);
+    expect(resolveTokenRoutePrefixes({ includeDefaultTokenRoutes: false })).toEqual([]);
+    expect(
+      resolveTokenRoutePrefixes({ includeDefaultTokenRoutes: false, tokenRoutePrefixes: ['/x'] })
+    ).toEqual(['/x']);
+  });
+
+  it('gives an app that passes the two prefixes the same output as one that does not', () => {
+    const event = (): ScrubbableEvent => ({
+      message: 'Upload failed at https://www.partrunner.app/conductor/SecretTok?x=1',
+      request: { url: 'https://www.partrunner.app/afiliacion/tok_1/paso?rfc=ABC010203XY1' },
+      transaction: 'GET /conductor/SecretTok',
+      breadcrumbs: [
+        { category: 'navigation', data: { from: '/conductor/a1', to: '/afiliacion/b2' } },
+      ],
+      exception: {
+        values: [
+          {
+            type: 'Error',
+            value: 'fetch /afiliacion/tok_2 failed',
+            stacktrace: {
+              frames: [{ filename: 'https://app.test/conductor/tok_3/app.js?v=1', lineno: 1 }],
+            },
+          },
+        ],
+      },
+      spans: [{ description: 'POST /conductor/tok_4/docs', data: { url: '/afiliacion/tok_5' } }],
+    });
+    const explicit = createErrorReportingOptions({ ...app, ...TOKEN_ROUTES });
+    const implicit = createErrorReportingOptions(app);
+    expect(explicit.beforeSend(event())).toEqual(implicit.beforeSend(event()));
+    expect(explicit.beforeSendTransaction(event())).toEqual(
+      implicit.beforeSendTransaction(event())
+    );
+    expect(explicit.beforeSend(event()).request?.url).toBe(
+      'https://www.partrunner.app/afiliacion/[token]/paso'
+    );
+    const span = { description: 'GET /conductor/tok_1', data: { 'url.full': '/afiliacion/tok_2' } };
+    expect(explicit.beforeSendSpan({ ...span })).toEqual(implicit.beforeSendSpan({ ...span }));
+    const crumb = { category: 'fetch', data: { url: 'https://x.test/conductor/tok_1?a=1' } };
+    expect(explicit.beforeBreadcrumb({ ...crumb })).toEqual(
+      implicit.beforeBreadcrumb({ ...crumb })
+    );
+    expect(dscName(TOKEN_ROUTES, 'GET /afiliacion/tok_1')).toBe(
+      dscName(undefined, 'GET /afiliacion/tok_1')
+    );
   });
 });
