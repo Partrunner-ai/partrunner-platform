@@ -85,6 +85,7 @@ and `@sentry/node` 10.
 import * as Sentry from '@sentry/react';
 import {
   createErrorReportingOptions,
+  dynamicSamplingContextScrubber,
   withoutUnsafeIntegrations,
 } from '@partrunner-ai/api-core/observability';
 
@@ -101,6 +102,7 @@ Sentry.init({
   integrations: defaults => [
     ...withoutUnsafeIntegrations(defaults),
     Sentry.browserTracingIntegration(),
+    dynamicSamplingContextScrubber({ tokenRoutePrefixes: ['/conductor', '/afiliacion'] }),
   ],
 });
 Sentry.setUser({ id: session.userId }); // id only: the scrubber drops everything else
@@ -130,10 +132,11 @@ What the options guarantee:
     data; DOM click and input breadcrumbs keep only the element path before the first `[`,
     because the SDK appends unescaped `aria-label`/`title`/`alt`/`name` values; console
     breadcrumbs are removed from outgoing events, in the browser and on the server, because log
-    text and arguments are free-form), `extra`, spans and every context field by field. Any
-    scrubbed string is cut at the first SDK DOM attribute selector (`[aria-label=`, `[title=`,
-    `[alt=`, `[name=`, `[type=`, `[placeholder=`): browser tracing writes these, with unescaped
-    labels, into INP span names and the `lcp.element` and `cls.source.N` attributes. `response` keeps only its status code
+    text and arguments are free-form), `extra`, spans and every context field by field. Every
+    string that goes through `scrubText` is cut at the first SDK DOM attribute selector
+    (`[aria-label=`, `[type=`, `[name=`, `[title=`, `[alt=`; `[placeholder=` is defensive):
+    browser tracing writes these, with unescaped labels, into INP span names and the
+    `lcp.element` and `cls.source.N` attributes. `response` keeps only its status code
     and body size. Unknown top-level fields such as `server_name` are scrubbed too.
   - It keeps exception types, stack frames, trace ids, version strings, debug ids and other SDK
     metadata, so grouping, source maps and runtime facts still work. It drops frame local
@@ -141,6 +144,11 @@ What the options guarantee:
     token-route secret.
 - `beforeSendSpan` scrubs standalone spans the same way. Tracing stays static
   (`traceLifecycle: 'static'`): streamed spans use another callback shape.
+- `dynamicSamplingContextScrubber` (an SDK-free integration) scrubs the transaction name in
+  the dynamic sampling context, which the SDK copies into the envelope header and the
+  `baggage` header before any hook runs. A standalone INP span is named after the clicked
+  element; without this integration its label leaves the app there when no pageload context
+  is frozen (`instrumentPageLoad: false`, or a click before the first pageload ends).
 - Sentry Logs and Metrics stay off (`enableLogs: false`, `enableMetrics: false`, and both
   `beforeSendLog` and `beforeSendMetric` drop everything). The SDK merges scope attributes into
   a log or metric after those hooks run, so no hook can scrub them.
@@ -172,6 +180,10 @@ accepts these rules:
 - **Transaction and span names** come from sanitised or parameterised paths
   (`sanitizeUrl`, router patterns). The SDK copies a custom transaction name
   into the envelope header (dynamic sampling context) before any hook runs.
+  Add `dynamicSamplingContextScrubber` to `integrations`: web-vital spans are
+  named after DOM elements, not paths.
+- **No personal data in DOM ids or class names.** The element path (`tag#id.class`)
+  is kept, and the SDK also sends the raw LCP element id as `lcp.id`.
 - **No attachments, no Session Replay, no screenshots, no user-feedback
   widget, no Sentry Logs or Metrics, no span streaming, no session
   tracking, no profiling.** Their payloads (including `profile` and

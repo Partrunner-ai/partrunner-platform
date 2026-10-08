@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createErrorReportingOptions,
   DEFAULT_IGNORE_ERRORS,
+  dynamicSamplingContextScrubber,
   redactSensitiveText,
   sanitizePath,
   sanitizeUrl,
@@ -1015,5 +1016,46 @@ describe('DOM selectors in spans and web vitals', () => {
   it('is idempotent', () => {
     const once = scrubText(button('Juana Prueba'));
     expect(scrubText(once)).toBe(once);
+  });
+
+  it.each([
+    ['type', 'input.rfc[type="text"][name="Juana Prueba"]'],
+    ['alt', 'img.avatar[alt="Foto de Juana Prueba"]'],
+    ['title', "td.cell[title='Juana Prueba']"],
+  ])('cuts when %s is the first attribute', (_attribute, selector) => {
+    expect(scrubText(selector)).toBe(`${selector.slice(0, selector.indexOf('['))}[…]`);
+  });
+
+  it('cuts before the length check, so a long label keeps the element path', () => {
+    const description = button(`Ticket de Juana Prueba ${'x '.repeat(3000)}`);
+    expect(description.length).toBeGreaterThan(4000);
+    // The SDK keeps the first element whole and drops ancestors past the limit.
+    expect(scrubText(description)).toBe('button.ticket-card[…]');
+  });
+});
+
+describe('dynamicSamplingContextScrubber', () => {
+  const run = (transaction: string | undefined) => {
+    let hook: ((dsc: { transaction?: string }) => void) | undefined;
+    dynamicSamplingContextScrubber(TOKEN_ROUTES).setup({
+      on: (_name, callback) => {
+        hook = callback;
+      },
+    });
+    const dsc: { transaction?: string; trace_id: string } = { transaction, trace_id: 'abc' };
+    hook?.(dsc);
+    return dsc;
+  };
+
+  it('cuts a selector name and scrubs paths in place', () => {
+    expect(run('div.board > button.ticket-card[aria-label="Juana Prueba"]').transaction).toBe(
+      'div.board > button.ticket-card[…]'
+    );
+    expect(run('GET /conductor/SecretTok').transaction).toBe('GET /conductor/[token]');
+  });
+
+  it('keeps parameterised names and other fields', () => {
+    expect(run('/tickets/:id')).toEqual({ transaction: '/tickets/:id', trace_id: 'abc' });
+    expect(run(undefined)).toEqual({ transaction: undefined, trace_id: 'abc' });
   });
 });

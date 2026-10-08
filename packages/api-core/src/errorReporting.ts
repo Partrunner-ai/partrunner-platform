@@ -265,14 +265,11 @@ const RELATIVE_PATH = new RegExp(
 );
 
 /**
- * Sanitises every URL and path inside free text (with or without a scheme or
- * host), then redacts the rest.
- */
-/**
  * Start of an attribute the Sentry SDK writes into DOM selectors
- * (`htmlTreeAsString`): click breadcrumbs, INP interaction spans, and
- * web-vital attributes such as `lcp.element` and `cls.source.N`. The values
- * are unescaped labels (names, ticket text), so the text is cut there.
+ * (`htmlTreeAsString`: `aria-label`, `type`, `name`, `title`, `alt`; `placeholder`
+ * is defensive). Click breadcrumbs, INP interaction spans and the web-vital
+ * attributes `lcp.element` and `cls.source.N` carry them. The values are
+ * unescaped labels (names, ticket text), so the text is cut there.
  */
 const DOM_SELECTOR_ATTRIBUTE = /\[(?:aria-label|title|alt|name|type|placeholder)=["']/;
 
@@ -282,11 +279,17 @@ function cutDomSelectorAttributes(text: string): string {
   return index === -1 ? text : `${text.slice(0, index)}[…]`;
 }
 
+/**
+ * Cuts the text at the first SDK DOM-attribute selector, sanitises every URL
+ * and path inside it (with or without a scheme or host), then redacts the
+ * rest.
+ */
 export function scrubText(text: string, options: UrlScrubOptions = {}): string {
   if (!text) return text;
-  if (text.length > MAX_REDACT_LENGTH) return mask(text);
+  const cut = cutDomSelectorAttributes(text);
+  if (cut.length > MAX_REDACT_LENGTH) return mask(cut);
   return redactSensitiveText(
-    cutDomSelectorAttributes(text)
+    cut
       .replace(EMBEDDED_URL, url => sanitizeUrl(url, options))
       .replace(HOST_PATH, (_match, boundary: string, hostPath: string) => {
         return `${boundary}${sanitizeUrl(`https://${hostPath}`, options).replace(/^https:\/\//, '')}`;
@@ -891,6 +894,47 @@ export const UNSAFE_DEFAULT_INTEGRATIONS: ReadonlySet<string> = new Set([
  */
 export function withoutUnsafeIntegrations<I extends { name: string }>(integrations: I[]): I[] {
   return integrations.filter(integration => !UNSAFE_DEFAULT_INTEGRATIONS.has(integration.name));
+}
+
+/** The part of a Sentry client that `dynamicSamplingContextScrubber` uses. */
+export interface DynamicSamplingContextClient {
+  on(hook: 'createDsc', callback: (dsc: { transaction?: string }) => void): unknown;
+}
+
+/** A Sentry integration, without the SDK types. */
+export interface ErrorReportingIntegration {
+  name: string;
+  setup(client: DynamicSamplingContextClient): void;
+}
+
+/**
+ * Scrubs the transaction name in the dynamic sampling context. The SDK copies
+ * a root span name into the envelope header (and the `baggage` header) before
+ * any hook runs. A standalone INP span is named after the clicked element, so
+ * without a frozen pageload context its label would leave the app there.
+ *
+ * ```ts
+ * integrations: defaults => [
+ *   ...withoutUnsafeIntegrations(defaults),
+ *   Sentry.browserTracingIntegration(),
+ *   dynamicSamplingContextScrubber({ tokenRoutePrefixes: ['/conductor'] }),
+ * ]
+ * ```
+ */
+export function dynamicSamplingContextScrubber(
+  options: UrlScrubOptions = {}
+): ErrorReportingIntegration {
+  const urlOptions: UrlScrubOptions = { tokenRoutePrefixes: options.tokenRoutePrefixes ?? [] };
+  return {
+    name: 'PartrunnerDynamicSamplingContextScrubber',
+    setup(client) {
+      client.on('createDsc', dsc => {
+        if (typeof dsc.transaction === 'string') {
+          dsc.transaction = scrubText(dsc.transaction, urlOptions);
+        }
+      });
+    },
+  };
 }
 
 export interface ErrorReportingOptions {

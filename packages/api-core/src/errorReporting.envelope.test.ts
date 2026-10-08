@@ -16,10 +16,11 @@ import {
   metrics,
   nodeStackLineParser,
   setCurrentClient,
+  startInactiveSpan,
   startSpan,
 } from '@sentry/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createErrorReportingOptions } from './observability';
+import { createErrorReportingOptions, dynamicSamplingContextScrubber } from './observability';
 
 const SECRETS = [
   'ABC010203XY1', // RFC
@@ -36,6 +37,7 @@ const SECRETS = [
   'Tr0ngPass',
   'OAuthSecret',
   'Rosa Ticket',
+  'Luis Standalone',
 ];
 
 const bodies: string[] = [];
@@ -53,7 +55,7 @@ beforeAll(() => {
       tracesSampleRate: 1,
       tokenRoutePrefixes: ['/conductor'],
     }),
-    integrations: [],
+    integrations: [dynamicSamplingContextScrubber({ tokenRoutePrefixes: ['/conductor'] })],
     stackParser: createStackParser(nodeStackLineParser()),
     transport: options =>
       createTransport(options, async request => {
@@ -138,6 +140,13 @@ beforeAll(() => {
       );
     }
   );
+  // A standalone INP span with no active span and no frozen pageload context:
+  // the SDK copies its name into the envelope header (dynamic sampling context).
+  startInactiveSpan({
+    name: 'div.board > button.ticket-card[aria-label="Ticket de Luis Standalone"]',
+    op: 'ui.interaction.click',
+    experimental: { standalone: true },
+  }).end();
   logger.info('payout done for flota@example.com');
   metrics.count('payout', 1, { attributes: { email: 'flota@example.com' } });
   scope.addBreadcrumb({ category: 'console', message: 'Cookie: session=opaqueSecret' });
@@ -165,6 +174,7 @@ describe('outbound envelopes', () => {
     expect(all).toContain('/conductor/[token]');
     expect(all).toContain('div.board > button.ticket-card[…]');
     expect(all).toContain('main > article.ticket[…]');
+    expect(all).toMatch(/"type":"span"/);
   });
 
   it('keeps debug ids for source maps without the bundle URL secret', async () => {
