@@ -87,22 +87,25 @@ import {
   createErrorReportingOptions,
   dynamicSamplingContextScrubber,
   withoutUnsafeIntegrations,
+  type ErrorReportingConfig,
 } from '@partrunner-ai/api-core/observability';
 
+const config = {
+  app: 'sube-tu-factura', // app registry id
+  surface: 'fleet', // fleet | backoffice | client
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.VITE_VERCEL_ENV,
+  release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA,
+  tokenRoutePrefixes: ['/conductor', '/afiliacion'],
+  surfaceForPath: (path: string) => (path.startsWith('/admin') ? 'backoffice' : undefined),
+} satisfies ErrorReportingConfig;
+
 Sentry.init({
-  ...createErrorReportingOptions({
-    app: 'sube-tu-factura', // app registry id
-    surface: 'fleet', // fleet | backoffice | client
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.VITE_VERCEL_ENV,
-    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA,
-    tokenRoutePrefixes: ['/conductor', '/afiliacion'],
-    surfaceForPath: path => (path.startsWith('/admin') ? 'backoffice' : undefined),
-  }),
+  ...createErrorReportingOptions(config),
   integrations: defaults => [
     ...withoutUnsafeIntegrations(defaults),
     Sentry.browserTracingIntegration(),
-    dynamicSamplingContextScrubber({ tokenRoutePrefixes: ['/conductor', '/afiliacion'] }), // same config
+    dynamicSamplingContextScrubber(config),
   ],
 });
 Sentry.setUser({ id: session.userId }); // id only: the scrubber drops everything else
