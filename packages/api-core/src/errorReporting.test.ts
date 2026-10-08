@@ -1247,3 +1247,23 @@ describe('default token routes', () => {
     );
   });
 });
+
+describe('encoded slashes in token routes', () => {
+  it('masks a segment whose decoded value holds a slash', () => {
+    expect(sanitizePath('/conductor%2FSecretTok/x')).toBe('/[token]/x');
+    expect(sanitizePath('/conductor%5CSecretTok')).toBe('/[token]');
+    expect(stripUrlSecrets('https://app.test/conductor%2FSecretTok/x?y=1')).toBe(
+      'https://app.test/[token]/x'
+    );
+  });
+
+  it('keeps the other segment indexes right after an encoded slash', () => {
+    expect(sanitizePath('/a%2Fb/conductor/SecretTok')).toBe('/[token]/conductor/SecretTok');
+    expect(sanitizePath('/conductor/SecretTok/a%2Fb')).toBe('/conductor/[token]/[token]');
+  });
+
+  it('is idempotent', () => {
+    const once = sanitizePath('/conductor%2FSecretTok/x');
+    expect(sanitizePath(once)).toBe(once);
+  });
+});

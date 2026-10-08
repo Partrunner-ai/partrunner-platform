@@ -143,7 +143,8 @@ export interface UrlScrubOptions {
    * Public routes whose next path segment is a secret token, such as
    * `/conductor` for `/conductor/<token>`. Matching ignores case and trailing
    * slashes; the segment right after the prefix never leaves the app. These
-   * add to `DEFAULT_TOKEN_ROUTE_PREFIXES`.
+   * add to `DEFAULT_TOKEN_ROUTE_PREFIXES`: an empty array does not turn the
+   * defaults off; use `includeDefaultTokenRoutes: false` for that.
    */
   tokenRoutePrefixes?: readonly string[];
   /**
@@ -181,8 +182,9 @@ export function resolveTokenRoutePrefixes(options: UrlScrubOptions = {}): string
 }
 
 /**
- * Resolves the prefixes once, for scrubbers that run on every event. The
- * result does not add the defaults a second time.
+ * Merges the defaults into the app's list once, for scrubbers that run on
+ * every event, so the defaults are not added a second time. Each path still
+ * resolves this short list again (two or three prefixes).
  */
 function resolvedUrlOptions(options: UrlScrubOptions): UrlScrubOptions {
   return {
@@ -202,14 +204,18 @@ function decodeSegment(segment: string): string {
 /**
  * Indexes of the token segments in `path.split('/')`. Every matching prefix
  * masks its own next segment, so a nested prefix never unmasks a shorter one.
+ * A segment whose decoded value holds a slash (`conductor%2F<token>`) is masked
+ * whole: it can hide a token, and counting it as one segment keeps the other
+ * indexes right.
  */
 function tokenSegmentIndexes(path: string, options: UrlScrubOptions): Set<number> {
   const indexes = new Set<number>();
   // Match on decoded segments: `/%63onductor/<token>` is the same route.
-  const lower = path
-    .split('/')
-    .map(segment => decodeSegment(segment).toLowerCase())
-    .join('/');
+  const decoded = path.split('/').map(segment => decodeSegment(segment).toLowerCase());
+  decoded.forEach((segment, index) => {
+    if (segment.includes('/') || segment.includes('\\')) indexes.add(index);
+  });
+  const lower = decoded.map(segment => segment.replace(/[\\/]/g, '\u0000')).join('/');
   for (const raw of resolveTokenRoutePrefixes(options)) {
     const prefix = normalizeTokenRoutePrefix(raw);
     if (lower === prefix || lower.startsWith(`${prefix}/`)) {
