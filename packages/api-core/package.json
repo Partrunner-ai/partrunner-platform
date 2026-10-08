@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/api-core",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Framework-agnostic Node backend primitives shared by PartRunner apps: Nexus DB access, structured logging, audit trail, feature flags, maintenance mode, pagination and the shared error-reporting privacy policy. Vercel HTTP adapters live under the ./vercel subpath.",
   "license": "MIT",
   "type": "module",
