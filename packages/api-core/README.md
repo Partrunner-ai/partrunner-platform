@@ -96,7 +96,8 @@ const config = {
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.VITE_VERCEL_ENV,
   release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA,
-  tokenRoutePrefixes: ['/conductor', '/afiliacion'],
+  // Optional: app token routes, added to DEFAULT_TOKEN_ROUTE_PREFIXES.
+  // tokenRoutePrefixes: ['/portal'],
   surfaceForPath: (path: string) => (path.startsWith('/admin') ? 'backoffice' : undefined),
 } satisfies ErrorReportingConfig;
 
@@ -145,6 +146,21 @@ What the options guarantee:
     metadata, so grouping, source maps and runtime facts still work. It drops frame local
     variables. Frame file names and `debug_meta` image files lose only their query, IP host and
     token-route secret.
+- Token routes: the segment right after a token-route prefix becomes `[token]`
+  (`/conductor/<token>/docs` → `/conductor/[token]/docs`). Matching ignores case, URL encoding
+  and trailing slashes.
+  - `DEFAULT_TOKEN_ROUTE_PREFIXES` (`/conductor`, `/afiliacion`, the STF public links) apply in
+    every app without config, in every scrubber and in `dynamicSamplingContextScrubber`. A link
+    can reach any app through a redirect, a `Referer` or a pasted URL.
+  - `tokenRoutePrefixes` adds app routes to the defaults. Each prefix counts once, so an app
+    that already passes `['/conductor', '/afiliacion']` keeps working and gets the same output.
+    When two prefixes match one path (`/conductor` and `/conductor/perfil`), each one masks its
+    own next segment.
+  - The defaults mask the next segment of every `/afiliacion/...` path, also in an app whose own
+    `/afiliacion/[collection]` page is not secret. That removes data and never leaks it. To keep
+    such a segment, opt out explicitly with `includeDefaultTokenRoutes: false` and list the
+    prefixes the app needs in `tokenRoutePrefixes`.
+  - `resolveTokenRoutePrefixes(config)` returns the prefixes that apply.
 - `beforeSendSpan` scrubs standalone spans the same way. Tracing stays static
   (`traceLifecycle: 'static'`): streamed spans use another callback shape.
 - `dynamicSamplingContextScrubber` (an SDK-free integration) scrubs the transaction name in
@@ -154,8 +170,9 @@ What the options guarantee:
   is frozen (`instrumentPageLoad: false`, or a click before the first pageload ends). In
   browser SDKs it covers both headers. On `@sentry/node` an OpenTelemetry handler sets the raw
   name again after it, so there it covers the envelope header only, not outgoing `baggage`:
-  keep server span names free of personal data. Give it the same `tokenRoutePrefixes` as
-  `createErrorReportingOptions` (passing the same config object works).
+  keep server span names free of personal data. Give it the same `tokenRoutePrefixes` and
+  `includeDefaultTokenRoutes` as `createErrorReportingOptions` (passing the same config object
+  works).
 - Sentry Logs and Metrics stay off (`enableLogs: false`, `enableMetrics: false`, and both
   `beforeSendLog` and `beforeSendMetric` drop everything). The SDK merges scope attributes into
   a log or metric after those hooks run, so no hook can scrub them.

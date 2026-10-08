@@ -31,6 +31,7 @@ const SECRETS = [
   'Ana Operadora',
   'Juan Perez',
   'SecretTok',
+  'AfilSecret', // default token route; the app config names only /conductor
   '203.0.113.9',
   '10.0.0.1',
   'opaqueSecret',
@@ -93,6 +94,10 @@ beforeAll(() => {
       url: 'https://www.partrunner.app/conductor/SecretTok?rfc=ABC010203XY1',
       status_code: 500,
     },
+  });
+  scope.addBreadcrumb({
+    category: 'navigation',
+    data: { from: '/conductor/SecretTok', to: '/afiliacion/AfilSecret/paso-2' },
   });
   scope.addBreadcrumb({ category: 'console', message: 'payout for flota@example.com' });
   scope.addBreadcrumb({
@@ -172,6 +177,7 @@ describe('outbound envelopes', () => {
     expect(all).toContain('"surface":"fleet"');
     expect(all).toContain('"id":"fleet:1"');
     expect(all).toContain('/conductor/[token]');
+    expect(all).toContain('/afiliacion/[token]/paso-2');
     expect(all).toContain('div.board > button.ticket-card[…]');
     expect(all).toContain('main > article.ticket[…]');
     expect(all).toMatch(/"type":"span"/);

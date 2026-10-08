@@ -127,16 +127,75 @@ const OPAQUE_SEGMENT = /^(?=[0-9a-z_-]*\d)[0-9a-z_-]{20,}$/i;
 /** Markers this module writes. Kept as they are so sanitising is idempotent. */
 const MARKER_SEGMENT = /^\[(?:id|token|redacted)\]$/;
 
+/**
+ * STF public links whose next path segment is a secret token:
+ * `/conductor/<token>` and `/afiliacion/<token>`. Every app masks them by
+ * default, because such a link can reach any app (a redirect, a `Referer`, a
+ * URL pasted into an error message).
+ */
+export const DEFAULT_TOKEN_ROUTE_PREFIXES: ReadonlyArray<string> = Object.freeze([
+  '/conductor',
+  '/afiliacion',
+]);
+
 export interface UrlScrubOptions {
   /**
    * Public routes whose next path segment is a secret token, such as
    * `/conductor` for `/conductor/<token>`. Matching ignores case and trailing
-   * slashes; the segment right after the prefix never leaves the app.
+   * slashes; the segment right after the prefix never leaves the app. These
+   * add to `DEFAULT_TOKEN_ROUTE_PREFIXES`: an empty array does not turn the
+   * defaults off; use `includeDefaultTokenRoutes: false` for that.
    */
   tokenRoutePrefixes?: readonly string[];
+  /**
+   * Set `false` to leave out `DEFAULT_TOKEN_ROUTE_PREFIXES`, so that only
+   * `tokenRoutePrefixes` apply. Defaults to `true`.
+   */
+  includeDefaultTokenRoutes?: boolean;
 }
 
-/** Index of the token segment in `path.split('/')`, or -1. */
+/** `/Conductor/` and `/conductor` are one route. */
+function normalizeTokenRoutePrefix(prefix: string): string {
+  return prefix.toLowerCase().replace(/\/+$/, '');
+}
+
+/**
+ * The token-route prefixes that apply: `DEFAULT_TOKEN_ROUTE_PREFIXES` (unless
+ * `includeDefaultTokenRoutes` is `false`), then `tokenRoutePrefixes`. A prefix
+ * that differs only in case or trailing slashes is listed once; empty prefixes
+ * are dropped.
+ */
+export function resolveTokenRoutePrefixes(options: UrlScrubOptions = {}): string[] {
+  const candidates = [
+    ...(options.includeDefaultTokenRoutes === false ? [] : DEFAULT_TOKEN_ROUTE_PREFIXES),
+    ...(options.tokenRoutePrefixes ?? []),
+  ];
+  const seen = new Set<string>();
+  const resolved: string[] = [];
+  for (const prefix of candidates) {
+    const key = normalizeTokenRoutePrefix(prefix);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    resolved.push(prefix);
+  }
+  return resolved;
+}
+
+/**
+ * Merges the defaults into the app's list once, for scrubbers that run on
+ * every event, so the defaults are not added a second time. Each path still
+ * resolves this short list again (two or three prefixes).
+ */
+function resolvedUrlOptions(options: UrlScrubOptions): UrlScrubOptions {
+  return {
+    tokenRoutePrefixes: resolveTokenRoutePrefixes(options),
+    includeDefaultTokenRoutes: false,
+  };
+}
+
+/** `%2F` or `%5C` at any encoding depth (`%252F`, `%25252F`, …). */
+const ENCODED_SLASH = /%(?:25)*(?:2f|5c)/i;
+
 function decodeSegment(segment: string): string {
   try {
     return decodeURIComponent(segment);
@@ -145,18 +204,33 @@ function decodeSegment(segment: string): string {
   }
 }
 
-function tokenSegmentIndex(path: string, prefixes: readonly string[]): number {
+/**
+ * Indexes of the token segments in `path.split('/')`. Every matching prefix
+ * masks its own next segment, so a nested prefix never unmasks a shorter one.
+ * A segment whose decoded value holds a slash (`conductor%2F<token>`) is masked
+ * whole: it can hide a token, and counting it as one segment keeps the other
+ * indexes right.
+ */
+function tokenSegmentIndexes(path: string, options: UrlScrubOptions): Set<number> {
+  const indexes = new Set<number>();
   // Match on decoded segments: `/%63onductor/<token>` is the same route.
-  const lower = path
-    .split('/')
-    .map(segment => decodeSegment(segment).toLowerCase())
-    .join('/');
-  for (const raw of prefixes) {
-    const prefix = raw.toLowerCase().replace(/\/+$/, '');
-    if (!prefix) continue;
-    if (lower === prefix || lower.startsWith(`${prefix}/`)) return prefix.split('/').length;
+  const raw = path.split('/');
+  const decoded = raw.map(segment => decodeSegment(segment).toLowerCase());
+  decoded.forEach((segment, index) => {
+    // Also the raw form: a malformed segment does not decode, and a
+    // double-encoded slash (`%252F`) only decodes to `%2F`.
+    if (segment.includes('/') || segment.includes('\\') || ENCODED_SLASH.test(raw[index] ?? '')) {
+      indexes.add(index);
+    }
+  });
+  const lower = decoded.map(segment => segment.replace(/[\\/]/g, '\u0000')).join('/');
+  for (const raw of resolveTokenRoutePrefixes(options)) {
+    const prefix = normalizeTokenRoutePrefix(raw);
+    if (lower === prefix || lower.startsWith(`${prefix}/`)) {
+      indexes.add(prefix.split('/').length);
+    }
   }
-  return -1;
+  return indexes;
 }
 
 /**
@@ -166,13 +240,13 @@ function tokenSegmentIndex(path: string, prefixes: readonly string[]): number {
  */
 export function sanitizePath(pathname: string, options: UrlScrubOptions = {}): string {
   const path = (pathname || '/').replace(/\/+$/, '') || '/';
-  const tokenIndex = tokenSegmentIndex(path, options.tokenRoutePrefixes ?? []);
+  const tokenIndexes = tokenSegmentIndexes(path, options);
   return (
     path
       .split('/')
       .map((segment, index) => {
         if (!segment || MARKER_SEGMENT.test(segment)) return segment;
-        if (index === tokenIndex) return '[token]';
+        if (tokenIndexes.has(index)) return '[token]';
         if (
           UUID_SEGMENT.test(segment) ||
           NUMERIC_SEGMENT.test(segment) ||
@@ -237,10 +311,12 @@ export function stripUrlSecrets(raw: string, options: UrlScrubOptions = {}): str
     .replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@]*@/i, '$1')
     .replace(/^([a-z][a-z0-9+.-]*:\/\/)(?:\d{1,3}(?:\.\d{1,3}){3}|\[[^\]]*\])/i, '$1[ip]');
   const path = match[2] ?? '';
-  const tokenIndex = tokenSegmentIndex(path, options.tokenRoutePrefixes ?? []);
-  if (tokenIndex < 0) return `${origin}${path}`;
+  const tokenIndexes = tokenSegmentIndexes(path, options);
+  if (tokenIndexes.size === 0) return `${origin}${path}`;
   const segments = path.split('/');
-  if (segments[tokenIndex]) segments[tokenIndex] = '[token]';
+  for (const index of tokenIndexes) {
+    if (segments[index]) segments[index] = '[token]';
+  }
   return `${origin}${segments.join('/')}`;
 }
 
@@ -950,7 +1026,7 @@ export interface ErrorReportingIntegration {
 export function dynamicSamplingContextScrubber(
   options: UrlScrubOptions = {}
 ): ErrorReportingIntegration {
-  const urlOptions: UrlScrubOptions = { tokenRoutePrefixes: options.tokenRoutePrefixes ?? [] };
+  const urlOptions = resolvedUrlOptions(options);
   const scrub = (value: ErrorReportingHookValue) => {
     // An envelope is `[headers, items]`; a context is a plain object.
     const dsc = Array.isArray(value)
@@ -1007,7 +1083,6 @@ export interface ErrorReportingOptions {
  *     dsn: import.meta.env.VITE_SENTRY_DSN,
  *     environment: import.meta.env.VITE_VERCEL_ENV,
  *     release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA,
- *     tokenRoutePrefixes: ['/conductor', '/afiliacion'],
  *     surfaceForPath: path => (path.startsWith('/admin') ? 'backoffice' : undefined),
  *   }),
  *   integrations: [Sentry.browserTracingIntegration()],
@@ -1015,9 +1090,7 @@ export interface ErrorReportingOptions {
  * ```
  */
 export function createErrorReportingOptions(config: ErrorReportingConfig): ErrorReportingOptions {
-  const urlOptions: UrlScrubOptions = {
-    tokenRoutePrefixes: config.tokenRoutePrefixes ?? [],
-  };
+  const urlOptions = resolvedUrlOptions(config);
   const dsn = config.dsn || undefined;
 
   const tag = <E extends ScrubbableEvent>(event: E): E => {
