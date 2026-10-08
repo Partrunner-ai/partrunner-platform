@@ -102,7 +102,7 @@ Sentry.init({
   integrations: defaults => [
     ...withoutUnsafeIntegrations(defaults),
     Sentry.browserTracingIntegration(),
-    dynamicSamplingContextScrubber({ tokenRoutePrefixes: ['/conductor', '/afiliacion'] }),
+    dynamicSamplingContextScrubber({ tokenRoutePrefixes: ['/conductor', '/afiliacion'] }), // same config
   ],
 });
 Sentry.setUser({ id: session.userId }); // id only: the scrubber drops everything else
@@ -148,7 +148,11 @@ What the options guarantee:
   the dynamic sampling context, which the SDK copies into the envelope header and the
   `baggage` header before any hook runs. A standalone INP span is named after the clicked
   element; without this integration its label leaves the app there when no pageload context
-  is frozen (`instrumentPageLoad: false`, or a click before the first pageload ends).
+  is frozen (`instrumentPageLoad: false`, or a click before the first pageload ends). In
+  browser SDKs it covers both headers. On `@sentry/node` an OpenTelemetry handler sets the raw
+  name again after it, so there it covers the envelope header only, not outgoing `baggage`:
+  keep server span names free of personal data. Give it the same `tokenRoutePrefixes` as
+  `createErrorReportingOptions` (passing the same config object works).
 - Sentry Logs and Metrics stay off (`enableLogs: false`, `enableMetrics: false`, and both
   `beforeSendLog` and `beforeSendMetric` drop everything). The SDK merges scope attributes into
   a log or metric after those hooks run, so no hook can scrub them.

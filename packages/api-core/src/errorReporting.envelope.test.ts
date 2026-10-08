@@ -175,6 +175,7 @@ describe('outbound envelopes', () => {
     expect(all).toContain('div.board > button.ticket-card[…]');
     expect(all).toContain('main > article.ticket[…]');
     expect(all).toMatch(/"type":"span"/);
+    expect(all).toContain('"transaction":"div.board > button.ticket-card[…]"');
   });
 
   it('keeps debug ids for source maps without the bundle URL secret', async () => {

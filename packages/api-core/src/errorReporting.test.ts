@@ -1035,15 +1035,18 @@ describe('DOM selectors in spans and web vitals', () => {
 });
 
 describe('dynamicSamplingContextScrubber', () => {
-  const run = (transaction: string | undefined) => {
-    let hook: ((dsc: { transaction?: string }) => void) | undefined;
+  const hooks = () => {
+    const registered: Record<string, (value: never) => void> = {};
     dynamicSamplingContextScrubber(TOKEN_ROUTES).setup({
-      on: (_name, callback) => {
-        hook = callback;
+      on: (name: string, callback: (value: never) => void) => {
+        registered[name] = callback;
       },
-    });
+    } as never);
+    return registered;
+  };
+  const run = (transaction: string | undefined) => {
     const dsc: { transaction?: string; trace_id: string } = { transaction, trace_id: 'abc' };
-    hook?.(dsc);
+    hooks().createDsc?.(dsc as never);
     return dsc;
   };
 
@@ -1057,5 +1060,19 @@ describe('dynamicSamplingContextScrubber', () => {
   it('keeps parameterised names and other fields', () => {
     expect(run('/tickets/:id')).toEqual({ transaction: '/tickets/:id', trace_id: 'abc' });
     expect(run(undefined)).toEqual({ transaction: undefined, trace_id: 'abc' });
+  });
+
+  it('scrubs the envelope header on any runtime', () => {
+    const envelope = [
+      { trace: { transaction: 'payout GET /conductor/SecretTok', trace_id: 'abc' } },
+      [],
+    ];
+    hooks().beforeEnvelope?.(envelope as never);
+    expect(envelope[0]).toEqual({
+      trace: { transaction: 'payout GET /conductor/[token]', trace_id: 'abc' },
+    });
+    const noTrace = [{ sent_at: 'x' }, []];
+    hooks().beforeEnvelope?.(noTrace as never);
+    expect(noTrace[0]).toEqual({ sent_at: 'x' });
   });
 });

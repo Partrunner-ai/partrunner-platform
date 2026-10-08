@@ -896,28 +896,54 @@ export function withoutUnsafeIntegrations<I extends { name: string }>(integratio
   return integrations.filter(integration => !UNSAFE_DEFAULT_INTEGRATIONS.has(integration.name));
 }
 
-/** The part of a Sentry client that `dynamicSamplingContextScrubber` uses. */
-export interface DynamicSamplingContextClient {
-  on(hook: 'createDsc', callback: (dsc: { transaction?: string }) => void): unknown;
+/** A dynamic sampling context: only its free-text field matters here. */
+export interface ScrubbableDynamicSamplingContext {
+  transaction?: string;
+}
+
+/** What the `createDsc` (a context) and `beforeEnvelope` (an envelope) hooks pass. */
+export type ErrorReportingHookValue =
+  | ScrubbableDynamicSamplingContext
+  | readonly [{ trace?: ScrubbableDynamicSamplingContext }, ...unknown[]];
+
+/**
+ * The client hooks that the SDK-free integrations use. One signature, so that
+ * Sentry's overloaded `Client.on` fits it.
+ */
+export interface ErrorReportingClient {
+  on(
+    hook: 'createDsc' | 'beforeEnvelope',
+    callback: (value: ErrorReportingHookValue) => void
+  ): unknown;
 }
 
 /** A Sentry integration, without the SDK types. */
 export interface ErrorReportingIntegration {
   name: string;
-  setup(client: DynamicSamplingContextClient): void;
+  setup(client: ErrorReportingClient): void;
 }
 
 /**
  * Scrubs the transaction name in the dynamic sampling context. The SDK copies
- * a root span name into the envelope header (and the `baggage` header) before
- * any hook runs. A standalone INP span is named after the clicked element, so
- * without a frozen pageload context its label would leave the app there.
+ * a root span name into the envelope header and the `baggage` header before
+ * any event hook runs. A standalone INP span is named after the clicked
+ * element, so without a frozen pageload context its label would leave the
+ * app there.
+ *
+ * Two hooks: `createDsc` scrubs the context where it is built (envelope and
+ * `baggage` header, browser SDKs), and `beforeEnvelope` scrubs every envelope
+ * header on every runtime. On `@sentry/node` an OpenTelemetry `createDsc`
+ * handler added after `init` sets the raw name again, so there only the
+ * envelope header is covered, not outgoing `baggage`.
+ *
+ * Pass the same config as `createErrorReportingOptions` (it is a
+ * `UrlScrubOptions`):
  *
  * ```ts
  * integrations: defaults => [
  *   ...withoutUnsafeIntegrations(defaults),
  *   Sentry.browserTracingIntegration(),
- *   dynamicSamplingContextScrubber({ tokenRoutePrefixes: ['/conductor'] }),
+ *   dynamicSamplingContextScrubber(config),
  * ]
  * ```
  */
@@ -925,14 +951,20 @@ export function dynamicSamplingContextScrubber(
   options: UrlScrubOptions = {}
 ): ErrorReportingIntegration {
   const urlOptions: UrlScrubOptions = { tokenRoutePrefixes: options.tokenRoutePrefixes ?? [] };
+  const scrub = (value: ErrorReportingHookValue) => {
+    // An envelope is `[headers, items]`; a context is a plain object.
+    const dsc = Array.isArray(value)
+      ? (value as readonly [{ trace?: ScrubbableDynamicSamplingContext }])[0]?.trace
+      : (value as ScrubbableDynamicSamplingContext);
+    if (typeof dsc?.transaction === 'string') {
+      dsc.transaction = scrubText(dsc.transaction, urlOptions);
+    }
+  };
   return {
     name: 'PartrunnerDynamicSamplingContextScrubber',
     setup(client) {
-      client.on('createDsc', dsc => {
-        if (typeof dsc.transaction === 'string') {
-          dsc.transaction = scrubText(dsc.transaction, urlOptions);
-        }
-      });
+      client.on('createDsc', scrub);
+      client.on('beforeEnvelope', scrub);
     },
   };
 }
