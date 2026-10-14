@@ -230,6 +230,52 @@ describe('RichSelect', () => {
     expect(screen.getByRole('status').textContent).toBe('No matching workspace');
   });
 
+  it('matches every search word in any order, ignoring repeated spaces', async () => {
+    const user = userEvent.setup();
+    render(
+      <RichSelect>
+        <RichSelectTrigger aria-label="Driver">
+          <RichSelectValue placeholder="Choose driver" />
+        </RichSelectTrigger>
+        <RichSelectContent>
+          <RichSelectSearch placeholder="Search drivers" />
+          <RichSelectItem value="11042" textValue="GERMAN  ALEJANDRO CERVANTES GARCIA 11042">
+            GERMAN  ALEJANDRO CERVANTES GARCIA
+          </RichSelectItem>
+          <RichSelectItem value="10403" textValue="JOSUE PIEDAD MARIN 10403">
+            JOSUE PIEDAD MARIN
+          </RichSelectItem>
+          <RichSelectEmpty>No driver</RichSelectEmpty>
+        </RichSelectContent>
+      </RichSelect>,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Driver' }));
+    const search = screen.getByRole('searchbox', { name: 'Search drivers' });
+    const german = /GERMAN\s+ALEJANDRO CERVANTES GARCIA/;
+
+    for (const query of [
+      'german alejandro cervantes garcia',
+      'GERMAN CERVANTES',
+      'cervantes   german',
+      ' 11042 ',
+    ]) {
+      await user.clear(search);
+      await user.type(search, query);
+      expect(screen.getByRole('option', { name: german })).toBeTruthy();
+      expect(screen.queryByRole('option', { name: 'JOSUE PIEDAD MARIN' })).toBeNull();
+    }
+
+    await user.clear(search);
+    await user.type(search, 'german marin');
+    expect(screen.getByRole('status').textContent).toBe('No driver');
+
+    await user.clear(search);
+    await user.type(search, 'german');
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('combobox', { name: 'Driver' }).textContent).toMatch(german);
+  });
+
   it('provides group and item screen-reader relationships', async () => {
     const user = userEvent.setup();
     render(<SimpleRichSelect defaultValue="dispatch" />);

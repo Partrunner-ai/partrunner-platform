@@ -25,6 +25,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
+import { matchesSearch, normalizeSearch, searchTokens } from './text-search';
 import { Slot } from './Slot';
 import { menuStyle, useAnchoredMenu, type MenuPosition } from './useAnchoredMenu';
 
@@ -151,13 +152,6 @@ function collectStructure(children: ReactNode): RichSelectStructure {
   return { items, searchable };
 }
 
-function normalizeSearch(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase();
-}
-
 const FOCUSABLE = [
   'a[href]',
   'button:not(:disabled)',
@@ -238,11 +232,9 @@ export function RichSelect({
   );
 
   const visibleItems = useMemo(() => {
-    const normalized = normalizeSearch(query.trim());
-    if (!normalized) return structure.items;
-    return structure.items.filter((item) =>
-      normalizeSearch(item.textValue).includes(normalized),
-    );
+    const tokens = searchTokens(query);
+    if (tokens.length === 0) return structure.items;
+    return structure.items.filter((item) => matchesSearch(item.textValue, tokens));
   }, [query, structure.items]);
   const enabledVisibleItems = visibleItems.filter((item) => !item.disabled);
   const activeValue = enabledVisibleItems.some((item) => item.value === activeCandidate)
@@ -294,11 +286,9 @@ export function RichSelect({
   const setQuery = useCallback(
     (nextQuery: string) => {
       setQueryState(nextQuery);
-      const normalized = normalizeSearch(nextQuery.trim());
+      const tokens = searchTokens(nextQuery);
       const nextItems = structure.items.filter(
-        (item) =>
-          !item.disabled &&
-          (!normalized || normalizeSearch(item.textValue).includes(normalized)),
+        (item) => !item.disabled && matchesSearch(item.textValue, tokens),
       );
       setActiveCandidate(nextItems[0]?.value ?? null);
     },
