@@ -65,6 +65,20 @@ describe('MultiSelect', () => {
     expect(screen.getByRole('option', { name: 'Monterrey' })).toBeTruthy();
   });
 
+  it('matches every search word in any order, ignoring accents and repeated spaces', async () => {
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('combobox'));
+    const search = screen.getByPlaceholderText('Buscar…');
+    for (const query of ['leon  nuevo', 'MTY monterrey', 'ciudad mexico']) {
+      await userEvent.clear(search);
+      await userEvent.type(search, query);
+      expect(screen.getAllByRole('option')).toHaveLength(1);
+    }
+    await userEvent.clear(search);
+    await userEvent.type(search, 'monterrey guadalajara');
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+  });
+
   it('owns the compact filter summary and explicit clear-all contract', async () => {
     render(
       <Harness

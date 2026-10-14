@@ -3,6 +3,7 @@
 import { useCallback, useId, useMemo, useState, type AriaAttributes, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { matchesSearch, searchTokens } from './text-search';
 import { menuStyle, useAnchoredMenu } from './useAnchoredMenu';
 
 export interface MultiSelectOption {
@@ -133,9 +134,9 @@ export function MultiSelect({
   const labelByValue = useMemo(() => new Map(options.map((o) => [o.value, o.label])), [options]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => (o.searchText ?? o.label).toLowerCase().includes(q));
+    const tokens = searchTokens(query);
+    if (tokens.length === 0) return options;
+    return options.filter((o) => matchesSearch(o.searchText ?? o.label, tokens));
   }, [options, query]);
 
   const toggle = (v: string) =>
