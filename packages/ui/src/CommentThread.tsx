@@ -546,12 +546,21 @@ function Composer({
     }
   }, [droppedFiles, addFiles, onDroppedFilesTaken]);
 
-  // The textarea grows with its content up to a cap.
+  // The textarea grows with its content up to a cap. A picked mention also
+  // places the caret after it here, in the same commit as the new text: a
+  // later frame would move the caret back under keystrokes typed meanwhile.
+  const pendingCaret = useRef<number | null>(null);
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    if (pendingCaret.current !== null) {
+      const pos = pendingCaret.current;
+      pendingCaret.current = null;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    }
   }, [text, inputRef]);
 
   const updateText = (value: string, caret: number) => {
@@ -569,11 +578,7 @@ function Composer({
     setText(next);
     setPicked((prev) => [...prev, { kind: candidate.kind, id: candidate.id, name: candidate.name }]);
     setMention(null);
-    requestAnimationFrame(() => {
-      const pos = mention.start + inserted.length;
-      el?.focus();
-      el?.setSelectionRange(pos, pos);
-    });
+    pendingCaret.current = mention.start + inserted.length;
   };
 
   const uploading = files.some((f) => f.status === 'uploading');

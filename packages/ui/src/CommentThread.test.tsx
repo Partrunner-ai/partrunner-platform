@@ -62,7 +62,10 @@ describe('CommentThread', () => {
     await user.type(input, 'Ojo @an');
     const option = await screen.findByRole('option', { name: /Ana Ruiz/ });
     fireEvent.mouseDown(option);
-    await user.type(input, 'mañana{Enter}');
+    // The caret lands after the mention in the same commit, not a frame later,
+    // so keys typed right away go after it.
+    expect((input as HTMLTextAreaElement).selectionStart).toBe('Ojo @Ana Ruiz '.length);
+    await user.type(input, 'mañana{Enter}', { initialSelectionStart: 'Ojo @Ana Ruiz '.length });
 
     await waitFor(() =>
       expect(onSend).toHaveBeenCalledWith({ body: `Ojo <@u:${ANA}> mañana`, replyTo: null, attachmentIds: [] }),
