@@ -131,6 +131,7 @@ app.
 | A status or category label | `Badge tone` | custom spans |
 | A tone dot beside visible text in a menu item, option or legend | `StatusDot` | `Badge dot` with no text |
 | A person by initials | `Avatar` | an initials span |
+| A conversation of internal comments about one record (mentions, replies, reactions, files) | `CommentThread` (controlled; the app owns fetching) | a hand-rolled chat list, `Textarea` + list of `Card`s |
 | An icon in a tinted chip | `IconTile` | a hand-tinted span |
 | A stable colour for an entity (client, project, person) | `toneFromString(seed)` → `TintTone` | picking a hex |
 

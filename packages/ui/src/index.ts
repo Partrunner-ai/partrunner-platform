@@ -388,3 +388,29 @@ export {
   type AnchoredMenuOptions,
   type MenuPosition,
 } from './useAnchoredMenu';
+export {
+  CommentThread,
+  type CommentAttachment,
+  type CommentAuthor,
+  type CommentAuthorKind,
+  type CommentDraft,
+  type CommentFollowState,
+  type CommentMentionCandidate,
+  type CommentMessage,
+  type CommentReaction,
+  type CommentReplyRef,
+  type CommentStatus,
+  type CommentThreadProps,
+} from './CommentThread';
+export {
+  activeMentionQuery,
+  commentDraftFromBody,
+  commentPlainText,
+  mergeCommentMessages,
+  parseCommentBody,
+  serializeCommentDraft,
+  type CommentMention,
+  type CommentMentionKind,
+  type CommentSegment,
+} from './commentText';
+export { prepareCommentFile, type PreparedCommentFile } from './commentImage';
