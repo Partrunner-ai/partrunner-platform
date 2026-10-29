@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/shell",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Standardized PartRunner staff shell, global header, app launcher, preferences, and user controls.",
   "license": "MIT",
   "type": "module",
@@ -33,6 +33,16 @@
       "require": {
         "types": "./dist/preferences.d.cts",
         "default": "./dist/preferences.cjs"
+      }
+    },
+    "./bell-sound": {
+      "import": {
+        "types": "./dist/bell-sound.d.ts",
+        "default": "./dist/bell-sound.js"
+      },
+      "require": {
+        "types": "./dist/bell-sound.d.cts",
+        "default": "./dist/bell-sound.cjs"
       }
     },
     "./theme.css": "./styles/theme.css",

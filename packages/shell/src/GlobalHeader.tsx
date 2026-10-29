@@ -97,6 +97,7 @@ export function GlobalHeader({
           items={shell.notifications.items}
           unreadCount={shell.notifications.unreadCount}
           unseenCount={shell.notifications.unseenCount}
+          sound={shell.notifications.sound}
           href={shell.notifications.href}
           locale={locale}
           loading={shell.notifications.loading}

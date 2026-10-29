@@ -8,7 +8,7 @@ const CLIENT_DIRECTIVE = '"use client";\n';
 const ENTRIES = ['dist/index.js', 'dist/index.cjs'];
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/preferences.ts'],
+  entry: ['src/index.ts', 'src/preferences.ts', 'src/bell-sound.ts'],
   format: ['esm', 'cjs'],
   dts: true,
   clean: true,
