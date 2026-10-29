@@ -3020,6 +3020,7 @@ import * as seamlessReact from '@partrunner-ai/seamless/react';
 import * as seamlessServer from '@partrunner-ai/seamless/server';
 import { AppShell, type StaffShellContextValue } from '@partrunner-ai/shell';
 import * as shellPreferences from '@partrunner-ai/shell/preferences';
+import { DEFAULT_BELL_SOUND, type StaffBellSound } from '@partrunner-ai/shell/bell-sound';
 import { THEMES, type ThemeName } from '@partrunner-ai/tokens';
 import {
   Button,
@@ -3096,6 +3097,8 @@ void [
   session,
   shellPreferences,
 ];
+const bellSound: StaffBellSound = DEFAULT_BELL_SOUND;
+void bellSound;
 const shellContext = null as StaffShellContextValue | null;
 void shellContext;
 `;

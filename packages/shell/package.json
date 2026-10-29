@@ -35,6 +35,16 @@
         "default": "./dist/preferences.cjs"
       }
     },
+    "./bell-sound": {
+      "import": {
+        "types": "./dist/bell-sound.d.ts",
+        "default": "./dist/bell-sound.js"
+      },
+      "require": {
+        "types": "./dist/bell-sound.d.cts",
+        "default": "./dist/bell-sound.cjs"
+      }
+    },
     "./theme.css": "./styles/theme.css",
     "./shell.css": "./styles/shell.css",
     "./styles.css": "./styles/index.css"
