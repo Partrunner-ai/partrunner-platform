@@ -33,6 +33,16 @@ import '@partrunner-ai/shell/shell.css';
 The host owns authentication, routing, data loading, and persistence. The
 package owns shared presentation and interaction contracts.
 
+## Bell sound
+
+The bell is silent unless the host passes `notifications.sound`
+(`StaffBellSound`): one sound when `unseenCount` goes up and one with each shake
+of the ring animation, stopping after `ringLimit` shakes (`0` = never stops).
+Nexus configures it company-wide and sends it in the staff-shell snapshot; a
+satellite that spreads the snapshot's `notifications` into the context gets it
+for free. `@partrunner-ai/shell/bell-sound` exposes the catalog, the validator
+and `playBellSound` without React, for server code and settings pages.
+
 React 18 and 19 are supported. Import one token/theme foundation from
 `@partrunner-ai/ui` alongside the shell stylesheet.
 

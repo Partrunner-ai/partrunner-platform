@@ -1,3 +1,4 @@
+import type { StaffBellSound } from './bellSound';
 import {
   createContext,
   useContext,
@@ -55,6 +56,11 @@ export interface StaffNotificationsState {
    * report it; the badge falls back to `unreadCount`.
    */
   unseenCount?: number;
+  /**
+   * Sonido de la campana, configurado en Nexus para toda la empresa. Ausente =
+   * campana muda, que es como estaba antes de que existiera.
+   */
+  sound?: StaffBellSound;
   /** Canonical Nexus inbox URL. */
   href: string;
   loading?: boolean;

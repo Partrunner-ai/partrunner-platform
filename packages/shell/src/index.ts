@@ -1,4 +1,14 @@
 export { AppLauncher, type AppLauncherProps } from './AppLauncher';
+export {
+  BELL_ARRIVAL_SOUND_IDS,
+  BELL_RING_SOUND_IDS,
+  DEFAULT_BELL_SOUND,
+  isStaffBellSound,
+  playBellSound,
+  type BellArrivalSoundId,
+  type BellRingSoundId,
+  type StaffBellSound,
+} from './bellSound';
 export { BrandMark, type BrandMarkProps } from './BrandMark';
 export { BrandWordmark, type BrandWordmarkProps } from './BrandWordmark';
 export {

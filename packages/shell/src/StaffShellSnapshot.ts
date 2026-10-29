@@ -5,6 +5,7 @@ import type {
   StaffShellUser,
   StaffTheme,
 } from './StaffShellContext';
+import { isStaffBellSound, type StaffBellSound } from './bellSound';
 
 export const STAFF_SHELL_SNAPSHOT_VERSION = 1 as const;
 
@@ -43,6 +44,11 @@ export interface StaffShellSnapshotV1 {
      * shell 1.x. A new field, by contrast, older consumers simply ignore.
      */
     unseenCount?: number;
+    /**
+     * Sonido de la campana. Opcional por la misma razón que `unseenCount`: un
+     * consumidor viejo ignora la llave y su campana sigue muda.
+     */
+    sound?: StaffBellSound;
     href: string;
   };
 }
@@ -128,6 +134,8 @@ export function isStaffShellSnapshot(
   ) {
     return false;
   }
+  const sound = value.notifications.sound;
+  if (sound !== undefined && !isStaffBellSound(sound)) return false;
   return (
     Array.isArray(value.notifications.items) &&
     value.notifications.items.every(isNotification) &&

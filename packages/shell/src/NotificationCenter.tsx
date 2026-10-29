@@ -5,6 +5,21 @@ import {
   type StaffNotification,
 } from './StaffShellContext';
 import { useDismiss } from './useDismiss';
+import { playBellSound, type StaffBellSound } from './bellSound';
+
+/**
+ * Tras el aviso de llegada, la sacudida que arranca enseguida se calla: sin
+ * esto los dos sonidos se enciman en el primer segundo.
+ */
+const ARRIVAL_QUIET_MS = 1000;
+
+/**
+ * Una persona con Nexus, FDS y Supply abiertos tiene tres campanas. Sólo suena
+ * la de la pestaña que está mirando.
+ */
+function pageIsVisible(): boolean {
+  return typeof document === 'undefined' || document.visibilityState === 'visible';
+}
 
 export interface NotificationCenterLabels {
   trigger: string;
@@ -31,6 +46,8 @@ export interface NotificationCenterProps {
   onMarkAllRead?: () => void;
   /** Fired once per open. Clears the badge; must never touch read state. */
   onOpen?: () => void;
+  /** Sin `sound`, o con ambos sonidos en `'none'`, la campana es muda. */
+  sound?: StaffBellSound;
   labels?: Partial<NotificationCenterLabels>;
   className?: string;
 }
@@ -69,6 +86,7 @@ export function NotificationCenter({
   onNotificationRead,
   onMarkAllRead,
   onOpen,
+  sound,
   labels: labelOverrides,
   className,
 }: NotificationCenterProps) {
@@ -117,6 +135,39 @@ export function NotificationCenter({
     wasOpen.current = open;
   }, [open, onOpen]);
 
+  // Llegada: el conteo sin ver SUBE entre dos valores que el anfitrión sí
+  // reportó. El primer valor nunca suena: abrir Nexus con tres avisos
+  // pendientes no es que acaben de llegar.
+  const previousUnseen = useRef(unseenCount);
+  const quietUntil = useRef(0);
+  const ringsPlayed = useRef(0);
+  useEffect(() => {
+    const previous = previousUnseen.current;
+    previousUnseen.current = unseenCount;
+    if (previous === undefined || unseenCount === undefined) return;
+    if (unseenCount <= previous) return;
+    // Algo nuevo merece sus propias sacudidas con sonido.
+    ringsPlayed.current = 0;
+    if (!sound || !pageIsVisible()) return;
+    if (playBellSound('arrival', sound.arrival, sound.volume)) {
+      quietUntil.current = Date.now() + ARRIVAL_QUIET_MS;
+    }
+  }, [unseenCount, sound]);
+
+  // Sacudida: un sonido por ciclo de `pr-bell-ring`, colgado de los eventos de
+  // la animación y no de un timer, para que golpe y movimiento no se
+  // desfasen. Con movimiento reducido la animación no corre, no hay eventos y
+  // la sacudida queda muda sin una rama aparte (el aviso de llegada sí suena).
+  const playRing = (restart: boolean) => {
+    if (restart) ringsPlayed.current = 0;
+    if (!sound || sound.ring === 'none' || !pageIsVisible()) return;
+    if (sound.ringLimit > 0 && ringsPlayed.current >= sound.ringLimit) return;
+    // La sacudida callada por el aviso de llegada no cuenta: el límite es de
+    // sacudidas que SUENAN, si no "1 vez" con aviso de llegada nunca sonaría.
+    if (Date.now() < quietUntil.current) return;
+    if (playBellSound('ring', sound.ring, sound.volume)) ringsPlayed.current += 1;
+  };
+
   const triggerLabel =
     badgeCount > 0 ? `${labels.trigger}: ${badgeCount}` : labels.trigger;
 
@@ -140,6 +191,12 @@ export function NotificationCenter({
           aria-hidden
           className="pr-notifications__bell"
           data-ringing={ringing ? 'true' : undefined}
+          onAnimationStart={(event) => {
+            if (event.animationName === 'pr-bell-ring') playRing(true);
+          }}
+          onAnimationIteration={(event) => {
+            if (event.animationName === 'pr-bell-ring') playRing(false);
+          }}
         />
         {badgeCount > 0 && (
           <span className="pr-badge-dot" aria-hidden>
