@@ -26,6 +26,7 @@ export {
 export { GlobalHeader, type GlobalHeaderProps } from './GlobalHeader';
 export { LocaleToggle, type LocaleToggleProps } from './LocaleToggle';
 export {
+  NOTIFICATION_REFRESH_MS,
   NotificationCenter,
   type NotificationCenterLabels,
   type NotificationCenterProps,

@@ -13,6 +13,9 @@ import { playBellSound, type StaffBellSound } from './bellSound';
  */
 const ARRIVAL_QUIET_MS = 1000;
 
+/** Cada cuánto se vuelve a pedir el snapshot con la pestaña a la vista. */
+export const NOTIFICATION_REFRESH_MS = 60_000;
+
 /**
  * Una persona con Nexus, FDS y Supply abiertos tiene tres campanas. Sólo suena
  * la de la pestaña que está mirando.
@@ -48,6 +51,13 @@ export interface NotificationCenterProps {
   onOpen?: () => void;
   /** Sin `sound`, o con ambos sonidos en `'none'`, la campana es muda. */
   sound?: StaffBellSound;
+  /**
+   * Con él la campana se mantiene al día sola: lo llama cada
+   * `NOTIFICATION_REFRESH_MS` mientras la pestaña está a la vista y al volver
+   * a ella. La regla vive aquí y no en cada app para que todas refresquen
+   * igual.
+   */
+  onRefresh?: () => void;
   labels?: Partial<NotificationCenterLabels>;
   className?: string;
 }
@@ -87,6 +97,7 @@ export function NotificationCenter({
   onMarkAllRead,
   onOpen,
   sound,
+  onRefresh,
   labels: labelOverrides,
   className,
 }: NotificationCenterProps) {
@@ -134,6 +145,26 @@ export function NotificationCenter({
     if (open && !wasOpen.current) onOpen?.();
     wasOpen.current = open;
   }, [open, onOpen]);
+
+  // La referencia, no el efecto, sigue al callback: un anfitrión que lo
+  // recrea en cada render no debe reiniciar el reloj.
+  const refresh = useRef(onRefresh);
+  useEffect(() => {
+    refresh.current = onRefresh;
+  }, [onRefresh]);
+  const canRefresh = onRefresh !== undefined;
+  useEffect(() => {
+    if (!canRefresh) return;
+    const tick = () => {
+      if (pageIsVisible()) refresh.current?.();
+    };
+    const timer = window.setInterval(tick, NOTIFICATION_REFRESH_MS);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [canRefresh]);
 
   // Llegada: el conteo sin ver SUBE entre dos valores que el anfitrión sí
   // reportó. El primer valor nunca suena: abrir Nexus con tres avisos
