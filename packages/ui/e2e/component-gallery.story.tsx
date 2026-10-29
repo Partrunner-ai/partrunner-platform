@@ -131,6 +131,9 @@ import {
   type MultiSelectOption,
   type NavigationTabsLinkProps,
   type RichSelectProps,
+  CommentThread,
+  mergeCommentMessages,
+  type CommentMessage,
 } from '@partrunner-ai/ui';
 import './component-gallery.css';
 
@@ -349,6 +352,111 @@ function CatalogSection({
       </div>
       <div className="catalog__surface">{children}</div>
     </section>
+  );
+}
+
+const COMMENT_ANA = '7d1e4c88-2a9f-4b30-8e6c-51f0a7d2c934';
+const COMMENT_VIEWER = '11111111-1111-4111-8111-111111111111';
+
+const COMMENT_SAMPLE: CommentMessage[] = [
+  {
+    id: 'c1',
+    author: { kind: 'user', userId: COMMENT_ANA, name: 'Ana Ruiz' },
+    body: `<@u:${COMMENT_VIEWER}> su licencia vence el 12 de noviembre; ¿le pedimos la renovación antes de asignarlo a Amazon?`,
+    status: 'sent',
+    createdAt: '2026-10-28T16:10:00.000Z',
+    editedAt: null,
+    deleted: false,
+    replyTo: null,
+    mentions: [{ kind: 'user', id: COMMENT_VIEWER, name: 'Sebastián Téllez' }],
+    attachments: [{ id: 'f1', fileName: 'licencia-frente.pdf', mimeType: 'application/pdf', sizeBytes: 812000 }],
+    reactions: [{ emoji: '👀', count: 1, mine: false, names: ['Beto Lara'] }],
+  },
+  {
+    id: 'c2',
+    author: { kind: 'user', userId: COMMENT_VIEWER, name: 'Sebastián Téllez' },
+    body: 'Sí, y que suba también la constancia fiscal.',
+    status: 'sent',
+    createdAt: '2026-10-29T15:02:00.000Z',
+    editedAt: '2026-10-29T15:03:00.000Z',
+    deleted: false,
+    replyTo: { id: 'c1', authorName: 'Ana Ruiz', excerpt: '@Sebastián Téllez su licencia vence el 12 de noviembre…', hasAttachments: true, deleted: false },
+    mentions: [],
+    attachments: [],
+    reactions: [{ emoji: '👍', count: 2, mine: true, names: ['Ana Ruiz', 'Sebastián Téllez'] }],
+  },
+  {
+    id: 'c3',
+    author: { kind: 'agent', userId: null, agentId: 'a1', handle: 'runnito', name: 'Runnito' },
+    body: 'Resumen: licencia por vencer (12-nov) y falta la constancia fiscal. Bloquea la asignación a Amazon.',
+    status: 'streaming',
+    createdAt: '2026-10-29T15:04:00.000Z',
+    editedAt: null,
+    deleted: false,
+    replyTo: null,
+    mentions: [],
+    attachments: [],
+    reactions: [],
+  },
+];
+
+function CommentThreadDemo() {
+  const [messages, setMessages] = useState<CommentMessage[]>(COMMENT_SAMPLE);
+  const [follow, setFollow] = useState<'none' | 'following' | 'muted'>('following');
+  return (
+    <div style={{ height: 520 }} data-testid="catalog-comment-thread">
+      <CommentThread
+        messages={messages}
+        viewerId={COMMENT_VIEWER}
+        canWrite
+        lastReadAt="2026-10-29T15:00:00.000Z"
+        follow={follow}
+        onFollowChange={setFollow}
+        attachmentHref={(id) => `#archivo-${id}`}
+        onSend={async (draft) => {
+          setMessages((prev) =>
+            mergeCommentMessages(prev, [
+              {
+                id: `local-${prev.length + 1}`,
+                author: { kind: 'user', userId: COMMENT_VIEWER, name: 'Sebastián Téllez' },
+                body: draft.body,
+                status: 'sent',
+                createdAt: new Date().toISOString(),
+                editedAt: null,
+                deleted: false,
+                replyTo: null,
+                mentions: [{ kind: 'user', id: COMMENT_ANA, name: 'Ana Ruiz' }],
+                attachments: [],
+                reactions: [],
+              },
+            ]),
+          );
+        }}
+        onReact={(id, emoji, on) =>
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== id) return m;
+              const existing = m.reactions.find((r) => r.emoji === emoji);
+              const reactions = existing
+                ? m.reactions
+                    .map((r) => (r.emoji === emoji ? { ...r, mine: on, count: r.count + (on ? 1 : -1) } : r))
+                    .filter((r) => r.count > 0)
+                : [...m.reactions, { emoji, count: 1, mine: true, names: ['Sebastián Téllez'] }];
+              return { ...m, reactions };
+            }),
+          )
+        }
+        onEdit={async () => {}}
+        onDelete={async (id) => setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, deleted: true, body: '' } : m)))}
+        onSearchMentions={async (q) =>
+          [{ kind: 'user' as const, id: COMMENT_ANA, name: 'Ana Ruiz', email: 'a.ruiz@partrunner.com' },
+           { kind: 'agent' as const, id: 'runnito', name: 'Runnito', description: 'Agente IA' }].filter((c) =>
+            c.name.toLowerCase().includes(q.toLowerCase()),
+          )
+        }
+        onUpload={async (file) => ({ id: `up-${file.name}`, fileName: file.name, mimeType: file.type, sizeBytes: file.size })}
+      />
+    </div>
   );
 }
 
@@ -1282,6 +1390,13 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
             <TableSkeleton rows={3} columns={4} label="Cargando tabla" />
           </TableFrame>
         </Page>
+      </CatalogSection>
+
+      <CatalogSection
+        title="Comments"
+        description="CommentThread: internal comments about one record — mentions with suggestions, quoted replies, reactions, files and an AI agent writing. Controlled; the app owns fetching."
+      >
+        <CommentThreadDemo />
       </CatalogSection>
     </main>
   );
