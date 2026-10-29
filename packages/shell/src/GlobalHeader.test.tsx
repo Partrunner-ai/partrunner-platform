@@ -52,12 +52,13 @@ describe('GlobalHeader', () => {
   it('renders the prescribed controls in a stable order', () => {
     renderHeader(baseContext);
 
+    const theme = screen.getByRole('button', { name: /^Theme:/ });
     const launcher = screen.getByRole('button', { name: 'Applications' });
     const notifications = screen.getByRole('button', {
       name: 'Notifications: 2',
     });
     const user = screen.getByRole('button', { name: 'User menu' });
-    const controls = [notifications, launcher, user];
+    const controls = [theme, notifications, launcher, user];
 
     for (let index = 0; index < controls.length - 1; index += 1) {
       const currentControl = controls[index]!;
@@ -69,18 +70,43 @@ describe('GlobalHeader', () => {
     }
   });
 
-  it('keeps durable preferences and the visible user name out of the header', () => {
+  it('keeps the locale and the visible user name out of the header', () => {
     const setLocale = vi.fn();
-    const setTheme = vi.fn();
-    renderHeader({ ...baseContext, setLocale, setTheme });
+    renderHeader({ ...baseContext, setLocale });
 
     const trigger = screen.getByRole('button', { name: 'User menu' });
     expect(trigger.querySelector('.pr-usermenu__name')).toBeNull();
     expect(trigger.querySelector('svg')).toBeNull();
     expect(document.querySelector('.pr-locale-toggle')).toBeNull();
-    expect(document.querySelector('.pr-theme-toggle')).toBeNull();
     expect(setLocale).not.toHaveBeenCalled();
-    expect(setTheme).not.toHaveBeenCalled();
+  });
+
+  it('switches the theme from the header through the host', async () => {
+    // Sin este botón el tema sólo se cambiaba desde el perfil de Nexus.
+    const user = userEvent.setup();
+    const setTheme = vi.fn();
+    renderHeader({ ...baseContext, setTheme });
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Theme: system. Switch to light',
+      }),
+    );
+
+    expect(setTheme).toHaveBeenCalledWith('light');
+  });
+
+  it('labels the theme button in Spanish for Spanish speakers', () => {
+    renderHeader({
+      ...baseContext,
+      preferences: { locale: 'es', theme: 'dark' },
+    });
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Tema oscuro. Cambiar a automático',
+      }),
+    ).toBeTruthy();
   });
 
   it('always includes the canonical Nexus profile action', async () => {

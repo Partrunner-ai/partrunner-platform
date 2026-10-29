@@ -1,5 +1,13 @@
 # @partrunner-ai/ui
 
+## 2.3.1
+
+### Patch Changes
+
+- Republish UI with its packed shell development dependency resolved to the shell
+  release that restores the header theme toggle. UI runtime code and styles are
+  unchanged.
+
 ## 2.3.0
 
 ### Minor Changes

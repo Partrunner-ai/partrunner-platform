@@ -1,5 +1,20 @@
 # @partrunner-ai/shell
 
+## 2.5.0
+
+### Minor Changes
+
+- `GlobalHeader` shows the theme toggle again (light → dark → system), driven by
+  `preferences.theme` and `setTheme`, with a localized label. It was removed from
+  the compact header in July; Nexus kept its own copy, so every other app lost
+  the only quick way to switch themes.
+  
+  The bell now stays current by itself: a host that exposes the new optional
+  `refreshNotifications` on the staff-shell context gets it called every
+  `NOTIFICATION_REFRESH_MS` (60 s) while the tab is visible and when it comes back
+  into view. `NotificationCenter` takes it as `onRefresh` for custom headers.
+  Without it nothing changes.
+
 ## 2.4.0
 
 ### Minor Changes

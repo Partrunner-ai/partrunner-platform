@@ -6,7 +6,12 @@ import {
   NotificationCenter,
   type NotificationCenterLabels,
 } from './NotificationCenter';
-import { type StaffLocale, useStaffShell } from './StaffShellContext';
+import {
+  type StaffLocale,
+  type StaffTheme,
+  useStaffShell,
+} from './StaffShellContext';
+import { ThemeToggle } from './ThemeToggle';
 import { UserMenu, type UserMenuItem } from './UserMenu';
 
 interface GlobalHeaderMessages {
@@ -15,7 +20,19 @@ interface GlobalHeaderMessages {
   profile: string;
   signOut: string;
   userMenu: string;
+  theme: (current: StaffTheme, next: StaffTheme) => string;
   notifications: NotificationCenterLabels;
+}
+
+const THEME_NAMES: Record<StaffLocale, Record<StaffTheme, string>> = {
+  es: { light: 'claro', dark: 'oscuro', system: 'automático' },
+  en: { light: 'light', dark: 'dark', system: 'system' },
+};
+
+const THEME_CYCLE: StaffTheme[] = ['light', 'dark', 'system'];
+
+function nextTheme(theme: StaffTheme): StaffTheme {
+  return THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length]!;
 }
 
 const MESSAGES: Record<StaffLocale, GlobalHeaderMessages> = {
@@ -25,6 +42,8 @@ const MESSAGES: Record<StaffLocale, GlobalHeaderMessages> = {
     profile: 'Perfil y preferencias',
     signOut: 'Cerrar sesión',
     userMenu: 'Menú de usuario',
+    theme: (current, next) =>
+      `Tema ${THEME_NAMES.es[current]}. Cambiar a ${THEME_NAMES.es[next]}`,
     notifications: {
       trigger: 'Notificaciones',
       title: 'Notificaciones',
@@ -40,6 +59,8 @@ const MESSAGES: Record<StaffLocale, GlobalHeaderMessages> = {
     profile: 'Profile and preferences',
     signOut: 'Sign out',
     userMenu: 'User menu',
+    theme: (current, next) =>
+      `Theme: ${THEME_NAMES.en[current]}. Switch to ${THEME_NAMES.en[next]}`,
     notifications: {
       trigger: 'Notifications',
       title: 'Notifications',
@@ -93,6 +114,19 @@ export function GlobalHeader({
       <div className="pr-global-header__start">{start}</div>
       <div className="pr-global-header__spacer" />
       <div className="pr-global-header__controls">
+        {/* De vuelta a pedido de Sebastián (2026-10-29): sin él el tema sólo
+            se cambiaba desde el perfil de Nexus, y Nexus lo tenía en su header
+            propio mientras el resto de las apps no. */}
+        <ThemeToggle
+          theme={shell.preferences.theme}
+          onThemeChange={shell.setTheme}
+          applyToDocument={false}
+          allowSystem
+          label={messages.theme(
+            shell.preferences.theme,
+            nextTheme(shell.preferences.theme),
+          )}
+        />
         <NotificationCenter
           items={shell.notifications.items}
           unreadCount={shell.notifications.unreadCount}
@@ -104,6 +138,7 @@ export function GlobalHeader({
           onNotificationRead={shell.markNotificationRead}
           onMarkAllRead={shell.markAllNotificationsRead}
           onOpen={shell.markNotificationsSeen}
+          onRefresh={shell.refreshNotifications}
           labels={messages.notifications}
         />
         <AppLauncher

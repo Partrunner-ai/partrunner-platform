@@ -90,6 +90,15 @@ export interface StaffShellContextValue {
    * Optional, and the panel opens whether or not the host provides it.
    */
   markNotificationsSeen?: () => StaffShellMutation;
+  /**
+   * Vuelve a pedir el snapshot. El shell lo llama cada minuto mientras la
+   * pestaña está a la vista y al volver a ella, para que todas las apps vean
+   * lo mismo que Nexus sin recargar y el aviso de llegada pueda sonar. Debe
+   * ser silencioso al fallar: el siguiente intento lo repara.
+   *
+   * Opcional; sin él la campana sólo cambia al recargar, como antes.
+   */
+  refreshNotifications?: () => StaffShellMutation;
   signOut?: () => StaffShellMutation;
 }
 

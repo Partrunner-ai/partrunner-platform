@@ -33,6 +33,18 @@ import '@partrunner-ai/shell/shell.css';
 The host owns authentication, routing, data loading, and persistence. The
 package owns shared presentation and interaction contracts.
 
+## Theme and live notifications
+
+`GlobalHeader` shows the theme toggle again (light → dark → system), driven by
+`preferences.theme` and `setTheme`; the host applies the theme to the document.
+
+Hosts that expose `refreshNotifications` on the staff-shell context get a bell
+that stays current on its own: the shell calls it every
+`NOTIFICATION_REFRESH_MS` (60 s) while the tab is visible and when it comes back
+into view. The timing lives here so every app refreshes the same way. A custom
+header that renders `NotificationCenter` directly passes it as `onRefresh`,
+together with `unseenCount`, `onOpen` and `sound`.
+
 ## Bell sound
 
 The bell is silent unless the host passes `notifications.sound`
