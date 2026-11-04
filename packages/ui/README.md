@@ -30,6 +30,32 @@ import {
 The package works with React 18 and 19 and does not require a Tailwind runtime.
 Styles use semantic `--pr-*` tokens.
 
+## Server-safe entry (`@partrunner-ai/ui/server`)
+
+The main entry ships as a single `"use client"` bundle, because some
+components in it need client hooks. Rendered from a Server Component, that
+forces even hook-free components — `Card` among them — through Next's
+RSC/Flight client-component boundary, where a confirmed Next.js bug can
+silently drop one `asChild` (`Slot`-rendered) list item. Import `Card` (and
+`Slot`, if composing directly) from `@partrunner-ai/ui/server` instead when it
+renders inside a Server Component, especially in a list:
+
+```tsx
+import { Card } from '@partrunner-ai/ui/server';
+
+// Server Component — no "use client" boundary, no RSC/Flight round-trip for Card.
+export default async function CatalogIndex() {
+  return items.map((item) => (
+    <Card key={item.slug} asChild>
+      <Link href={item.href}>{item.label}</Link>
+    </Card>
+  ));
+}
+```
+
+This entry only re-exports components with no client-only hooks. Everything
+else stays on the main entry.
+
 ## One job, one component
 
 Do not choose between two components for one job. The short form of the table
