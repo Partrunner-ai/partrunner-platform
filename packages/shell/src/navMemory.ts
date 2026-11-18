@@ -37,8 +37,8 @@ export const NAV_LABEL_LIMIT = 60;
  * they stay small. The last-page cookie is skipped when it is larger; the
  * recent cookie drops its oldest entries until it fits.
  */
-const LAST_VALUE_LIMIT = 2000;
-const RECENT_VALUE_LIMIT = 1500;
+const LAST_VALUE_LIMIT = 1200;
+const RECENT_VALUE_LIMIT = 800;
 /** Larger raw cookie values are not even parsed. */
 const PARSE_VALUE_LIMIT = 4000;
 

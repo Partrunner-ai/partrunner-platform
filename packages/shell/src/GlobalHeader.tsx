@@ -6,7 +6,11 @@ import { SidebarTrigger } from './AppShell';
 import { AppBarSection, appBarApps } from './AppBar';
 import { SwitcherSection } from './AppSwitcher';
 import { GoToPalette } from './GoToPalette';
-import { isAppNavigation, useShellNavigation } from './NavigationContext';
+import {
+  HeaderOwnsSidebarTriggerContext,
+  isAppNavigation,
+  useShellNavigation,
+} from './NavigationContext';
 import {
   NotificationCenter,
   type NotificationCenterLabels,
@@ -136,7 +140,13 @@ export function GlobalHeader({
           locale={locale}
         />
       ) : null}
-      <div className="pr-global-header__start">{start}</div>
+      {switcher ? (
+        <HeaderOwnsSidebarTriggerContext.Provider value>
+          <div className="pr-global-header__start">{start}</div>
+        </HeaderOwnsSidebarTriggerContext.Provider>
+      ) : (
+        <div className="pr-global-header__start">{start}</div>
+      )}
       {appbar ? (
         <div className="pr-global-header__nav">
           <AppBarSection

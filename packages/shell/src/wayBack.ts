@@ -31,12 +31,22 @@ export function wayBackFragment(sub: string | undefined, path: string | undefine
   return `${FRAGMENT_PREFIX}${sub}:${encodeURIComponent(clean)}`;
 }
 
-/** Replaces any fragment of `href` with the way-back fragment (or drops it). */
+/** Does this URL belong to the origin of a registry app? */
+export function isRegistryOrigin(href: string): boolean {
+  const origin = originOf(href);
+  return origin !== '' && APPS.some((app) => originOf(appHref(app)) === origin);
+}
+
+/**
+ * Replaces any fragment of `href` with the way-back fragment (or drops it). A
+ * link to a host that is not a registry app is returned unchanged.
+ */
 export function withWayBack(
   href: string,
   fromSub: string | undefined,
   fromPath: string | undefined,
 ): string {
+  if (!isRegistryOrigin(href)) return href;
   const base = href.split('#')[0]!;
   return `${base}${wayBackFragment(fromSub, fromPath)}`;
 }
@@ -99,8 +109,14 @@ export function wayBackFromReferrer(
     const start = appHref(app);
     if (!start || originOf(start) !== ref.origin) continue;
     if (app.scheme === 'path' && app.path) {
+      // A cross-origin referrer is often cut to the origin, so `/` matches on
+      // origin alone. Otherwise the first segment must match at a boundary.
       const segment = `/${app.path.split('/')[1] ?? ''}`;
-      if (segment !== '/' && !ref.pathname.startsWith(segment)) continue;
+      const path = ref.pathname;
+      const atRoot = path === '' || path === '/';
+      if (segment !== '/' && !atRoot && path !== segment && !path.startsWith(`${segment}/`)) {
+        continue;
+      }
     }
     const remembered = last[app.sub];
     const target = isStorableNavPath(remembered) ? remembered : pathOf(start);

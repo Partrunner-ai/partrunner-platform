@@ -52,14 +52,26 @@ export function useShellNavigation(): ShellNavigationValue | null {
   return useContext(ShellNavigationContext);
 }
 
-/** Calls `onNavigate` without ever letting a host callback break navigation. */
+/**
+ * True inside the `start` slot of a `'switcher'` header, which renders its own
+ * menu button: a host's `<SidebarTrigger />` there renders nothing.
+ */
+export const HeaderOwnsSidebarTriggerContext = createContext(false);
+
+/**
+ * Calls `onNavigate` without ever letting a host callback break navigation. A
+ * callback that returns a rejected promise is ignored too.
+ */
 export function notifyNavigate(
   onNavigate: ShellNavigationValue['onNavigate'],
   event: ShellNavigateEvent,
 ): void {
   if (!onNavigate) return;
   try {
-    onNavigate(event);
+    const result = onNavigate(event) as unknown;
+    if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+      Promise.resolve(result).catch(() => {});
+    }
   } catch {
     /* usage tracking must never block a click */
   }

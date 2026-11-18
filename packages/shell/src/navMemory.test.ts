@@ -83,14 +83,14 @@ describe('navMemory parsing', () => {
 });
 
 describe('cookie size', () => {
-  it('drops the oldest recent entries until the value fits in 1500 characters', () => {
+  it('drops the oldest recent entries until the value fits in 800 characters', () => {
     const recent = Array.from({ length: 8 }, (_, i) => ({
       s: 'supply',
       p: `/${'é'.repeat(50)}${i}`,
       l: `Página ${i}`,
     }));
     const encoded = serializeNavRecent(recent);
-    expect(encoded.length).toBeLessThanOrEqual(1500);
+    expect(encoded.length).toBeLessThanOrEqual(800);
     const kept = parseNavRecent(encoded);
     expect(kept.length).toBeGreaterThan(0);
     expect(kept.length).toBeLessThan(8);
@@ -103,7 +103,7 @@ describe('cookie size', () => {
     expect(parseNavRecent(serializeNavRecent(recent))).toEqual(recent);
   });
 
-  it('skips the last-page cookie above 2000 characters', () => {
+  it('skips the last-page cookie above 1200 characters', () => {
     const last = Object.fromEntries(
       Array.from({ length: 8 }, (_, i) => [`app${i}`, `/${'é'.repeat(60)}`]),
     );

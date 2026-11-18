@@ -38,6 +38,8 @@ export interface SwitcherRow {
   /** Label of the page the row opens. */
   pageLabel: string;
   current: boolean;
+  /** The current app, and the page is its start page (`aria-current`). */
+  atStart: boolean;
   /** A path for the current app (router link), else an absolute URL. */
   href: string;
 }
@@ -65,6 +67,7 @@ export function switcherRows(
       name: switcherName(app),
       pageLabel: (path && memory.labels[app.sub]) || MESSAGES[locale].home,
       current,
+      atStart: current && currentPath.split('?')[0]!.split('#')[0]! === startPath(start),
       href: current ? startPath(start) : withWayBack(base, currentSub, currentPath),
     };
   });
@@ -98,7 +101,7 @@ export function AppSwitcher({ apps, currentSub, locale, memory, nav }: AppSwitch
   const triggerName = currentApp ? switcherName(currentApp) : messages.apps;
 
   const items = () =>
-    Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    Array.from(menuRef.current?.querySelectorAll<HTMLElement>('.pr-switcher__item') ?? []);
 
   useEffect(() => {
     if (!open) return;
@@ -185,7 +188,7 @@ export function AppSwitcher({ apps, currentSub, locale, memory, nav }: AppSwitch
                 className="pr-switcher__item"
                 href={row.href}
                 data-active="true"
-                aria-current="page"
+                aria-current={row.atStart ? 'page' : undefined}
                 onClick={() => select(row)}
               >
                 {body}
@@ -228,6 +231,7 @@ export function WayBackChip({ target, currentSub, locale, nav }: WayBackChipProp
       className="pr-wayback"
       href={href}
       title={MESSAGES[locale].back(name)}
+      aria-label={MESSAGES[locale].back(name)}
       onClick={() =>
         notifyNavigate(nav.onNavigate, {
           source: 'wayback',

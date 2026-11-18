@@ -1503,3 +1503,39 @@ a.pr-sidebar__brand:focus-visible {
     width: auto;
   }
 }
+
+@media (max-width: 720px) {
+  .pr-global-header[data-navigation='switcher'] {
+    gap: 4px;
+  }
+  .pr-global-header[data-navigation='switcher'] .pr-global-header__start:empty {
+    display: none;
+  }
+  .pr-global-header__switch {
+    min-width: 0;
+    flex-shrink: 1;
+    gap: 4px;
+  }
+  .pr-switcher {
+    min-width: 0;
+  }
+  .pr-switcher__trigger {
+    max-width: 100%;
+    min-width: 0;
+    padding: 0 6px;
+  }
+  .pr-switcher__name {
+    min-width: 0;
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Only the arrow: the link keeps its full aria-label. */
+  .pr-wayback {
+    padding: 0 8px;
+  }
+  .pr-wayback__name {
+    display: none;
+  }
+}

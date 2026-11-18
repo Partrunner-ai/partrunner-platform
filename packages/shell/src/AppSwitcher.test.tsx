@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureAppRegistry } from '@partrunner-ai/app-registry';
+import { SidebarTrigger, type LinkComponent } from './AppShell';
 import { AppShell } from './AppShell';
 import { GlobalHeader } from './GlobalHeader';
 import { isAppNavigation } from './NavigationContext';
@@ -139,13 +140,52 @@ describe('the app switcher', () => {
 
   it('marks the current app and routes it in place; other apps are native links with the way back', async () => {
     seedLast({ liveops: { p: '/rutas/9', l: 'Rutas' } });
-    render(<Switcher />);
+    render(<Switcher currentPath="/" />);
     const { menu } = await openMenu();
     const items = within(menu).getAllByRole('menuitem');
+    // On the start page of the app the row is the current page.
     expect(items[3]!.getAttribute('aria-current')).toBe('page');
     expect(items[3]!.getAttribute('href')).toBe('/');
-    expect(items[4]!.getAttribute('href')).toBe(`https://liveops.partrunner.ai/rutas/9${FROM}`);
-    expect(items[1]!.getAttribute('href')).toBe(`https://sales.partrunner.ai${FROM}`);
+    const fromHome = '#pr-from=supply:%2F';
+    expect(items[4]!.getAttribute('href')).toBe(`https://liveops.partrunner.ai/rutas/9${fromHome}`);
+    expect(items[1]!.getAttribute('href')).toBe(`https://sales.partrunner.ai${fromHome}`);
+  });
+
+  it('does not claim aria-current away from the start page, but still marks the row', async () => {
+    render(<Switcher />);
+    const { menu } = await openMenu();
+    const here = within(menu).getAllByRole('menuitem')[3]!;
+    expect(here.getAttribute('aria-current')).toBeNull();
+    expect(here.getAttribute('data-active')).toBe('true');
+  });
+
+  it('finds the rows by class, so a router link that drops role still works', async () => {
+    const NoRoleLink: LinkComponent = ({ href, children, onClick, className, ...rest }) => {
+      void rest.role;
+      return (
+        <a
+          href={href}
+          className={className}
+          aria-current={rest['aria-current']}
+          onClick={(event) => {
+            event.preventDefault();
+            onClick?.();
+          }}
+        >
+          {children}
+        </a>
+      );
+    };
+    render(<Switcher LinkComponent={NoRoleLink} />);
+    const { user, menu } = await openMenu();
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('.pr-switcher__item'));
+    expect(items).toHaveLength(7);
+    expect(items[3]!.getAttribute('role')).toBeNull();
+    expect(document.activeElement).toBe(items[3]);
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(items[4]);
+    await user.keyboard('4');
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 
   it('moves focus with the arrows, Home and End', async () => {
@@ -219,6 +259,116 @@ describe('the header order in switcher mode', () => {
   it('leaves the trigger to the host in launcher and appbar modes', () => {
     const { container } = render(<AppbarShell />);
     expect(container.querySelector('.pr-global-header .pr-sidebar__trigger')).toBeNull();
+  });
+});
+
+describe('the sidebar trigger', () => {
+  it('renders nothing for a host SidebarTrigger in start in switcher mode', () => {
+    const { container } = render(
+      <Switcher header={{ start: <SidebarTrigger /> }} />,
+    );
+    expect(container.querySelectorAll('.pr-global-header .pr-sidebar__trigger')).toHaveLength(1);
+  });
+
+  it('still renders the host trigger in appbar mode', () => {
+    const { container } = render(<AppbarShell header={{ start: <SidebarTrigger /> }} />);
+    expect(container.querySelectorAll('.pr-global-header .pr-sidebar__trigger')).toHaveLength(1);
+  });
+
+  it('still renders the host trigger in launcher mode', () => {
+    const { container } = render(
+      <StaffShellProvider value={staffContext()}>
+        <AppShell
+          sections={SECTIONS}
+          currentPath="/fleets"
+          globalHeader={<GlobalHeader currentSub="supply" start={<SidebarTrigger />} />}
+        >
+          x
+        </AppShell>
+      </StaffShellProvider>,
+    );
+    expect(container.querySelectorAll('.pr-global-header .pr-sidebar__trigger')).toHaveLength(1);
+  });
+});
+
+describe('accessibility and events', () => {
+  it('gives the chip a full aria-label', async () => {
+    arriveFrom('#pr-from=liveops:%2Frutas');
+    render(<Switcher />);
+    const chip = await screen.findByLabelText('Volver a LiveOps');
+    expect(chip.tagName).toBe('A');
+  });
+
+  it('marks the palette input as a list autocomplete', async () => {
+    const user = userEvent.setup();
+    render(<Switcher />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    expect(screen.getByRole('combobox').getAttribute('aria-autocomplete')).toBe('list');
+  });
+
+  it('reports the brand in the plain link branches too', () => {
+    const onNavigate = vi.fn();
+    const onBrandSelect = vi.fn();
+    const { container, rerender } = render(
+      <Switcher onNavigate={onNavigate} onBrandSelect={onBrandSelect} />,
+    );
+    container.querySelector<HTMLElement>('a.pr-sidebar__brand')!.click();
+    expect(onBrandSelect).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenLastCalledWith({
+      source: 'brand',
+      fromSub: 'supply',
+      toSub: 'supply',
+      href: '/',
+    });
+    rerender(<Switcher onNavigate={onNavigate} brandHref="https://example.com/home" />);
+    container.querySelector<HTMLElement>('a.pr-sidebar__brand')!.click();
+    expect(onNavigate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ source: 'brand', href: 'https://example.com/home' }),
+    );
+  });
+
+  it('ignores a rejected promise from onNavigate', async () => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    const { container } = render(
+      <Switcher onNavigate={() => Promise.reject(new Error('tracking down')) as never} />,
+    );
+    container.querySelector<HTMLElement>('a.pr-sidebar__brand')!.click();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    process.off('unhandledRejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+});
+
+describe('the way-back fragment scope', () => {
+  it('is not added to a host that is not a registry app', async () => {
+    const user = userEvent.setup();
+    render(
+      <Switcher
+        context={staffContext({
+          pages: [
+            { app: 'sales', label: 'Externa', href: 'https://other.example.com/x' },
+            { app: 'sales', label: 'Interna', href: 'https://sales.partrunner.ai/y' },
+          ],
+        })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    await user.type(screen.getByRole('combobox'), 'na');
+    const href = (label: string) =>
+      within(screen.getAllByRole('option').find((row) => row.textContent!.startsWith(label))!)
+        .getByRole('link')
+        .getAttribute('href');
+    expect(href('Externa')).toBe('https://other.example.com/x');
+    expect(href('Interna')).toBe(`https://sales.partrunner.ai/y${FROM}`);
+  });
+
+  it('keeps history.state when it removes the fragment', async () => {
+    window.history.replaceState({ keep: 1 }, '', '/fleets#pr-from=liveops:%2Frutas');
+    render(<Switcher />);
+    await screen.findByLabelText('Volver a LiveOps');
+    expect(window.location.hash).toBe('');
+    expect(window.history.state).toEqual({ keep: 1 });
   });
 });
 

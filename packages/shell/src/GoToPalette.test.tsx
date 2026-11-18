@@ -49,8 +49,26 @@ describe('«Ir a» palette', () => {
 
     await user.keyboard('{Control>}k{/Control}');
     expect(screen.getByRole('dialog')).toBeTruthy();
+    // Off a Mac only Ctrl+K counts; Meta+K does nothing.
     await user.keyboard('{Meta>}k{/Meta}');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    await user.keyboard('{Control>}k{/Control}');
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('uses only ⌘K on a Mac and leaves Ctrl+K to text editing', async () => {
+    const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    try {
+      const user = userEvent.setup();
+      render(<AppbarShell />);
+      expect(screen.getByRole('button', { name: /Ir a…/ }).textContent).toContain('⌘K');
+      await user.keyboard('{Control>}k{/Control}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      await user.keyboard('{Meta>}k{/Meta}');
+      expect(screen.getByRole('dialog')).toBeTruthy();
+    } finally {
+      platform.mockRestore();
+    }
   });
 
   it('closes on a click outside and returns focus to the trigger', async () => {

@@ -170,7 +170,9 @@ export function GoToPalette({
       // The shell listens on document (bubble phase). A page that owns its own ⌘K
       // wins by listening on window (capture phase) and calling preventDefault().
       if (event.defaultPrevented || event.altKey || event.shiftKey) return;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      // Mac: only ⌘K (Ctrl+K is a text-editing key there). Elsewhere: only Ctrl+K.
+      const modifier = isMac() ? event.metaKey : event.ctrlKey;
+      if (modifier && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setOpen((value) => !value);
       }
@@ -370,6 +372,7 @@ export function GoToPalette({
             className="pr-goto__input"
             type="text"
             role="combobox"
+            aria-autocomplete="list"
             aria-expanded={entries.length > 0}
             aria-controls={entries.length > 0 ? `${baseId}-list` : undefined}
             aria-activedescendant={entries.length > 0 ? optionId(safeActive) : undefined}
@@ -441,7 +444,7 @@ export function GoToPalette({
         className={`pr-goto-trigger${variant === 'field' ? ' pr-goto-trigger--field' : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-keyshortcuts="Control+K Meta+K"
+        aria-keyshortcuts={hint === '⌘K' ? 'Meta+K' : 'Control+K'}
         onClick={() => setOpen(true)}
       >
         <Search size={15} aria-hidden />

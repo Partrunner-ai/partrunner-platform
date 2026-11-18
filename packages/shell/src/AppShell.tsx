@@ -23,6 +23,7 @@ import { buildAppUrl, type AppTone } from '@partrunner-ai/app-registry';
 import { BrandMark } from './BrandMark';
 import { BrandWordmark } from './BrandWordmark';
 import {
+  HeaderOwnsSidebarTriggerContext,
   ShellNavigationContext,
   isAppNavigation,
   notifyNavigate,
@@ -134,7 +135,8 @@ export interface AppShellProps {
   /** Extra paths the visit memory must not record, on top of the auth pages. */
   navMemoryIgnore?: string[];
   /**
-   * Called synchronously before a shell link navigates in `appbar` mode. Hosts
+   * Called synchronously before a shell link navigates in `appbar` and
+   * `switcher` modes (app bar, switcher, way back, palette, brand, sidebar). Hosts
    * forward it to their usage tracking. A throwing callback is ignored.
    */
   onNavigate?: (event: ShellNavigateEvent) => void;
@@ -322,7 +324,9 @@ export function useSidebar(): SidebarContextValue | null {
  */
 export function SidebarTrigger({ label = 'Abrir menú' }: { label?: string }) {
   const sidebar = useSidebar();
-  if (!sidebar) return null;
+  const headerOwnsTrigger = useContext(HeaderOwnsSidebarTriggerContext);
+  // A `'switcher'` header already renders the button.
+  if (!sidebar || headerOwnsTrigger) return null;
   return (
     <button
       type="button"
@@ -964,10 +968,28 @@ export function AppShell({
                   brandSelect
                     ? (event) => {
                         event.preventDefault();
+                        if (appbar) {
+                          notifyNavigate(onNavigate, {
+                            source: 'brand',
+                            fromSub: appSub,
+                            toSub: appSub,
+                            href: resolvedBrandHref,
+                          });
+                        }
                         closeDrawer();
                         brandSelect();
                       }
-                    : closeDrawer
+                    : appbar
+                      ? () => {
+                          notifyNavigate(onNavigate, {
+                            source: 'brand',
+                            fromSub: appSub,
+                            toSub: appSub,
+                            href: resolvedBrandHref,
+                          });
+                          closeDrawer();
+                        }
+                      : closeDrawer
                 }
               >
                 {logo}
