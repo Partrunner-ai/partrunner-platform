@@ -1,16 +1,16 @@
 import { expect, test } from '@playwright/experimental-ct-react';
-import { NavigationCompare } from '../../showcase/src/navigation/NavigationCompare';
+import { NavigationDemo } from '../../showcase/src/navigation/NavigationDemo';
 
 /**
- * The comparison view must never open a real app: a click on a link to a
- * registry app changes the simulated app and leaves the browser page alone.
+ * The demo must never open a real app: a click on a link to a registry app
+ * changes the simulated app and leaves the browser page alone.
  */
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });
 });
 
-test('a switcher row opens the simulated app, not the real one', async ({ mount, page }) => {
-  await mount(<NavigationCompare initialOption="b" />);
+test('a grid tile opens the simulated app, not the real one', async ({ mount, page }) => {
+  await mount(<NavigationDemo />);
   const before = page.url();
   const navigations: string[] = [];
   page.on('framenavigated', (frame) => {
@@ -18,32 +18,40 @@ test('a switcher row opens the simulated app, not the real one', async ({ mount,
   });
 
   await expect(page.getByTestId('address-bar')).toContainText('liveops.partrunner.ai/general/routes');
-  await page.locator('.pr-switcher__trigger').click();
+  await page.getByRole('button', { name: 'Aplicaciones' }).click();
   await page.getByRole('menuitem', { name: /Supply/ }).click();
 
   await expect(page.getByTestId('address-bar')).toContainText('supply.partrunner.ai/onboarding/mi-dia');
   await expect(page.getByTestId('loads')).toHaveText('1');
-  await expect(page.getByText('Último evento:')).toContainText('switcher: liveops → supply');
   await expect(page.getByTestId('clicks')).toHaveText('2');
+  await expect(page.getByText('Último evento:')).toContainText('launcher: liveops → supply');
   // The way back chip shows the page left in LiveOps.
   await expect(page.getByLabel('Volver a LiveOps')).toBeVisible();
   expect(page.url()).toBe(before);
   expect(navigations).toEqual([]);
 });
 
-test('«Mis apps» opens a favorite in option C without leaving the page', async ({ mount, page }) => {
-  await mount(<NavigationCompare initialOption="c" />);
+test('there is no app bar and no app-name selector', async ({ mount, page }) => {
+  await mount(<NavigationDemo />);
+  await expect(page.locator('.pr-appbar')).toHaveCount(0);
+  await expect(page.locator('.pr-switcher')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Aplicaciones' })).toBeVisible();
+});
+
+test('«Mis apps» opens a favorite without leaving the page', async ({ mount, page }) => {
+  await mount(<NavigationDemo />);
   const before = page.url();
   const favorites = page.getByRole('region', { name: 'Mis apps' });
   await expect(favorites).toBeVisible();
   await favorites.getByRole('link', { name: /Supply/ }).click();
   await expect(page.getByTestId('address-bar')).toContainText('supply.partrunner.ai');
   await expect(page.getByTestId('clicks')).toHaveText('1');
+  await expect(page.getByText('Último evento:')).toContainText('favorites: liveops → supply');
   expect(page.url()).toBe(before);
 });
 
 test('«/» opens «Ir a» and a result opens a simulated page', async ({ mount, page }) => {
-  await mount(<NavigationCompare initialOption="b" />);
+  await mount(<NavigationDemo />);
   const before = page.url();
   // Focus the page body first: a key press needs a focused document.
   await page.getByRole('heading', { name: 'Navegación' }).click();
@@ -56,20 +64,12 @@ test('«/» opens «Ir a» and a result opens a simulated page', async ({ mount,
 });
 
 test('a task counts the clicks and reports the goal', async ({ mount, page }) => {
-  await mount(<NavigationCompare initialOption="b" />);
+  await mount(<NavigationDemo />);
   await page.getByRole('button', { name: /En LiveOps › Todas las rutas, abre Supply/ }).click();
-  await page.locator('.pr-switcher__trigger').click();
+  await page.getByRole('button', { name: 'Aplicaciones' }).click();
   await page.getByRole('menuitem', { name: /Supply/ }).click();
   await page.getByRole('link', { name: 'Afiliación' }).first().click();
   await expect(page.getByRole('status').filter({ hasText: 'Meta alcanzada' })).toContainText('3 clics');
-});
-
-test('the current app is highlighted in option A', async ({ mount, page }) => {
-  await mount(<NavigationCompare initialOption="a" />);
-  await expect(page.locator('.pr-appbar__item--current')).toHaveText('LiveOps');
-  await page.getByRole('link', { name: 'Supply' }).click();
-  await expect(page.locator('.pr-appbar__item--current')).toHaveText('Supply');
-  await expect(page.getByText('Último evento:')).toContainText('appbar: liveops → supply');
 });
 
 test('an unknown remembered path opens the app start page', async ({ mount, page }) => {
@@ -80,21 +80,8 @@ test('an unknown remembered path opens the app start page', async ({ mount, page
       url: page.url(),
     },
   ]);
-  await mount(<NavigationCompare initialOption="b" />);
-  await page.locator('.pr-switcher__trigger').click();
+  await mount(<NavigationDemo />);
+  await page.getByRole('button', { name: 'Aplicaciones' }).click();
   await page.getByRole('menuitem', { name: /Supply/ }).click();
   await expect(page.getByTestId('address-bar')).toContainText('supply.partrunner.ai/onboarding/mi-dia');
-});
-
-test('the apps grid is in B and C and its tiles stay inside the simulation', async ({ mount, page }) => {
-  await mount(<NavigationCompare initialOption="c" />);
-  const before = page.url();
-  await page.getByRole('button', { name: 'Aplicaciones' }).click();
-  await page.getByRole('menuitem', { name: /Solicitudes/ }).click();
-  await expect(page.getByTestId('address-bar')).toContainText('solicitudes.partrunner.ai');
-  expect(page.url()).toBe(before);
-  // The selector is off by default in C and can be turned on.
-  await expect(page.locator('.pr-switcher')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Sí', exact: true }).click();
-  await expect(page.locator('.pr-switcher')).toHaveCount(1);
 });

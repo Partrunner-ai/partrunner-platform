@@ -22,7 +22,7 @@ import { appHref, findApp, type NavItem, type NavSection } from '@partrunner-ai/
 export interface SimApp {
   /** Registry `sub`. */
   sub: string;
-  /** Name in the switcher, the bar, and «Mis apps». */
+  /** Name in the grid, the palette, and «Mis apps». */
   name: string;
   /** Page a link to the app root (`/`) opens. */
   home: string;

@@ -14,36 +14,17 @@ import {
   clearNavState,
   DEFAULT_FAVORITES,
   FAVORITES_STORAGE_KEY,
-  OPTION_STORAGE_KEY,
   resolveInApp,
   routeLink,
   sameLocation,
   TASKS,
   writeWayBack,
-  type NavOption,
   type NavTask,
   type SimLocation,
 } from './simulation';
 import './navigation.css';
 
-const OPTIONS: Array<{ id: NavOption; label: string; hint: string }> = [
-  { id: 'a', label: 'A · Barra de apps', hint: 'Todas las apps como barra en el encabezado.' },
-  { id: 'b', label: 'B · Selector', hint: 'El nombre de la app abre un menú con todas las apps.' },
-  { id: 'c', label: 'C · Selector + Mis apps', hint: 'Mis apps en el menú lateral, la cuadrícula de apps arriba a la derecha, «Buscar o ir a…» y «← app».' },
-];
-
-const SELECTOR_KEY = 'pr-showcase-nav-selector';
 const START: SimLocation = { app: 'liveops', path: '/general/routes' };
-
-function readOption(): NavOption {
-  try {
-    const value = window.localStorage.getItem(OPTION_STORAGE_KEY);
-    if (value === 'a' || value === 'b' || value === 'c') return value;
-  } catch {
-    /* storage can be blocked */
-  }
-  return 'b';
-}
 
 function readFavorites(): string[] {
   try {
@@ -66,12 +47,10 @@ const PAGES: StaffShellPage[] = SIM_APPS.flatMap((app) =>
 );
 
 /**
- * Options A, B and C of the navigation proposal in one view, over simulated
- * apps. A click never leaves the page: links to a registry app change the
+ * The unified staff navigation over simulated apps. A click never leaves the page: links to a registry app change the
  * simulated app, and every other link is blocked.
  */
-export function NavigationCompare({ initialOption }: { initialOption?: NavOption } = {}) {
-  const [option, setOption] = useState<NavOption>(() => initialOption ?? readOption());
+export function NavigationDemo() {
   const [loc, setLoc] = useState<SimLocation>(START);
   const [history, setHistory] = useState<SimLocation[]>([START]);
   const [nonce, setNonce] = useState(0);
@@ -81,13 +60,6 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
   const [reached, setReached] = useState<{ clicks: number; loads: number } | null>(null);
   const [notice, setNotice] = useState('');
   const [lastEvent, setLastEvent] = useState('');
-  const [selector, setSelector] = useState<boolean>(() => {
-    try {
-      return window.localStorage.getItem(SELECTOR_KEY) === 'yes';
-    } catch {
-      return false;
-    }
-  });
   const [favorites, setFavoritesState] = useState<string[]>(readFavorites);
 
   const frameRef = useRef<HTMLDivElement>(null);
@@ -96,24 +68,6 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
   const countsRef = useRef({ clicks, loads });
   countsRef.current = { clicks, loads };
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>();
-
-  const chooseOption = (next: NavOption) => {
-    setOption(next);
-    try {
-      window.localStorage.setItem(OPTION_STORAGE_KEY, next);
-    } catch {
-      /* storage can be blocked */
-    }
-  };
-
-  const chooseSelector = (next: boolean) => {
-    setSelector(next);
-    try {
-      window.localStorage.setItem(SELECTOR_KEY, next ? 'yes' : 'no');
-    } catch {
-      /* storage can be blocked */
-    }
-  };
 
   const showNotice = useCallback((text: string) => {
     setNotice(text);
@@ -234,12 +188,11 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
     () => ({
       user: { id: 'demo', name: 'Ada Lovelace', email: 'ada@example.com' },
       profileHref: '#profile',
-      preferences: { locale: 'es', theme: 'system' },
+      preferences: { locale: 'es', theme: 'system', favoriteApps: favorites },
       notifications: { unreadCount: 0, href: '#notifications', items: [] },
       setTheme: () => {},
       setLocale: () => {},
       pages: PAGES,
-      favoriteApps: favorites,
       setFavoriteApps: setFavorites,
     }),
     [favorites, setFavorites],
@@ -247,7 +200,6 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
 
   const app = simApp(loc.app) ?? SIM_APPS[0]!;
   const title = pageLabel(app, loc.path);
-  const mode = option === 'a' ? 'appbar' : 'switcher';
   const onNavigate = useCallback((event: ShellNavigateEvent) => {
     setLastEvent(`${event.source}: ${event.fromSub ?? '—'} → ${event.toSub ?? '—'}`);
   }, []);
@@ -257,42 +209,11 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
       <div className="nav-sim__intro">
         <h1 className="nav-sim__title">Navegación</h1>
         <p className="nav-sim__lead">
-          Tres opciones sobre apps simuladas. Ningún clic abre una app real.
+          Apps simuladas. Ningún clic abre una app real.
         </p>
-        <div className="nav-sim__toggle" role="group" aria-label="Opción de navegación">
-          {OPTIONS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="nav-sim__option"
-              aria-pressed={option === item.id}
-              onClick={() => chooseOption(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        {option === 'c' ? (
-          <div className="nav-sim__sub" role="group" aria-label="Selector en el nombre">
-            <span className="nav-sim__sub-label">Selector en el nombre:</span>
-            {[
-              { value: true, label: 'Sí' },
-              { value: false, label: 'No' },
-            ].map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                className="nav-sim__option nav-sim__option--small"
-                aria-pressed={selector === item.value}
-                onClick={() => chooseSelector(item.value)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
         <p className="nav-sim__hint">
-          {OPTIONS.find((item) => item.id === option)!.hint} Prueba también «/» o ⌘K / Ctrl+K para «Ir a».
+          Mis apps en el menú lateral, la cuadrícula de apps arriba a la derecha, «Buscar o ir a…» y «← app».
+          Es la navegación de todas las apps. Prueba también «/» o ⌘K / Ctrl+K para «Ir a».
         </p>
         <section className="nav-sim__tasks" aria-label="Tareas para probar">
           <h2 className="nav-sim__tasks-title">Tareas para probar</h2>
@@ -361,9 +282,7 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
             <AppShell
               key={`${loc.app}:${nonce}`}
               sections={app.sections}
-              navigation={mode}
-              appsInSidebar={option === 'c'}
-              appSwitcher={option !== 'c' || selector}
+              navigation="unified"
               appSub={app.sub}
               currentPath={loc.path}
               subtitle={app.name}

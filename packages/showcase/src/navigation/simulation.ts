@@ -1,13 +1,10 @@
-import { APP_BAR_APPS, navMemoryCookieNames } from '@partrunner-ai/shell';
+import { APP_NAV_APPS, navMemoryCookieNames } from '@partrunner-ai/shell';
 import { registryOrigin, simApp, simPages, type SimApp } from './fixtures';
 
 /** Key the shell reads for the way back (`pr-nav-from`, per tab). */
 export const WAY_BACK_STORAGE_KEY = 'pr-nav-from';
-export const OPTION_STORAGE_KEY = 'pr-showcase-nav-option';
 export const FAVORITES_STORAGE_KEY = 'pr-showcase-nav-favorites';
 export const DEFAULT_FAVORITES: readonly string[] = ['liveops', 'supply', 'sube-tu-factura'];
-
-export type NavOption = 'a' | 'b' | 'c';
 
 export interface SimLocation {
   app: string;
@@ -32,7 +29,7 @@ export function routeLink(href: string, pageOrigin: string): LinkRoute {
     return { kind: 'blocked', host: href };
   }
   if (url.origin === pageOrigin) return { kind: 'local' };
-  for (const app of APP_BAR_APPS) {
+  for (const app of APP_NAV_APPS) {
     if (registryOrigin(app.sub) === url.origin) {
       return { kind: 'app', sub: app.sub, path: url.pathname };
     }
