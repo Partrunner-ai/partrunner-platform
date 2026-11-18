@@ -106,7 +106,10 @@ Shared by both modes:
   `document.referrer` when that is the origin of another registry app, and opens
   that app's last page, else its start page. Nothing goes to a server: a
   fragment is never sent in an HTTP request. A same-app or external link never
-  gets the fragment.
+  gets the fragment. Only hrefs whose origin belongs to an app in `APPS` get it,
+  so an app that a host adds through a custom `apps` list gets no way back.
+  Browsers cut a cross-origin referrer to its origin, so any page on
+  `partrunner.app` counts as Finanzas in the referrer fallback.
 - `pr-nav-last` holds `{ [sub]: { p, l? } }` (path and the label of its menu
   page). The older `{ [sub]: path }` form is still read.
 
