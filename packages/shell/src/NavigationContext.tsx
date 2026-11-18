@@ -19,7 +19,7 @@ export interface ShellNavigationPage {
 }
 
 export interface ShellNavigateEvent {
-  source: 'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' | 'menu';
+  source: 'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' | 'menu' | 'favorites';
   fromSub?: string;
   toSub?: string;
   href: string;

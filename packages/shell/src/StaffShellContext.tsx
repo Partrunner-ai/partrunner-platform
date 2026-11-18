@@ -116,6 +116,16 @@ export interface StaffShellContextValue {
   signOut?: () => StaffShellMutation;
   /** Optional cross-app page index for the «Ir a» palette (`navigation="appbar"`). */
   pages?: readonly StaffShellPage[];
+  /**
+   * The apps the person marked as «Mis apps» (registry `sub`s, in the person's
+   * order). Read by the sidebar section of `AppShell` with `appsInSidebar`.
+   */
+  favoriteApps?: readonly string[];
+  /**
+   * Saves the favorite apps. The shell passes the subs in `APP_BAR_ORDER`, at
+   * most 5. Must be optimistic. Without it the list is read-only.
+   */
+  setFavoriteApps?: (subs: readonly string[]) => StaffShellMutation;
 }
 
 const StaffShellContext = createContext<StaffShellContextValue | null>(null);
@@ -142,4 +152,12 @@ export function useStaffShell(): StaffShellContextValue {
     throw new Error('useStaffShell must be used within StaffShellProvider');
   }
   return value;
+}
+
+/**
+ * Like `useStaffShell`, but returns `null` outside a provider. For shell parts
+ * that work without a host adapter. Not part of the public API.
+ */
+export function useOptionalStaffShell(): StaffShellContextValue | null {
+  return useContext(StaffShellContext);
 }

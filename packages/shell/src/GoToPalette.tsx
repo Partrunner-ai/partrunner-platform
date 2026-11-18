@@ -122,6 +122,18 @@ export interface GoToPaletteProps {
   variant?: 'button' | 'field';
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target.isContentEditable ||
+    target.getAttribute('contenteditable') === 'true' ||
+    target.getAttribute('contenteditable') === ''
+  );
+}
+
 function isMac(): boolean {
   if (typeof navigator === 'undefined') return true;
   return /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
@@ -168,13 +180,28 @@ export function GoToPalette({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // The shell listens on document (bubble phase). A page that owns its own ⌘K
-      // wins by listening on window (capture phase) and calling preventDefault().
-      if (event.defaultPrevented || event.altKey || event.shiftKey) return;
+      // or «/» wins by listening on window (capture phase) and calling preventDefault().
+      if (event.defaultPrevented) return;
       // Mac: only ⌘K (Ctrl+K is a text-editing key there). Elsewhere: only Ctrl+K.
+      // The shell also ignores ⌘K with Shift or Alt held.
       const modifier = isMac() ? event.metaKey : event.ctrlKey;
-      if (modifier && event.key.toLowerCase() === 'k') {
+      if (modifier && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setOpen((value) => !value);
+        return;
+      }
+      // «/» opens the palette too, for browsers and launcher apps that take ⌘K
+      // first. Never while the person types, and never with Ctrl, Meta, or Alt.
+      // Shift is fine: «/» is Shift+7 on some layouts.
+      if (
+        event.key === '/' &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !isEditableTarget(event.target)
+      ) {
+        event.preventDefault();
+        setOpen(true);
       }
     };
     document.addEventListener('keydown', onKey);
@@ -444,7 +471,7 @@ export function GoToPalette({
         className={`pr-goto-trigger${variant === 'field' ? ' pr-goto-trigger--field' : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-keyshortcuts={hint === '⌘K' ? 'Meta+K' : 'Control+K'}
+        aria-keyshortcuts={hint === '⌘K' ? 'Meta+K /' : 'Control+K /'}
         onClick={() => setOpen(true)}
       >
         <Search size={15} aria-hidden />

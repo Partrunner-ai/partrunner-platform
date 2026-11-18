@@ -75,8 +75,11 @@ Shared by both modes:
 - The brand block opens the start page of the app you are in (`brandHref`, else
   `/`). `onBrandSelect` runs only when you pass it. The pinned «Nexus» item is
   not rendered; Nexus is a row in the switcher or «Inicio» in the bar.
-- «Ir a…» (⌘K / Ctrl+K, or the header button) opens a palette. With no query it
-  lists «Volver» (the way back), «Recientes», and «Apps» with the page each one
+- «Ir a…» (⌘K / Ctrl+K, «/», or the header button) opens a palette. «/» works
+  when focus is not in an input, a textarea, a select, or an editable element, and
+  with no Ctrl, Meta, or Alt key (Shift is allowed: «/» is Shift+7 on some
+  layouts). Some browsers and launcher apps take ⌘K first, so «/» is the
+  fallback. The palette lists «Volver» (the way back), «Recientes», and «Apps» with the page each one
   opens. With a query it searches this app's pages, recents, the host's page
   index, and the apps. A host can fill `pages` in the staff-shell context
   (`StaffShellPage`: `app`, `label`, absolute `href`, `section`) to search other
@@ -84,7 +87,7 @@ Shared by both modes:
 - `onNavigate({ source, fromSub, toSub, href })` runs before the app bar, the
   switcher, the way back, the palette, the brand block, or a sidebar link
   navigates (`source`: `'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' |
-  'menu'`). Forward it to usage tracking. A throwing callback is ignored.
+  'menu' | 'favorites'`). Forward it to usage tracking. A throwing callback is ignored.
 - `useShellNavigation()` returns the navigation state (`mode`, `currentPath`,
   `appSub`, `pages`, `activeLabel`, `wayBack`, ...) inside `AppShell`, else
   `null`.
@@ -123,6 +126,21 @@ The launcher grid button stays visible at every width: it is the way to Comunida
 and the overflow path. Apps with `appBar: false` in the registry (Comunidad) are
 not in the bar.
 
+### «Mis apps» in the sidebar
+
+`appsInSidebar` (default `false`, `'appbar'` and `'switcher'` only) puts a «Mis apps»
+section under the brand and above the app's menu. It lists the apps in
+`favoriteApps` (registry subs, in the person's order, at most 5) from the
+staff-shell context, each with an icon tile, the app name, and the page it opens
+(the last page used there, else «Inicio»). A click reports `onNavigate` with
+`source: 'favorites'`; the current app is marked and routes in place. With
+`setFavoriteApps` the section has «Editar»: a checkbox per app (the rest are
+disabled at 5) and «Listo»; the shell saves the subs in `APP_BAR_ORDER`. An empty
+list shows «Elige tus apps». Without a setter the list is read-only; without a
+`StaffShellProvider` or a list the section is not rendered. The collapsed rail
+shows the icon tiles only. Storage is the host's job (the snapshot does not carry
+favorites yet).
+
 ### Adoption steps
 
 1. Set `navigation="switcher"` and `appSub` (the registry `sub`) on `AppShell`.
@@ -135,10 +153,11 @@ not in the bar.
 3. Set `brandHref` when the start page of the app is not `/`, for example
    `/admin/dashboard` for Finanzas.
 4. Pass `navMemoryIgnore` for extra paths that must not be remembered.
-5. A page that owns its own ⌘K (Supply has one in onboarding/conversaciones)
-   must listen on `window` in the capture phase and call `preventDefault()`.
-   The shell listens on `document` in the bubble phase, so it runs later and
-   does not open «Ir a». The shell also ignores ⌘K with Shift or Alt held.
+5. A page that owns its own ⌘K or «/» (Supply has a ⌘K in
+   onboarding/conversaciones) must listen on `window` in the capture phase and
+   call `preventDefault()`. The shell listens on `document` in the bubble phase,
+   so it runs later and does not open «Ir a». The shell also ignores ⌘K with
+   Shift or Alt held.
 
 ### Visit memory
 

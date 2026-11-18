@@ -71,6 +71,40 @@ describe('«Ir a» palette', () => {
     }
   });
 
+  it('stays closed when a page claims the shortcut first', async () => {
+    const user = userEvent.setup();
+    const claim = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') event.preventDefault();
+    };
+    window.addEventListener('keydown', claim, true);
+    try {
+      render(<AppbarShell />);
+      await user.keyboard('{Control>}k{/Control}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      window.removeEventListener('keydown', claim, true);
+    }
+  });
+
+  it('ignores Shift and Alt variants of the shortcut', async () => {
+    const user = userEvent.setup();
+    render(<AppbarShell />);
+    await user.keyboard('{Control>}{Shift>}k{/Shift}{/Control}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens with «/» and lists both shortcuts', async () => {
+    const user = userEvent.setup();
+    render(<AppbarShell />);
+    expect(screen.getByRole('button', { name: /Ir a…/ }).getAttribute('aria-keyshortcuts')).toMatch(
+      /^(Meta|Control)\+K \/$/,
+    );
+    await user.keyboard('/');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    // The «/» is not typed into the search field.
+    expect((screen.getByRole('combobox') as HTMLInputElement).value).toBe('');
+  });
+
   it('closes on a click outside and returns focus to the trigger', async () => {
     const user = userEvent.setup();
     render(<AppbarShell />);
@@ -247,25 +281,37 @@ describe('«Ir a» palette', () => {
     });
   });
 
-  it('stays closed when a page claims the shortcut first', async () => {
+  it('does not open with «/» typed in an input, a textarea, or a contenteditable', async () => {
+    const user = userEvent.setup();
+    render(
+      <AppbarShell>
+        <input aria-label="campo" />
+        <textarea aria-label="nota" />
+        <div contentEditable suppressContentEditableWarning aria-label="editor" role="textbox" />
+      </AppbarShell>,
+    );
+    for (const name of ['campo', 'nota', 'editor']) {
+      await user.click(screen.getByRole('textbox', { name }));
+      await user.keyboard('/');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    }
+  });
+
+  it('does not open with «/» when a page claims the key first or a modifier is held', async () => {
     const user = userEvent.setup();
     const claim = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') event.preventDefault();
+      if (event.key === '/' && !event.ctrlKey) event.preventDefault();
     };
     window.addEventListener('keydown', claim, true);
     try {
       render(<AppbarShell />);
-      await user.keyboard('{Control>}k{/Control}');
+      await user.keyboard('/');
       expect(screen.queryByRole('dialog')).toBeNull();
     } finally {
       window.removeEventListener('keydown', claim, true);
     }
-  });
-
-  it('ignores Shift and Alt variants of the shortcut', async () => {
-    const user = userEvent.setup();
-    render(<AppbarShell />);
-    await user.keyboard('{Control>}{Shift>}k{/Shift}{/Control}');
+    await user.keyboard('{Control>}/{/Control}');
+    await user.keyboard('{Meta>}/{/Meta}');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
@@ -274,6 +320,7 @@ describe('«Ir a» palette', () => {
     render(<AppbarShell navigation="launcher" globalHeader={<div>plain</div>} />);
     await act(async () => {
       await user.keyboard('{Control>}k{/Control}');
+      await user.keyboard('/');
     });
     expect(screen.queryByRole('dialog')).toBeNull();
   });

@@ -31,7 +31,9 @@ import {
   type ShellNavigationPage,
   type ShellNavigationValue,
 } from './NavigationContext';
+import { FavoriteApps } from './FavoriteApps';
 import { readNavMemory, rememberNavVisit } from './navMemory';
+import { useOptionalStaffShell } from './StaffShellContext';
 import { captureWayBack, type WayBackTarget } from './wayBack';
 import {
   appShellGroupsKey,
@@ -140,6 +142,12 @@ export interface AppShellProps {
    * forward it to their usage tracking. A throwing callback is ignored.
    */
   onNavigate?: (event: ShellNavigateEvent) => void;
+  /**
+   * Shows «Mis apps» at the top of the sidebar, under the brand: the apps the
+   * person marked (`favoriteApps` in the staff-shell context), each with the
+   * page it opens. Only in `'appbar'` and `'switcher'` modes; default `false`.
+   */
+  appsInSidebar?: boolean;
   /** Standard navigation, or a section-first drill navigation. */
   variant?: 'standard' | 'drill';
   /** Direct links rendered on the drill landing, above the product areas. */
@@ -410,6 +418,7 @@ export function AppShell({
   appSub,
   navMemoryIgnore,
   onNavigate,
+  appsInSidebar = false,
   variant = 'standard',
   drillHomeItems = [],
   drillBackLabel = 'Inicio',
@@ -581,6 +590,8 @@ export function AppShell({
    * `configureAppRegistry` can change the base domain after module load.
    */
   const appbar = isAppNavigation(navigation);
+  // Read without throwing: «Mis apps» also renders (empty) with no provider.
+  const staffShell = useOptionalStaffShell();
   const resolvedBrandHref = useMemo(() => {
     if (brandHref !== undefined) return brandHref;
     // The app bar owns the way to Nexus, so the brand stays in the current app.
@@ -1028,6 +1039,10 @@ export function AppShell({
                 <span className="pr-nav__item-label">Nexus</span>
               </a>
             )}
+
+            {appbar && appsInSidebar ? (
+              <FavoriteApps nav={navigationValue} staff={staffShell} onOpen={closeDrawer} />
+            ) : null}
 
             {variant === 'drill' ? renderDrillNavigation() : renderStandardNavigation()}
           </nav>
