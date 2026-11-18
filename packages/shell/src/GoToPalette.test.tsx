@@ -142,6 +142,38 @@ describe('«Ir a» palette', () => {
     );
   });
 
+  it('drops host index pages whose href is not http or https', async () => {
+    const user = userEvent.setup();
+    render(
+      <AppbarShell
+        context={staffContext({
+          pages: [
+            { app: 'sales', label: 'Maligna', href: 'javascript:alert(1)' },
+            { app: 'sales', label: 'Maligna dos', href: '/relative' },
+            { app: 'sales', label: 'Buena', href: 'https://sales.partrunner.ai/ok' },
+          ],
+        })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    await user.type(screen.getByRole('combobox'), 'a');
+    const text = optionLabels().join('|');
+    expect(text).toContain('Buena');
+    expect(text).not.toContain('Maligna');
+  });
+
+  it('sets aria-controls only while the listbox is rendered', async () => {
+    const user = userEvent.setup();
+    render(<AppbarShell />);
+    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    const input = screen.getByRole('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(input.getAttribute('aria-controls')).toBe(screen.getByRole('listbox').id);
+    await user.type(input, 'zzzz');
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(input.getAttribute('aria-controls')).toBeNull();
+  });
+
   it('moves with the arrow keys and wraps', async () => {
     const user = userEvent.setup();
     render(<AppbarShell />);

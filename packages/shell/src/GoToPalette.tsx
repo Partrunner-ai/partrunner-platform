@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
 import { appHref, type AppLink } from '@partrunner-ai/app-registry';
 import { appBarLabel, originOf, useNavMemory } from './AppBar';
+import { isStorableNavPath } from './navMemory';
 import { notifyNavigate, type ShellNavigationValue } from './NavigationContext';
 import type { StaffLocale, StaffShellPage } from './StaffShellContext';
 import { useDismiss } from './useDismiss';
@@ -146,7 +147,8 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      // A page that owns its own ⌘K claims it first (capture phase, preventDefault).
+      // The shell listens on document (bubble phase). A page that owns its own ⌘K
+      // wins by listening on window (capture phase) and calling preventDefault().
       if (event.defaultPrevented || event.altKey || event.shiftKey) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -170,7 +172,7 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
     const recents: Entry[] = [];
     for (const item of memory.recent) {
       const app = appByLabel.get(item.s);
-      if (!app) continue;
+      if (!app || !isStorableNavPath(item.p)) continue;
       if (item.s === appSub && item.p === currentPath) continue;
       const here = item.s === appSub;
       recents.push({
@@ -198,6 +200,8 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
     }));
 
     const index: Entry[] = (extraPages ?? []).flatMap((page, i) => {
+      // Only http(s) URLs: a `javascript:` href from a host index is dropped.
+      if (!/^https?:\/\//i.test(page.href)) return [];
       const local = page.app === appSub ? sameOriginPath(page.href) : null;
       return [
         {
@@ -309,8 +313,8 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
             className="pr-goto__input"
             type="text"
             role="combobox"
-            aria-expanded="true"
-            aria-controls={`${baseId}-list`}
+            aria-expanded={entries.length > 0}
+            aria-controls={entries.length > 0 ? `${baseId}-list` : undefined}
             aria-activedescendant={entries.length > 0 ? optionId(safeActive) : undefined}
             aria-label={messages.placeholder}
             placeholder={messages.placeholder}

@@ -1,5 +1,5 @@
 import { Boxes } from 'lucide-react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureAppRegistry } from '@partrunner-ai/app-registry';
 import { AppShell } from './AppShell';
@@ -180,8 +180,28 @@ describe('the app bar', () => {
     render(<AppbarShell />);
     const current = within(bar()).getByRole('link', { name: 'Supply' });
     expect(current.getAttribute('aria-current')).toBe('page');
-    expect(current.getAttribute('href')).toBe('https://supply.partrunner.ai');
+    // The current app routes in place through the host's link, to its start path.
+    expect(current.getAttribute('href')).toBe('/');
     expect(within(bar()).getByRole('link', { name: 'LiveOps' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  it('ignores a remembered path that is not a plain path', () => {
+    seed({ liveops: '/\\evil.com' });
+    render(<AppbarShell />);
+    expect(within(bar()).getByRole('link', { name: 'LiveOps' }).getAttribute('href')).toBe(
+      'https://liveops.partrunner.ai',
+    );
+  });
+
+  it('re-reads the memory when the tab becomes visible', () => {
+    render(<AppbarShell />);
+    seed({ liveops: '/late' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    return waitFor(() =>
+      expect(within(bar()).getByRole('link', { name: 'LiveOps' }).getAttribute('href')).toBe(
+        'https://liveops.partrunner.ai/late',
+      ),
+    );
   });
 
   it('links other apps to their start page when nothing is remembered', () => {
@@ -204,9 +224,7 @@ describe('the app bar', () => {
       'https://partrunner.app/admin/pagos',
     );
     // The current app always opens its start page.
-    expect(within(bar()).getByRole('link', { name: 'Supply' }).getAttribute('href')).toBe(
-      'https://supply.partrunner.ai',
-    );
+    expect(within(bar()).getByRole('link', { name: 'Supply' }).getAttribute('href')).toBe('/');
   });
 
   it('shows Home in English and reports the click', () => {

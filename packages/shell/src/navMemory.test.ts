@@ -3,6 +3,7 @@ import { configureAppRegistry } from '@partrunner-ai/app-registry';
 import {
   EMPTY_NAV_MEMORY,
   isIgnoredNavPath,
+  isStorableNavPath,
   navMemoryCookieNames,
   parseNavLast,
   parseNavRecent,
@@ -38,6 +39,16 @@ describe('navMemory parsing', () => {
         }),
       ),
     ).toEqual({ supply: '/fleets' });
+  });
+
+  it('rejects a backslash, control characters, and anything that leaves the origin', () => {
+    for (const path of ['/\\evil.com', '/\\\\evil.com', '/a\tb', '/a\nb', '/a\u0000b', '/a\u007fb']) {
+      expect(parseNavLast(enc({ supply: path })), JSON.stringify(path)).toEqual({});
+      expect(isStorableNavPath(path), JSON.stringify(path)).toBe(false);
+    }
+    // Encoded characters are fine: they cannot change the host.
+    expect(isStorableNavPath('/%09/evil.com')).toBe(true);
+    expect(isStorableNavPath('/%5Cevil.com')).toBe(true);
   });
 
   it('drops bad, oversized, and duplicated recent entries and caps the list at 8', () => {
@@ -97,6 +108,23 @@ describe('cookie size', () => {
     );
     expect(serializeNavLast(last)).toBeNull();
     expect(serializeNavLast({ supply: '/fleets' })).not.toBeNull();
+  });
+
+  it('keeps updating last when full: the visited app is newest and the oldest others go', () => {
+    const long = `/${'é'.repeat(60)}`;
+    let memory = EMPTY_NAV_MEMORY;
+    for (let i = 0; i < 8; i += 1) {
+      memory = recordNavVisit(memory, { sub: `app${i}`, path: `${long}${i}` });
+    }
+    expect(serializeNavLast(memory.last)).not.toBeNull();
+    expect(Object.keys(memory.last).length).toBeLessThan(8);
+    expect(memory.last.app7).toBe(`${long}7`);
+    expect(memory.last.app0).toBeUndefined();
+
+    // Visiting an old app again moves it to the end and keeps it.
+    memory = recordNavVisit(memory, { sub: 'app5', path: '/again' });
+    expect(Object.keys(memory.last).at(-1)).toBe('app5');
+    expect(memory.last.app5).toBe('/again');
   });
 
   it('refuses a path over 160 characters', () => {
@@ -217,6 +245,12 @@ describe('cookie I/O', () => {
       last: { supply: '/fleets' },
       recent: [{ s: 'supply', p: '/fleets', l: 'Flotas' }],
     });
+  });
+
+  it('adds Secure on https', () => {
+    // The test page is https, so the written cookie carries Secure and jsdom keeps it.
+    rememberNavVisit({ sub: 'supply', path: '/fleets', label: 'Flotas' });
+    expect(readNavMemory().last.supply).toBe('/fleets');
   });
 
   it('reads an empty memory when there is no cookie string', () => {

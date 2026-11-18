@@ -104,22 +104,6 @@ export const APPS: AppLink[] = [
     tile: 'bg-pr-yellow/20 text-pr-charcoal',
   },
   {
-    label: 'Comercial',
-    sub: 'sales',
-    description: 'Gestión comercial',
-    icon: LineChart,
-    tone: 'green',
-    tile: 'bg-emerald-500/15 text-emerald-500',
-  },
-  {
-    label: 'Solicitudes',
-    sub: 'solicitudes',
-    description: 'Gestión de solicitudes',
-    icon: ClipboardList,
-    tone: 'purple',
-    tile: 'bg-violet-500/15 text-violet-500',
-  },
-  {
     label: 'Supply',
     sub: 'supply',
     description: 'Operación de supply y capacidad',
@@ -134,6 +118,22 @@ export const APPS: AppLink[] = [
     icon: Radio,
     tone: 'amber',
     tile: 'bg-orange-500/15 text-orange-500',
+  },
+  {
+    label: 'Solicitudes',
+    sub: 'solicitudes',
+    description: 'Gestión de solicitudes',
+    icon: ClipboardList,
+    tone: 'purple',
+    tile: 'bg-violet-500/15 text-violet-500',
+  },
+  {
+    label: 'Comercial',
+    sub: 'sales',
+    description: 'Gestión comercial',
+    icon: LineChart,
+    tone: 'green',
+    tile: 'bg-emerald-500/15 text-emerald-500',
   },
   {
     label: 'Finanzas',
@@ -177,11 +177,37 @@ export const APPS: AppLink[] = [
 ];
 
 /**
- * Apps shown in the shell's app bar, in the order of the work: the registry
- * order without `appBar: false` and without `comingSoon` entries.
+ * Order of the apps in the shell's app bar (the order of the work). `APPS`
+ * keeps its own order, which the launcher grid uses.
  */
-export const APP_BAR_APPS: AppLink[] = APPS.filter(
-  (app) => app.appBar !== false && !app.comingSoon,
+export const APP_BAR_ORDER: readonly string[] = [
+  'nexus',
+  'sales',
+  'solicitudes',
+  'supply',
+  'liveops',
+  'sube-tu-factura',
+  'fds',
+];
+
+/** Sorts apps by `APP_BAR_ORDER`; unlisted apps go last in their own order. */
+export function sortAppBarApps<T extends { sub: string }>(apps: readonly T[]): T[] {
+  const rank = (app: T) => {
+    const index = APP_BAR_ORDER.indexOf(app.sub);
+    return index === -1 ? APP_BAR_ORDER.length : index;
+  };
+  return apps
+    .map((app, position) => ({ app, position }))
+    .sort((a, b) => rank(a.app) - rank(b.app) || a.position - b.position)
+    .map(({ app }) => app);
+}
+
+/**
+ * Apps shown in the shell's app bar, in `APP_BAR_ORDER`: without `appBar: false`
+ * and without `comingSoon` entries.
+ */
+export const APP_BAR_APPS: AppLink[] = sortAppBarApps(
+  APPS.filter((app) => app.appBar !== false && !app.comingSoon),
 );
 
 /** Look up an app by its subdomain (first match; some share a `sub`). */

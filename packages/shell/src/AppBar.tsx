@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
-import { APP_BAR_APPS, appHref, type AppLink } from '@partrunner-ai/app-registry';
+import {
+  APP_BAR_APPS,
+  appHref,
+  sortAppBarApps,
+  type AppLink,
+} from '@partrunner-ai/app-registry';
 import { notifyNavigate, type ShellNavigationValue } from './NavigationContext';
-import { EMPTY_NAV_MEMORY, readNavMemory, rememberNavVisit, type NavMemory } from './navMemory';
+import {
+  EMPTY_NAV_MEMORY,
+  isStorableNavPath,
+  readNavMemory, rememberNavVisit, type NavMemory } from './navMemory';
 import type { StaffLocale } from './StaffShellContext';
 
 /** The registry label, except Nexus, which reads «Inicio» in the app bar. */
@@ -10,10 +18,12 @@ export function appBarLabel(app: AppLink, locale: StaffLocale): string {
   return app.label;
 }
 
-/** Apps the bar and the palette know: a host override gets the same filter. */
+/** Apps the bar and the palette know: a host override gets the same filter and order. */
 export function appBarApps(apps?: AppLink[]): AppLink[] {
   const list = apps ?? APP_BAR_APPS;
-  return list.filter((app) => app.appBar !== false && !app.comingSoon && appHref(app) !== null);
+  return sortAppBarApps(
+    list.filter((app) => app.appBar !== false && !app.comingSoon && appHref(app) !== null),
+  );
 }
 
 /** `https://host` of a URL, or `''` when it does not parse. */
@@ -26,6 +36,15 @@ export function originOf(url: string | null): string {
   }
 }
 
+/** Pathname of an app's start URL, for the router link of the current app. */
+function startPath(url: string): string {
+  try {
+    return new URL(url).pathname || '/';
+  } catch {
+    return '/';
+  }
+}
+
 /**
  * Reads the visit memory after mount (the server has no cookie) and again when
  * the page changes or the tab comes back into view.
@@ -35,8 +54,15 @@ export function useNavMemory(refreshKey: string): NavMemory {
   useEffect(() => {
     const read = () => setMemory(readNavMemory());
     read();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') read();
+    };
     window.addEventListener('focus', read);
-    return () => window.removeEventListener('focus', read);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', read);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refreshKey]);
   return memory;
 }
@@ -68,6 +94,8 @@ export interface AppBarProps {
   label: string;
   memory: NavMemory;
   onNavigate?: ShellNavigationValue['onNavigate'];
+  /** Router link for the current app's start page (client routing). */
+  LinkComponent?: ShellNavigationValue['LinkComponent'];
 }
 
 /**
@@ -75,14 +103,46 @@ export interface AppBarProps {
  * page; any other app opens the last page you used there, else its start page.
  * Native anchors: destinations live on other hosts.
  */
-export function AppBar({ apps, currentSub, locale, label, memory, onNavigate }: AppBarProps) {
+export function AppBar({
+  apps,
+  currentSub,
+  locale,
+  label,
+  memory,
+  onNavigate,
+  LinkComponent,
+}: AppBarProps) {
   return (
     <nav className="pr-appbar" aria-label={label}>
       {apps.map((app) => {
         const start = appHref(app)!;
         const current = currentSub !== undefined && app.sub === currentSub;
-        const remembered = !current ? memory.last[app.sub] : undefined;
+        const rememberedPath = !current ? memory.last[app.sub] : undefined;
+        const remembered = isStorableNavPath(rememberedPath) ? rememberedPath : undefined;
         const href = remembered ? `${originOf(start)}${remembered}` : start;
+        const notify = () =>
+          notifyNavigate(onNavigate, {
+            source: 'appbar',
+            fromSub: currentSub,
+            toSub: app.sub,
+            href,
+          });
+        if (current && LinkComponent) {
+          // The current app routes in place: no full reload.
+          return (
+            <LinkComponent
+              key={`${app.sub}:${app.path ?? ''}`}
+              className="pr-appbar__item"
+              href={startPath(start)}
+              title={app.description}
+              data-active="true"
+              aria-current="page"
+              onClick={notify}
+            >
+              {appBarLabel(app, locale)}
+            </LinkComponent>
+          );
+        }
         return (
           <a
             key={`${app.sub}:${app.path ?? ''}`}
@@ -91,14 +151,7 @@ export function AppBar({ apps, currentSub, locale, label, memory, onNavigate }: 
             title={app.description}
             aria-current={current ? 'page' : undefined}
             data-current={current ? 'true' : undefined}
-            onClick={() =>
-              notifyNavigate(onNavigate, {
-                source: 'appbar',
-                fromSub: currentSub,
-                toSub: app.sub,
-                href,
-              })
-            }
+            onClick={notify}
           >
             {appBarLabel(app, locale)}
           </a>
@@ -138,6 +191,7 @@ export function AppBarSection({
       label={label}
       memory={memory}
       onNavigate={nav.onNavigate}
+      LinkComponent={nav.LinkComponent}
     />
   );
 }

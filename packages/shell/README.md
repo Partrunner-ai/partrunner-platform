@@ -96,8 +96,9 @@ Adoption steps:
    `/admin/dashboard` for Finanzas.
 4. Pass `navMemoryIgnore` for extra paths that must not be remembered.
 5. A page that owns its own ⌘K (Supply has one in onboarding/conversaciones)
-   must listen in the capture phase on `window` and call `preventDefault()`.
-   The shell then does not open «Ir a». The shell also ignores ⌘K with Shift or
+   must listen on `window` in the capture phase and call `preventDefault()`.
+   The shell listens on `document` in the bubble phase, so it runs later and
+   does not open «Ir a». The shell also ignores ⌘K with Shift or
    Alt held.
 
 Visit memory uses two cookies, `pr-nav-last` (last path per app) and
@@ -108,8 +109,11 @@ up to 160 characters; the recent list drops its oldest entries past 1500
 encoded characters). They
 hold the pathname only, never the query or the hash. Login, logout, `/auth/*`,
 `/sso*`, `/unauthorized`, and `/solicitar-acceso` are never stored
-(`NAV_MEMORY_IGNORE`). Finanzas lives on `partrunner.app`, so it does not share
-these cookies with the `partrunner.ai` apps; its bar item opens its start page.
+(`NAV_MEMORY_IGNORE`). `pr-nav-last` keeps the exact path, so a detail path such
+as `/rutas/<id>` is stored there for 30 days. Both cookies get `Secure` on
+https. Finanzas lives on `partrunner.app` and cannot read `.partrunner.ai` cookies. Its
+app bar therefore opens start pages, and its visits do not reach the other
+apps.
 
 ## Bell sound
 

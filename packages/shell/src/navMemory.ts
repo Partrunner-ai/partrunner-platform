@@ -72,16 +72,38 @@ export interface NavMemory {
 
 export const EMPTY_NAV_MEMORY: NavMemory = { last: {}, recent: [] };
 
-function isStorablePath(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length > 0 &&
-    value.length <= NAV_PATH_LIMIT &&
-    value.startsWith('/') &&
-    !value.startsWith('//') &&
-    !/[?#\s]/.test(value)
-  );
+function hasControlCharacter(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
 }
+
+/**
+ * A stored path is a plain same-origin path: it starts with one `/`, has no
+ * query, hash, whitespace, backslash, or control character, and resolves to the
+ * same origin (so `/\\evil.com` can never become a link to another host).
+ */
+export function isStorableNavPath(value: unknown): value is string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > NAV_PATH_LIMIT ||
+    !value.startsWith('/') ||
+    value.startsWith('//') ||
+    /[?#\s\\]/.test(value) ||
+    hasControlCharacter(value)
+  ) {
+    return false;
+  }
+  try {
+    return new URL(value, 'https://x.invalid').origin === 'https://x.invalid';
+  } catch {
+    return false;
+  }
+}
+const isStorablePath = isStorableNavPath;
 
 function isStorableSub(value: unknown): value is string {
   return typeof value === 'string' && /^[a-z0-9-]{1,40}$/.test(value);
@@ -133,6 +155,22 @@ function encodeValue(value: unknown): string {
 export function serializeNavLast(last: Record<string, string>): string | null {
   const encoded = encodeValue(last);
   return encoded.length > LAST_VALUE_LIMIT ? null : encoded;
+}
+
+/**
+ * Drops the oldest entries (first keys) until the encoded value fits, keeping
+ * `keep`. `recordNavVisit` puts the newest app last, so the oldest come first.
+ */
+export function trimNavLast(
+  last: Record<string, string>,
+  keep: string,
+): Record<string, string> {
+  const out = { ...last };
+  for (const key of Object.keys(out)) {
+    if (encodeValue(out).length <= LAST_VALUE_LIMIT) break;
+    if (key !== keep) delete out[key];
+  }
+  return out;
 }
 
 /** Encoded recent cookie. The oldest entries go first until it fits. */
@@ -192,7 +230,10 @@ export function recordNavVisit(
   if (!isStorableSub(visit.sub) || !isStorablePath(path)) return memory;
   if (isIgnoredNavPath(path, ignore)) return memory;
 
-  const last = { ...memory.last, [visit.sub]: path };
+  // Remove, then add: the visited app becomes the newest key.
+  const others = { ...memory.last };
+  delete others[visit.sub];
+  const last = trimNavLast({ ...others, [visit.sub]: path }, visit.sub);
   let recent = memory.recent;
   const label = visit.label?.trim();
   const recentPath = (visit.labelPath ?? path).split('?')[0]!.split('#')[0]!;
@@ -235,7 +276,8 @@ export function readNavMemory(
 
 function writeCookie(name: string, value: string, cookieDomain?: string): void {
   const domain = cookieDomain ? `; Domain=${cookieDomain}` : '';
-  document.cookie = `${name}=${value}; Path=/; SameSite=Lax; Max-Age=${NAV_MEMORY_MAX_AGE}${domain}`;
+  const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${name}=${value}; Path=/; SameSite=Lax; Max-Age=${NAV_MEMORY_MAX_AGE}${domain}${secure}`;
 }
 
 /** Writes both cookies. A value that is too large is skipped, never truncated. */
