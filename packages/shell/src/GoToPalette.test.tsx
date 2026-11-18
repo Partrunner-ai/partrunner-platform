@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureAppRegistry } from '@partrunner-ai/app-registry';
 import { NAV_RECENT_COOKIE } from './navMemory';
-import { AppbarShell, staffContext, useProductionRegistry } from './test/appbar-fixtures';
+import { UnifiedShell, staffContext, useProductionRegistry } from './test/unified-fixtures';
 
 beforeEach(() => {
   useProductionRegistry();
@@ -33,8 +33,8 @@ function optionLabels(): string[] {
 describe('«Ir a» palette', () => {
   it('opens from the header button and with Ctrl+K, and closes with Escape', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    const trigger = screen.getByRole('button', { name: /Ir a…/ });
+    render(<UnifiedShell />);
+    const trigger = screen.getByRole('button', { name: /Buscar o ir a…/ });
     expect(trigger.textContent).toMatch(/Ctrl K|⌘K/);
     expect(screen.queryByRole('dialog')).toBeNull();
 
@@ -60,8 +60,8 @@ describe('«Ir a» palette', () => {
     const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
     try {
       const user = userEvent.setup();
-      render(<AppbarShell />);
-      expect(screen.getByRole('button', { name: /Ir a…/ }).textContent).toContain('⌘K');
+      render(<UnifiedShell />);
+      expect(screen.getByRole('button', { name: /Buscar o ir a…/ }).textContent).toContain('⌘K');
       await user.keyboard('{Control>}k{/Control}');
       expect(screen.queryByRole('dialog')).toBeNull();
       await user.keyboard('{Meta>}k{/Meta}');
@@ -78,7 +78,7 @@ describe('«Ir a» palette', () => {
     };
     window.addEventListener('keydown', claim, true);
     try {
-      render(<AppbarShell />);
+      render(<UnifiedShell />);
       await user.keyboard('{Control>}k{/Control}');
       expect(screen.queryByRole('dialog')).toBeNull();
     } finally {
@@ -88,15 +88,15 @@ describe('«Ir a» palette', () => {
 
   it('ignores Shift and Alt variants of the shortcut', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
+    render(<UnifiedShell />);
     await user.keyboard('{Control>}{Shift>}k{/Shift}{/Control}');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens with «/» and lists both shortcuts', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    expect(screen.getByRole('button', { name: /Ir a…/ }).getAttribute('aria-keyshortcuts')).toMatch(
+    render(<UnifiedShell />);
+    expect(screen.getByRole('button', { name: /Buscar o ir a…/ }).getAttribute('aria-keyshortcuts')).toMatch(
       /^(Meta|Control)\+K \/$/,
     );
     await user.keyboard('/');
@@ -107,8 +107,8 @@ describe('«Ir a» palette', () => {
 
   it('closes on a click outside and returns focus to the trigger', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    const trigger = screen.getByRole('button', { name: /Ir a…/ });
+    render(<UnifiedShell />);
+    const trigger = screen.getByRole('button', { name: /Buscar o ir a…/ });
     await user.click(trigger);
     await user.click(document.body);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -117,8 +117,8 @@ describe('«Ir a» palette', () => {
 
   it('shows recent pages first, without the current page, with the app name', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     expect(screen.getByText('Recientes')).toBeTruthy();
     // The current page (Flotas, /fleets) is recorded by the shell and left out;
     // Unidades (supply) stays.
@@ -134,16 +134,16 @@ describe('«Ir a» palette', () => {
   it('says what to do when there is nothing recent', async () => {
     document.cookie = `${NAV_RECENT_COOKIE}=; path=/; max-age=0`;
     const user = userEvent.setup();
-    render(<AppbarShell currentPath="/login" />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell currentPath="/login" />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     expect(screen.queryByText('Recientes')).toBeNull();
     expect(screen.getByText('Apps')).toBeTruthy();
   });
 
   it('searches without regard to accents or case, across pages, recents, and apps', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     const input = screen.getByRole('combobox');
 
     await user.type(input, 'FACTURACION');
@@ -164,8 +164,8 @@ describe('«Ir a» palette', () => {
 
   it('lists this app pages before recents and apps, de-duplicated and capped at 10', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     await user.type(screen.getByRole('combobox'), 'u');
     const labels = optionLabels();
     expect(labels.length).toBeLessThanOrEqual(10);
@@ -179,7 +179,7 @@ describe('«Ir a» palette', () => {
   it('includes the host page index from the staff-shell context', async () => {
     const user = userEvent.setup();
     render(
-      <AppbarShell
+      <UnifiedShell
         context={staffContext({
           pages: [
             {
@@ -192,7 +192,7 @@ describe('«Ir a» palette', () => {
         })}
       />,
     );
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     await user.type(screen.getByRole('combobox'), 'cotiz');
     const option = screen.getByRole('option');
     expect(option.textContent).toBe('CotizacionesVentas · Comercial');
@@ -204,7 +204,7 @@ describe('«Ir a» palette', () => {
   it('drops host index pages whose href is not http or https', async () => {
     const user = userEvent.setup();
     render(
-      <AppbarShell
+      <UnifiedShell
         context={staffContext({
           pages: [
             { app: 'sales', label: 'Maligna', href: 'javascript:alert(1)' },
@@ -214,7 +214,7 @@ describe('«Ir a» palette', () => {
         })}
       />,
     );
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     await user.type(screen.getByRole('combobox'), 'a');
     const text = optionLabels().join('|');
     expect(text).toContain('Buena');
@@ -223,8 +223,8 @@ describe('«Ir a» palette', () => {
 
   it('sets aria-controls only while the listbox is rendered', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     const input = screen.getByRole('combobox');
     expect(input.getAttribute('aria-expanded')).toBe('true');
     expect(input.getAttribute('aria-controls')).toBe(screen.getByRole('listbox').id);
@@ -235,8 +235,8 @@ describe('«Ir a» palette', () => {
 
   it('moves with the arrow keys and wraps', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     const input = screen.getByRole('combobox');
     const options = () => screen.getAllByRole('option');
     const activeId = () => input.getAttribute('aria-activedescendant');
@@ -252,8 +252,8 @@ describe('«Ir a» palette', () => {
   it('opens the active row on Enter: another app by absolute URL', async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<AppbarShell onNavigate={onNavigate} />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell onNavigate={onNavigate} />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     expect(
       within(screen.getAllByRole('option')[0]!).getByRole('link').getAttribute('href'),
     ).toBe('https://sales.partrunner.ai/deals#pr-from=supply:%2Ffleets');
@@ -270,8 +270,8 @@ describe('«Ir a» palette', () => {
   it('opens a page of this app through the host router link', async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<AppbarShell onNavigate={onNavigate} />);
-    await user.click(screen.getByRole('button', { name: /Ir a…/ }));
+    render(<UnifiedShell onNavigate={onNavigate} />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
     await user.type(screen.getByRole('combobox'), 'factur{Enter}');
     expect(onNavigate).toHaveBeenCalledWith({
       source: 'goto',
@@ -284,11 +284,11 @@ describe('«Ir a» palette', () => {
   it('does not open with «/» typed in an input, a textarea, or a contenteditable', async () => {
     const user = userEvent.setup();
     render(
-      <AppbarShell>
+      <UnifiedShell>
         <input aria-label="campo" />
         <textarea aria-label="nota" />
         <div contentEditable suppressContentEditableWarning aria-label="editor" role="textbox" />
-      </AppbarShell>,
+      </UnifiedShell>,
     );
     for (const name of ['campo', 'nota', 'editor']) {
       await user.click(screen.getByRole('textbox', { name }));
@@ -304,7 +304,7 @@ describe('«Ir a» palette', () => {
     };
     window.addEventListener('keydown', claim, true);
     try {
-      render(<AppbarShell />);
+      render(<UnifiedShell />);
       await user.keyboard('/');
       expect(screen.queryByRole('dialog')).toBeNull();
     } finally {
@@ -317,7 +317,7 @@ describe('«Ir a» palette', () => {
 
   it('does not listen for the shortcut in launcher mode', async () => {
     const user = userEvent.setup();
-    render(<AppbarShell navigation="launcher" globalHeader={<div>plain</div>} />);
+    render(<UnifiedShell navigation="launcher" globalHeader={<div>plain</div>} />);
     await act(async () => {
       await user.keyboard('{Control>}k{/Control}');
       await user.keyboard('/');
@@ -328,9 +328,9 @@ describe('«Ir a» palette', () => {
   it('speaks English when the locale is en', async () => {
     const user = userEvent.setup();
     render(
-      <AppbarShell context={staffContext({ preferences: { locale: 'en', theme: 'system' } })} />,
+      <UnifiedShell context={staffContext({ preferences: { locale: 'en', theme: 'system' } })} />,
     );
-    await user.click(screen.getByRole('button', { name: /Go to…/ }));
+    await user.click(screen.getByRole('button', { name: /Search or go to…/ }));
     expect(screen.getByText('Recent')).toBeTruthy();
     await user.type(screen.getByRole('combobox'), 'zzzz');
     expect(screen.getByText('No results for “zzzz”')).toBeTruthy();

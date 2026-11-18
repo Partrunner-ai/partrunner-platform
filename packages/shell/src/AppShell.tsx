@@ -111,10 +111,8 @@ export type LinkComponent = ComponentType<{
   'data-active'?: string;
   'data-tour'?: string;
   'aria-current'?: 'page';
-  /** Only set on the brand block in `navigation="appbar"` mode. */
+  /** Only set on the brand block in `navigation="unified"` mode. */
   'data-canonical-brand'?: string;
-  /** Set by the shell on app-switcher rows. */
-  role?: 'menuitem';
 }>;
 
 const DefaultLink: LinkComponent = ({ href, children, ...rest }) => (
@@ -126,34 +124,23 @@ const DefaultLink: LinkComponent = ({ href, children, ...rest }) => (
 export interface AppShellProps {
   sections: NavSection[];
   /**
-   * `'launcher'` (default) keeps today's shell. `'switcher'` (recommended) puts
-   * an app switcher, a way back to the app you came from, and the «Ir a» search
-   * in `GlobalHeader`. `'appbar'` shows every app as a bar instead. Both make
-   * the brand open this app's start page and drop the pinned «Nexus» item.
+   * `'launcher'` (default) keeps today's shell. `'unified'` is the staff
+   * navigation every PartRunner app adopts: «Mis apps» in the sidebar, a way
+   * back to the app you came from, the «Buscar o ir a…» search, and the apps
+   * grid in `GlobalHeader`. It makes the brand open this app's start page and
+   * drops the pinned «Nexus» item.
    */
-  navigation?: 'launcher' | 'appbar' | 'switcher';
+  navigation?: 'launcher' | 'unified';
   /** Registry `sub` of this app (for example `'supply'`). Keys the visit memory. */
   appSub?: string;
   /** Extra paths the visit memory must not record, on top of the auth pages. */
   navMemoryIgnore?: string[];
   /**
-   * Called synchronously before a shell link navigates in `appbar` and
-   * `switcher` modes (app bar, switcher, way back, palette, brand, sidebar). Hosts
+   * Called synchronously before a shell link navigates in `unified`
+   * mode (grid, «Mis apps», way back, palette, brand, sidebar). Hosts
    * forward it to their usage tracking. A throwing callback is ignored.
    */
   onNavigate?: (event: ShellNavigateEvent) => void;
-  /**
-   * Shows «Mis apps» at the top of the sidebar, under the brand: the apps the
-   * person marked (`favoriteApps` in the staff-shell context), each with the
-   * page it opens. Only in `'appbar'` and `'switcher'` modes; default `false`.
-   */
-  appsInSidebar?: boolean;
-  /**
-   * `'switcher'` mode only: `false` hides the app-name selector. The menu
-   * button, the way back, `start`, the search field, and the apps grid stay.
-   * Default `true`.
-   */
-  appSwitcher?: boolean;
   /** Standard navigation, or a section-first drill navigation. */
   variant?: 'standard' | 'drill';
   /** Direct links rendered on the drill landing, above the product areas. */
@@ -339,7 +326,7 @@ export function useSidebar(): SidebarContextValue | null {
 export function SidebarTrigger({ label = 'Abrir menú' }: { label?: string }) {
   const sidebar = useSidebar();
   const headerOwnsTrigger = useContext(HeaderOwnsSidebarTriggerContext);
-  // A `'switcher'` header already renders the button.
+  // A `'unified'` header already renders the button.
   if (!sidebar || headerOwnsTrigger) return null;
   return (
     <button
@@ -424,8 +411,6 @@ export function AppShell({
   appSub,
   navMemoryIgnore,
   onNavigate,
-  appsInSidebar = false,
-  appSwitcher = true,
   variant = 'standard',
   drillHomeItems = [],
   drillBackLabel = 'Inicio',
@@ -596,22 +581,22 @@ export function AppShell({
    * "no link". Resolved lazily rather than in a default parameter because
    * `configureAppRegistry` can change the base domain after module load.
    */
-  const appbar = isAppNavigation(navigation);
+  const unified = isAppNavigation(navigation);
   // Read without throwing: «Mis apps» also renders (empty) with no provider.
   const staffShell = useOptionalStaffShell();
   const resolvedBrandHref = useMemo(() => {
     if (brandHref !== undefined) return brandHref;
-    // The app bar owns the way to Nexus, so the brand stays in the current app.
-    if (appbar) return '/';
+    // The grid owns the way to Nexus, so the brand stays in the current app.
+    if (unified) return '/';
     if (nexusHref) return nexusHref;
     return buildAppUrl({ scheme: 'subdomain', sub: 'nexus' });
-  }, [appbar, brandHref, nexusHref]);
-  const brandSelect = appbar
+  }, [unified, brandHref, nexusHref]);
+  const brandSelect = unified
     ? onBrandSelect
     : (onBrandSelect ?? (brandHref === undefined ? onNexusSelect : undefined));
 
   const pages = useMemo<ShellNavigationPage[]>(() => {
-    if (!appbar) return [];
+    if (!unified) return [];
     const out: ShellNavigationPage[] = [];
     const add = (item: NavItem, sectionLabel?: string) => {
       if (!item.href) return;
@@ -633,21 +618,21 @@ export function AppShell({
       }
     }
     return out;
-  }, [appbar, visibleDrillHomeItems, visibleSections]);
+  }, [unified, visibleDrillHomeItems, visibleSections]);
 
   const activeLabel = useMemo(() => {
-    if (!appbar || activeHref === undefined) return undefined;
+    if (!unified || activeHref === undefined) return undefined;
     return pages.find((page) => !page.external && navPath(page.href) === activeHref)?.label;
-  }, [appbar, activeHref, pages]);
+  }, [unified, activeHref, pages]);
 
   // The arrival is read once, on the first mount, and kept in sessionStorage.
   const [wayBack, setWayBack] = useState<WayBackTarget | null>(null);
   const wayBackRead = useRef(false);
   useEffect(() => {
-    if (!appbar || wayBackRead.current) return;
+    if (!unified || wayBackRead.current) return;
     wayBackRead.current = true;
     setWayBack(captureWayBack(appSub, readNavMemory().last));
-  }, [appbar, appSub]);
+  }, [unified, appSub]);
 
   const navigationValue = useMemo<ShellNavigationValue>(
     () => ({
@@ -660,7 +645,6 @@ export function AppShell({
       activeLabel,
       activePath: activeLabel === undefined ? undefined : activeHref,
       wayBack,
-      appSwitcher,
       navMemoryIgnore: navMemoryIgnore ?? [],
       onNavigate,
     }),
@@ -674,16 +658,15 @@ export function AppShell({
       activeLabel,
       activeHref,
       wayBack,
-      appSwitcher,
       navMemoryIgnore,
       onNavigate,
     ],
   );
 
-  // Remember the page for the app bar and «Ir a». Without `appSub` the header
+  // Remember the page for the grid, «Mis apps», and «Ir a». Without `appSub` the header
   // records it with its own `currentSub`.
   useEffect(() => {
-    if (!appbar || !appSub) return;
+    if (!unified || !appSub) return;
     rememberNavVisit(
       { sub: appSub, path: currentPath, label: activeLabel, labelPath: activeHref },
       cookieDomain,
@@ -691,9 +674,9 @@ export function AppShell({
     );
     // The ignore list is a host constant; a new array must not re-record.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appbar, appSub, currentPath, activeLabel, activeHref, cookieDomain]);
+  }, [unified, appSub, currentPath, activeLabel, activeHref, cookieDomain]);
 
-  const menuSelect = appbar
+  const menuSelect = unified
     ? (item: NavItem) =>
         notifyNavigate(onNavigate, {
           source: 'menu',
@@ -958,7 +941,7 @@ export function AppShell({
               rail hides, so the mobile drawer can show labels while the desktop
               preference is still "collapsed". */}
           {resolvedBrandHref ? (
-            appbar && !brandSelect && !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(resolvedBrandHref) ? (
+            unified && !brandSelect && !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(resolvedBrandHref) ? (
               // A path inside this app: the host's router handles it.
               <LinkComponent
                 className="pr-sidebar__brand"
@@ -988,7 +971,7 @@ export function AppShell({
                   brandSelect
                     ? (event) => {
                         event.preventDefault();
-                        if (appbar) {
+                        if (unified) {
                           notifyNavigate(onNavigate, {
                             source: 'brand',
                             fromSub: appSub,
@@ -999,7 +982,7 @@ export function AppShell({
                         closeDrawer();
                         brandSelect();
                       }
-                    : appbar
+                    : unified
                       ? () => {
                           notifyNavigate(onNavigate, {
                             source: 'brand',
@@ -1029,7 +1012,7 @@ export function AppShell({
           {primaryAction && <div className="pr-sidebar__primary">{primaryAction}</div>}
 
           <nav className="pr-nav" aria-label="Navegación principal">
-            {nexusHref && !appbar && (
+            {nexusHref && !unified && (
               <a
                 className="pr-nav__item"
                 href={nexusHref}
@@ -1049,7 +1032,7 @@ export function AppShell({
               </a>
             )}
 
-            {appbar && appsInSidebar ? (
+            {unified ? (
               <FavoriteApps nav={navigationValue} staff={staffShell} onOpen={closeDrawer} />
             ) : null}
 

@@ -37,17 +37,20 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
+/** `favoriteApps` is a shortcut for `preferences.favoriteApps`. */
 export function staffContext(
-  overrides: Partial<StaffShellContextValue> = {},
+  overrides: Partial<StaffShellContextValue> & { favoriteApps?: readonly string[] } = {},
 ): StaffShellContextValue {
+  const { favoriteApps, ...rest } = overrides;
+  const preferences = rest.preferences ?? { locale: 'es', theme: 'system' };
   return {
     user: { id: 'u1', name: 'Ada Lovelace' },
     profileHref: 'https://nexus.partrunner.ai/profile',
-    preferences: { locale: 'es', theme: 'system' },
     notifications: { unreadCount: 0, href: 'https://nexus.partrunner.ai/n', items: [] },
     setLocale: vi.fn(),
     setTheme: vi.fn(),
-    ...overrides,
+    ...rest,
+    preferences: favoriteApps === undefined ? preferences : { ...preferences, favoriteApps },
   };
 }
 
@@ -55,7 +58,7 @@ export function useProductionRegistry(): void {
   configureAppRegistry({ hostPrefix: '', baseDomain: 'partrunner.ai' });
 }
 
-export function AppbarShell({
+export function UnifiedShell({
   context = staffContext(),
   header,
   children,
@@ -70,7 +73,7 @@ export function AppbarShell({
       <AppShell
         sections={SECTIONS}
         currentPath="/fleets"
-        navigation="appbar"
+        navigation="unified"
         appSub="supply"
         LinkComponent={TestLink}
         can={() => false}

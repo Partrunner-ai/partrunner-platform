@@ -11,6 +11,12 @@ export const STAFF_SHELL_SNAPSHOT_VERSION = 1 as const;
 
 export interface StaffShellSnapshotPreferences
   extends StaffShellPreferences {
+  /**
+   * The apps marked as «Mis apps», in the person's order (at most 5).
+   * Optional: an older producer omits it, and a malformed value reads as
+   * absent. `parseStaffShellSnapshot` normalizes it.
+   */
+  favoriteApps?: readonly string[];
   notifications: {
     inApp: true;
     email: false;
@@ -145,9 +151,35 @@ export function isStaffShellSnapshot(
   );
 }
 
+export const FAVORITE_APPS_MAX = 5;
+const FAVORITE_SUB = /^[a-z0-9-]{1,40}$/;
+
+/**
+ * Keeps the valid subs of a favorite-apps value: well-formed, first occurrence
+ * wins, at most 5, in order. Anything that is not an array reads as `undefined`.
+ */
+export function normalizeFavoriteApps(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: string[] = [];
+  for (const item of value) {
+    if (out.length >= FAVORITE_APPS_MAX) break;
+    if (typeof item !== 'string' || !FAVORITE_SUB.test(item) || out.includes(item)) continue;
+    out.push(item);
+  }
+  return out;
+}
+
 export function parseStaffShellSnapshot(value: unknown): StaffShellSnapshot {
   if (!isStaffShellSnapshot(value)) {
     throw new TypeError('Invalid or unsupported staff shell snapshot');
   }
-  return value;
+  // An older producer has no key: return the snapshot as it is.
+  if (!('favoriteApps' in value.preferences)) return value;
+  // A bad favorites value never rejects the snapshot: it reads as absent.
+  const { favoriteApps: raw, ...preferences } = value.preferences;
+  const favoriteApps = normalizeFavoriteApps(raw);
+  return {
+    ...value,
+    preferences: favoriteApps === undefined ? preferences : { ...preferences, favoriteApps },
+  };
 }

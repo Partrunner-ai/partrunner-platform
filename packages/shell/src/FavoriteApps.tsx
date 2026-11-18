@@ -1,8 +1,7 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Check } from 'lucide-react';
-import { APP_BAR_ORDER, type AppLink } from '@partrunner-ai/app-registry';
-import { appBarApps, useNavMemory } from './AppBar';
-import { switcherRows, type SwitcherRow } from './AppSwitcher';
+import { APP_NAV_ORDER, type AppLink } from '@partrunner-ai/app-registry';
+import { appNavApps, navAppRows, useNavMemory, type NavAppRow } from './navShared';
 import { notifyNavigate, type ShellNavigationValue } from './NavigationContext';
 import type { StaffLocale, StaffShellContextValue } from './StaffShellContext';
 
@@ -16,6 +15,7 @@ interface FavoriteMessages {
   choose: string;
   max: string;
   editLabel: string;
+  saveError: string;
 }
 
 const MESSAGES: Record<StaffLocale, FavoriteMessages> = {
@@ -26,6 +26,7 @@ const MESSAGES: Record<StaffLocale, FavoriteMessages> = {
     choose: 'Elige tus apps',
     max: 'Máximo 5',
     editLabel: 'Elegir mis apps',
+    saveError: 'No se pudo guardar. Intenta de nuevo.',
   },
   en: {
     title: 'My apps',
@@ -34,6 +35,7 @@ const MESSAGES: Record<StaffLocale, FavoriteMessages> = {
     choose: 'Choose your apps',
     max: 'Maximum 5',
     editLabel: 'Choose my apps',
+    saveError: 'Could not save. Try again.',
   },
 };
 
@@ -44,11 +46,11 @@ function tileStyle(app: AppLink): CSSProperties {
   };
 }
 
-/** Subs in `APP_BAR_ORDER` (unlisted apps last), as `setFavoriteApps` receives them. */
+/** Subs in `APP_NAV_ORDER` (unlisted apps last), as `setFavoriteApps` receives them. */
 function inBarOrder(subs: readonly string[]): string[] {
   const rank = (sub: string) => {
-    const index = APP_BAR_ORDER.indexOf(sub);
-    return index === -1 ? APP_BAR_ORDER.length : index;
+    const index = APP_NAV_ORDER.indexOf(sub);
+    return index === -1 ? APP_NAV_ORDER.length : index;
   };
   return [...subs].sort((a, b) => rank(a) - rank(b));
 }
@@ -69,18 +71,27 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
   const messages = MESSAGES[locale];
   const memory = useNavMemory(nav.currentPath);
   const [editing, setEditing] = useState(false);
+  // The edit shows at once (optimistic). A failed save puts the previous list back.
+  const [local, setLocal] = useState<string[] | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const hostKey = (staff?.preferences.favoriteApps ?? []).join(',');
+  useEffect(() => {
+    // The host list changed (its own optimistic update or a refresh): it wins.
+    setLocal(null);
+  }, [hostKey]);
   const { LinkComponent, currentPath, onNavigate, appSub } = nav;
 
   const setFavorites = staff?.setFavoriteApps;
-  const apps = appBarApps();
+  const apps = appNavApps();
   const known = new Set(apps.map((app) => app.sub));
-  const favorites = (staff?.favoriteApps ?? []).filter((sub, index, list) => {
+  // Subs unknown to the installed registry are dropped here, never stored.
+  const favorites = (local ?? staff?.preferences.favoriteApps ?? []).filter((sub, index, list) => {
     return known.has(sub) && list.indexOf(sub) === index;
   });
   if (favorites.length === 0 && !setFavorites) return null;
 
   const rowsBySub = new Map(
-    switcherRows(apps, appSub, currentPath, memory, locale).map((row) => [row.app.sub, row]),
+    navAppRows(apps, appSub, currentPath, memory, locale).map((row) => [row.app.sub, row]),
   );
   const rows = favorites.flatMap((sub) => rowsBySub.get(sub) ?? []);
 
@@ -88,10 +99,26 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
     if (!setFavorites) return;
     const next = favorites.includes(sub) ? favorites.filter((item) => item !== sub) : [...favorites, sub];
     if (next.length > FAVORITE_APPS_LIMIT) return;
-    setFavorites(inBarOrder(next));
+    const ordered = inBarOrder(next);
+    const previous = favorites;
+    const fail = () => {
+      setLocal(previous);
+      setSaveFailed(true);
+    };
+    setSaveFailed(false);
+    setLocal(ordered);
+    try {
+      const result = setFavorites(ordered) as unknown;
+      if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+        Promise.resolve(result).catch(fail);
+      }
+    } catch {
+      // After the change event: a controlled checkbox must see the new value first.
+      queueMicrotask(fail);
+    }
   };
 
-  const open = (row: SwitcherRow) => {
+  const open = (row: NavAppRow) => {
     notifyNavigate(onNavigate, {
       source: 'favorites',
       fromSub: appSub,
@@ -101,7 +128,7 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
     onOpen?.();
   };
 
-  const body = (row: SwitcherRow) => (
+  const body = (row: NavAppRow) => (
     <>
       <span className="pr-favs__tile" style={tileStyle(row.app)} aria-hidden>
         <row.app.icon size={15} aria-hidden />
@@ -122,12 +149,20 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
             type="button"
             className="pr-favs__edit"
             aria-pressed={editing}
-            onClick={() => setEditing((value) => !value)}
+            onClick={() => {
+              setEditing((value) => !value);
+              setSaveFailed(false);
+            }}
           >
             {editing ? messages.done : messages.edit}
           </button>
         ) : null}
       </div>
+      {saveFailed ? (
+        <p className="pr-favs__error" role="status">
+          {messages.saveError}
+        </p>
+      ) : null}
       {editing ? (
         <ul className="pr-favs__list" aria-label={messages.editLabel}>
           {apps.map((app) => {

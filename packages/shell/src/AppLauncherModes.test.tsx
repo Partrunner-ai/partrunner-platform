@@ -6,7 +6,7 @@ import { AppShell } from './AppShell';
 import { GlobalHeader } from './GlobalHeader';
 import { NAV_LAST_COOKIE } from './navMemory';
 import { StaffShellProvider } from './StaffShellContext';
-import { AppbarShell, SECTIONS, staffContext, useProductionRegistry } from './test/appbar-fixtures';
+import { UnifiedShell, SECTIONS, staffContext, useProductionRegistry } from './test/unified-fixtures';
 
 const FROM = '#pr-from=supply:%2Ffleets';
 
@@ -32,9 +32,9 @@ function tile(menu: HTMLElement, name: RegExp) {
   return within(menu).getByRole('menuitem', { name });
 }
 
-describe('the apps grid in switcher and appbar modes', () => {
-  it('is in the switcher header, before the divider and the avatar, with every app', async () => {
-    const { container } = render(<AppbarShell navigation="switcher" />);
+describe('the apps grid in unified mode', () => {
+  it('is in the unified header, before the divider and the avatar, with every app', async () => {
+    const { container } = render(<UnifiedShell />);
     const header = container.querySelector('.pr-global-header')!;
     const launcher = header.querySelector('.pr-launcher')!;
     const divider = header.querySelector('.pr-global-header__divider')!;
@@ -46,7 +46,7 @@ describe('the apps grid in switcher and appbar modes', () => {
   });
 
   it('opens the start page of an app with no memory, with the way back', async () => {
-    render(<AppbarShell navigation="switcher" />);
+    render(<UnifiedShell />);
     const { menu } = await openGrid();
     expect(tile(menu, /LiveOps/).getAttribute('href')).toBe(`https://liveops.partrunner.ai${FROM}`);
   });
@@ -55,7 +55,7 @@ describe('the apps grid in switcher and appbar modes', () => {
     document.cookie = `${NAV_LAST_COOKIE}=${encodeURIComponent(
       JSON.stringify({ liveops: { p: '/general/routes', l: 'Todas las rutas' }, sales: '//evil.com' }),
     )}; path=/`;
-    render(<AppbarShell navigation="switcher" />);
+    render(<UnifiedShell />);
     const { menu } = await openGrid();
     expect(tile(menu, /LiveOps/).getAttribute('href')).toBe(
       `https://liveops.partrunner.ai/general/routes${FROM}`,
@@ -66,8 +66,8 @@ describe('the apps grid in switcher and appbar modes', () => {
 
   it('adds the fragment only to registry origins', async () => {
     render(
-      <AppbarShell
-        navigation="switcher"
+      <UnifiedShell
+       
         header={{
           apps: [
             {
@@ -96,7 +96,7 @@ describe('the apps grid in switcher and appbar modes', () => {
 
   it("reports the 'launcher' source", async () => {
     const onNavigate = vi.fn();
-    render(<AppbarShell navigation="switcher" onNavigate={onNavigate} />);
+    render(<UnifiedShell onNavigate={onNavigate} />);
     const { user, menu } = await openGrid();
     await user.click(tile(menu, /LiveOps/));
     expect(onNavigate).toHaveBeenCalledWith({
@@ -105,17 +105,6 @@ describe('the apps grid in switcher and appbar modes', () => {
       toSub: 'liveops',
       href: `https://liveops.partrunner.ai${FROM}`,
     });
-  });
-
-  it('works the same in appbar mode', async () => {
-    document.cookie = `${NAV_LAST_COOKIE}=${encodeURIComponent(
-      JSON.stringify({ liveops: { p: '/general/routes' } }),
-    )}; path=/`;
-    render(<AppbarShell navigation="appbar" />);
-    const { menu } = await openGrid();
-    expect(tile(menu, /LiveOps/).getAttribute('href')).toBe(
-      `https://liveops.partrunner.ai/general/routes${FROM}`,
-    );
   });
 
   it('leaves launcher mode as it was: start pages, no fragment, no event', async () => {

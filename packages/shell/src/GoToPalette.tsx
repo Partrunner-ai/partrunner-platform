@@ -10,8 +10,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
 import { appHref, type AppLink } from '@partrunner-ai/app-registry';
-import { appBarLabel, originOf, useNavMemory } from './AppBar';
-import { switcherRows, switcherName } from './AppSwitcher';
+import { appNavLabel, navAppName, navAppRows, originOf, useNavMemory } from './navShared';
 import { isStorableNavPath } from './navMemory';
 import { findApp } from '@partrunner-ai/app-registry';
 import { withWayBack } from './wayBack';
@@ -70,7 +69,7 @@ interface Entry {
   /** Second line: section and app name. */
   meta: string;
   /** What the navigation event reports. */
-  source: 'goto' | 'switcher' | 'wayback';
+  source: 'goto' | 'wayback';
   /** Path for a page of this app, else an absolute URL. */
   href: string;
   /** Rendered through the host's router. */
@@ -118,8 +117,6 @@ export interface GoToPaletteProps {
   locale: StaffLocale;
   /** Optional cross-app page index from the staff-shell context. */
   extraPages?: readonly StaffShellPage[];
-  /** `'field'` renders the trigger as a search field (switcher mode). */
-  variant?: 'button' | 'field';
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -149,7 +146,6 @@ export function GoToPalette({
   currentSub,
   locale,
   extraPages,
-  variant = 'button',
 }: GoToPaletteProps) {
   const messages = MESSAGES[locale];
   const [open, setOpen] = useState(false);
@@ -213,7 +209,7 @@ export function GoToPalette({
     const appByLabel = new Map(apps.map((app) => [app.sub, app]));
     const appName = (sub: string): string => {
       const app = appByLabel.get(sub);
-      return app ? appBarLabel(app, locale) : sub;
+      return app ? appNavLabel(app, locale) : sub;
     };
     const meta = (sub: string, section?: string) =>
       [section, appName(sub)].filter(Boolean).join(' · ');
@@ -228,7 +224,7 @@ export function GoToPalette({
               key: 'b:wayback',
               group: 'back',
               source: 'wayback',
-              label: switcherName(wbApp),
+              label: navAppName(wbApp),
               meta: '',
               href: crossApp(`${originOf(appHref(wbApp))}${wb.p}`),
               routed: false,
@@ -257,10 +253,10 @@ export function GoToPalette({
     }
 
     if (query.trim() === '') {
-      const rows = switcherRows(apps, appSub, currentPath, memory, locale).map<Entry>((row) => ({
+      const rows = navAppRows(apps, appSub, currentPath, memory, locale).map<Entry>((row) => ({
         key: `a:${row.app.sub}`,
         group: 'apps',
-        source: 'switcher',
+        source: 'goto',
         label: row.name,
         meta: row.pageLabel,
         href: row.href,
@@ -303,8 +299,8 @@ export function GoToPalette({
     const appEntries: Entry[] = apps.map((app) => ({
       key: `a:${app.sub}`,
       group: 'apps',
-      source: 'switcher',
-      label: messages.open(appBarLabel(app, locale)),
+      source: 'goto',
+      label: messages.open(appNavLabel(app, locale)),
       meta: '',
       href: app.sub === appSub ? appHref(app)! : crossApp(appHref(app)!),
       routed: false,
@@ -468,7 +464,7 @@ export function GoToPalette({
       <button
         ref={triggerRef}
         type="button"
-        className={`pr-goto-trigger${variant === 'field' ? ' pr-goto-trigger--field' : ''}`}
+        className="pr-goto-trigger pr-goto-trigger--field"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-keyshortcuts={hint === '⌘K' ? 'Meta+K /' : 'Control+K /'}
@@ -476,7 +472,7 @@ export function GoToPalette({
       >
         <Search size={15} aria-hidden />
         <span className="pr-goto-trigger__label">
-          {variant === 'field' ? messages.field : messages.trigger}
+          {messages.field}
         </span>
         <kbd className="pr-goto-trigger__hint">{hint}</kbd>
       </button>

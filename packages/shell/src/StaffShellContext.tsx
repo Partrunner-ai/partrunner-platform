@@ -24,6 +24,11 @@ export interface StaffShellUser {
 export interface StaffShellPreferences {
   theme: StaffTheme;
   locale: StaffLocale;
+  /**
+   * The apps the person marked as «Mis apps» (registry `sub`s, in the person's
+   * order, at most 5). Read by the sidebar of `navigation="unified"`.
+   */
+  favoriteApps?: readonly string[];
 }
 
 export interface StaffNotification {
@@ -68,7 +73,7 @@ export interface StaffNotificationsState {
 
 /**
  * One page of the cross-app index that powers the «Ir a» palette in
- * `navigation="appbar"` mode. Hosts (Nexus, later) fill it; it is optional.
+ * `navigation="unified"` mode. Hosts (Nexus, later) fill it; it is optional.
  */
 export interface StaffShellPage {
   /** Registry `sub` of the app that owns the page. */
@@ -114,18 +119,15 @@ export interface StaffShellContextValue {
    */
   refreshNotifications?: () => StaffShellMutation;
   signOut?: () => StaffShellMutation;
-  /** Optional cross-app page index for the «Ir a» palette (`navigation="appbar"`). */
+  /** Optional cross-app page index for the «Ir a» palette (`navigation="unified"`). */
   pages?: readonly StaffShellPage[];
   /**
-   * The apps the person marked as «Mis apps» (registry `sub`s, in the person's
-   * order). Read by the sidebar section of `AppShell` with `appsInSidebar`.
+   * Saves `preferences.favoriteApps`. The shell passes the subs in
+   * `APP_NAV_ORDER`, at most 5. Must be optimistic (like `setTheme`). Without it
+   * the list is read-only. When it throws or returns a promise that rejects, the
+   * shell puts the previous list back and shows «No se pudo guardar».
    */
-  favoriteApps?: readonly string[];
-  /**
-   * Saves the favorite apps. The shell passes the subs in `APP_BAR_ORDER`, at
-   * most 5. Must be optimistic. Without it the list is read-only.
-   */
-  setFavoriteApps?: (subs: readonly string[]) => StaffShellMutation;
+  setFavoriteApps?: (subs: readonly string[]) => StaffShellMutation | Promise<unknown>;
 }
 
 const StaffShellContext = createContext<StaffShellContextValue | null>(null);

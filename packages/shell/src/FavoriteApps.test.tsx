@@ -7,12 +7,12 @@ import { GlobalHeader } from './GlobalHeader';
 import { NAV_LAST_COOKIE } from './navMemory';
 import { StaffShellProvider } from './StaffShellContext';
 import {
-  AppbarShell,
+  UnifiedShell,
   SECTIONS,
   TestLink,
   staffContext,
   useProductionRegistry,
-} from './test/appbar-fixtures';
+} from './test/unified-fixtures';
 
 beforeEach(() => {
   useProductionRegistry();
@@ -33,13 +33,13 @@ function favs(): HTMLElement {
 }
 
 describe('«Mis apps» in the sidebar', () => {
-  it('is hidden by default, in launcher mode, and without the prop', () => {
+  it('is hidden in launcher mode and shown in unified mode without any prop', () => {
     const context = staffContext({ favoriteApps: ['liveops'] });
-    const { rerender } = render(<AppbarShell context={context} />);
-    expect(screen.queryByRole('region', { name: 'Mis apps' })).toBeNull();
+    const { rerender } = render(<UnifiedShell context={context} />);
+    expect(screen.getByRole('region', { name: 'Mis apps' })).toBeTruthy();
 
     rerender(
-      <AppbarShell context={context} navigation="launcher" appsInSidebar globalHeader={<div />} />,
+      <UnifiedShell context={context} navigation="launcher" globalHeader={<div />} />,
     );
     expect(screen.queryByRole('region', { name: 'Mis apps' })).toBeNull();
   });
@@ -49,8 +49,8 @@ describe('«Mis apps» in the sidebar', () => {
       JSON.stringify({ liveops: { p: '/general/routes', l: 'Todas las rutas' } }),
     )}; path=/`;
     render(
-      <AppbarShell
-        appsInSidebar
+      <UnifiedShell
+       
         context={staffContext({ favoriteApps: ['liveops', 'nexus', 'supply'] })}
       />,
     );
@@ -70,8 +70,8 @@ describe('«Mis apps» in the sidebar', () => {
   it('marks the current app and routes it in place', () => {
     const onNavigate = vi.fn();
     render(
-      <AppbarShell
-        appsInSidebar
+      <UnifiedShell
+       
         onNavigate={onNavigate}
         context={staffContext({ favoriteApps: ['supply', 'liveops'] })}
       />,
@@ -92,8 +92,8 @@ describe('«Mis apps» in the sidebar', () => {
     const onNavigate = vi.fn();
     const user = userEvent.setup();
     render(
-      <AppbarShell
-        appsInSidebar
+      <UnifiedShell
+       
         onNavigate={onNavigate}
         context={staffContext({ favoriteApps: ['liveops'] })}
       />,
@@ -108,8 +108,8 @@ describe('«Mis apps» in the sidebar', () => {
     const setFavoriteApps = vi.fn();
     const user = userEvent.setup();
     render(
-      <AppbarShell
-        appsInSidebar
+      <UnifiedShell
+       
         context={staffContext({
           favoriteApps: ['liveops', 'supply'],
           setFavoriteApps,
@@ -122,19 +122,20 @@ describe('«Mis apps» in the sidebar', () => {
     expect(within(favs()).getByRole('checkbox', { name: /LiveOps/ })).toHaveProperty('checked', true);
 
     await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
-    // APP_BAR_ORDER, not click order.
+    // APP_NAV_ORDER, not click order.
     expect(setFavoriteApps).toHaveBeenLastCalledWith(['nexus', 'supply', 'liveops']);
     await user.click(within(favs()).getByRole('checkbox', { name: /FDS/ }));
-    expect(setFavoriteApps).toHaveBeenLastCalledWith(['supply', 'liveops', 'fds']);
+    // The host list did not change, so the shell keeps the edit it showed.
+    expect(setFavoriteApps).toHaveBeenLastCalledWith(['nexus', 'supply', 'liveops', 'fds']);
     await user.click(within(favs()).getByRole('button', { name: 'Listo' }));
-    expect(within(favs()).getAllByRole('link')).toHaveLength(2);
+    expect(within(favs()).getAllByRole('link')).toHaveLength(4);
   });
 
   it('disables the unchecked apps at the limit and shows the hint', async () => {
     const user = userEvent.setup();
     render(
-      <AppbarShell
-        appsInSidebar
+      <UnifiedShell
+       
         context={staffContext({
           favoriteApps: ['nexus', 'sales', 'solicitudes', 'supply', 'liveops'],
           setFavoriteApps: vi.fn(),
@@ -151,8 +152,8 @@ describe('«Mis apps» in the sidebar', () => {
   it('shows «Elige tus apps» when the list is empty and a setter exists', async () => {
     const user = userEvent.setup();
     render(
-      <AppbarShell
-        appsInSidebar
+      <UnifiedShell
+       
         context={staffContext({ favoriteApps: [], setFavoriteApps: vi.fn() })}
       />,
     );
@@ -162,17 +163,17 @@ describe('«Mis apps» in the sidebar', () => {
 
   it('renders nothing for an empty list without a setter, and has no Editar button', () => {
     const { rerender } = render(
-      <AppbarShell appsInSidebar context={staffContext({ favoriteApps: [] })} />,
+      <UnifiedShell context={staffContext({ favoriteApps: [] })} />,
     );
     expect(screen.queryByRole('region', { name: 'Mis apps' })).toBeNull();
-    rerender(<AppbarShell appsInSidebar context={staffContext({ favoriteApps: ['liveops'] })} />);
+    rerender(<UnifiedShell context={staffContext({ favoriteApps: ['liveops'] })} />);
     expect(within(favs()).queryByRole('button', { name: 'Editar' })).toBeNull();
   });
 
   it('ignores unknown subs and speaks English', () => {
     render(
-      <AppbarShell
-        appsInSidebar
+      <UnifiedShell
+       
         context={staffContext({
           favoriteApps: ['nope', 'liveops'],
           setFavoriteApps: vi.fn(),
@@ -190,9 +191,9 @@ describe('«Mis apps» in the sidebar', () => {
       <AppShell
         sections={SECTIONS}
         currentPath="/fleets"
-        navigation="switcher"
+       
         appSub="supply"
-        appsInSidebar
+       
         LinkComponent={TestLink}
       >
         x
@@ -202,15 +203,14 @@ describe('«Mis apps» in the sidebar', () => {
     expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeTruthy();
   });
 
-  it('works in switcher mode, above the app menu', () => {
+  it('renders without a prop, above the app menu', () => {
     render(
       <StaffShellProvider value={staffContext({ favoriteApps: ['liveops'] })}>
         <AppShell
           sections={SECTIONS}
           currentPath="/fleets"
-          navigation="switcher"
+          navigation="unified"
           appSub="supply"
-          appsInSidebar
           LinkComponent={TestLink}
           globalHeader={<GlobalHeader currentSub="supply" />}
         >
@@ -220,5 +220,60 @@ describe('«Mis apps» in the sidebar', () => {
     );
     const nav = screen.getByRole('navigation', { name: 'Navegación principal' });
     expect(nav.firstElementChild).toBe(favs());
+  });
+
+  it('puts the previous list back and shows one error line when the save fails', async () => {
+    const user = userEvent.setup();
+    const setFavoriteApps = vi.fn((): Promise<void> => Promise.reject(new Error('down')));
+    render(
+      <UnifiedShell
+        context={staffContext({ favoriteApps: ['liveops'], setFavoriteApps })}
+      />,
+    );
+    await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
+    await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
+    const status = await within(favs()).findByRole('status');
+    expect(status.textContent).toBe('No se pudo guardar. Intenta de nuevo.');
+    expect(within(favs()).getByRole('checkbox', { name: /Nexus/ })).toHaveProperty('checked', false);
+    expect(within(favs()).getByRole('checkbox', { name: /LiveOps/ })).toHaveProperty('checked', true);
+    // The next edit clears the line.
+    setFavoriteApps.mockImplementation(() => Promise.resolve());
+    await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
+    expect(within(favs()).queryByRole('status')).toBeNull();
+  });
+
+  it('restores the previous list when the setter throws, in English', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell
+        context={staffContext({
+          favoriteApps: ['liveops'],
+          preferences: { locale: 'en', theme: 'system' },
+          setFavoriteApps: () => {
+            throw new Error('down');
+          },
+        })}
+      />,
+    );
+    await user.click(within(screen.getByRole('region', { name: 'My apps' })).getByRole('button', { name: 'Edit' }));
+    await user.click(within(screen.getByRole('region', { name: 'My apps' })).getByRole('checkbox', { name: /Supply/ }));
+    expect((await within(screen.getByRole('region', { name: 'My apps' })).findByRole('status')).textContent).toBe('Could not save. Try again.');
+    expect(within(screen.getByRole('region', { name: 'My apps' })).getByRole('checkbox', { name: /Supply/ })).toHaveProperty('checked', false);
+  });
+
+  it('drops subs unknown to the installed registry from rows and the edit list', async () => {
+    const user = userEvent.setup();
+    const setFavoriteApps = vi.fn();
+    render(
+      <UnifiedShell
+        context={staffContext({ favoriteApps: ['ghost', 'community', 'liveops'], setFavoriteApps })}
+      />,
+    );
+    // Comunidad has appNav: false, so it is unknown to the navigation too.
+    expect(within(favs()).getAllByRole('link')).toHaveLength(1);
+    await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
+    expect(within(favs()).getAllByRole('checkbox')).toHaveLength(7);
+    await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
+    expect(setFavoriteApps).toHaveBeenLastCalledWith(['nexus', 'liveops']);
   });
 });

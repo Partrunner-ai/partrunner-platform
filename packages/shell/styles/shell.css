@@ -1131,57 +1131,7 @@ a.pr-sidebar__brand:focus-visible {
   border: 0;
 }
 
-/* ---- App bar and «Ir a» palette (navigation="appbar") ---- */
-.pr-global-header__nav {
-  /* Takes the place of the spacer. The bar shows only when this slot is wide
-     enough; see the container query below. */
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  container-type: inline-size;
-}
-.pr-appbar {
-  display: none;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--pr-fg) 6%, transparent);
-}
-.pr-appbar__item {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 10px;
-  border-radius: 7px;
-  color: var(--pr-fg-muted);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background-color 150ms var(--pr-ease), color 150ms var(--pr-ease);
-}
-.pr-appbar__item:hover {
-  background: var(--pr-surface);
-  color: var(--pr-fg);
-}
-.pr-appbar__item.pr-appbar__item--current,
-.pr-appbar__item[data-current='true'] {
-  background: var(--pr-accent);
-  color: var(--pr-accent-ink);
-  font-weight: 600;
-}
-.pr-appbar__item:focus-visible {
-  outline: none;
-  box-shadow: var(--pr-focus-ring);
-}
-@container (min-width: 500px) {
-  .pr-appbar {
-    display: flex;
-  }
-}
+/* ---- «Ir a» palette ---- */
 
 .pr-goto-trigger {
   display: inline-flex;
@@ -1335,109 +1285,12 @@ a.pr-sidebar__brand:focus-visible {
   }
 }
 
-/* ---- App switcher, way back, and search field (navigation="switcher") ---- */
+/* ---- Way back and search field (navigation="unified") ---- */
 .pr-global-header__switch {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: 8px;
-}
-.pr-switcher {
-  position: relative;
-}
-.pr-switcher__trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--pr-radius-md);
-  background: transparent;
-  color: var(--pr-fg);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 150ms var(--pr-ease);
-}
-.pr-switcher__trigger:hover,
-.pr-switcher__trigger[aria-expanded='true'] {
-  background: var(--pr-border);
-}
-.pr-switcher__trigger:focus-visible {
-  outline: none;
-  box-shadow: var(--pr-focus-ring);
-}
-.pr-switcher__trigger > svg {
-  color: var(--pr-fg-muted);
-}
-.pr-switcher__menu {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  margin-top: 8px;
-  width: 280px;
-  padding: 6px;
-  background: var(--pr-elevated);
-  border: 1px solid var(--pr-border);
-  border-radius: var(--pr-radius-lg);
-  box-shadow: var(--pr-shadow-elevated);
-  z-index: 50;
-  animation: pr-popover-in 150ms var(--pr-ease);
-}
-.pr-switcher__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--pr-radius-md);
-  color: var(--pr-fg);
-  text-decoration: none;
-}
-.pr-switcher__item:hover,
-.pr-switcher__item:focus-visible {
-  outline: none;
-  background: var(--pr-border);
-}
-.pr-switcher__item.pr-switcher__item--current,
-.pr-switcher__item[data-active='true'] {
-  box-shadow: inset 0 0 0 1px var(--pr-accent);
-}
-.pr-switcher__num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--pr-border);
-  border-radius: var(--pr-radius-sm);
-  color: var(--pr-fg-muted);
-  font-family: var(--pr-font-mono, ui-monospace, monospace);
-  font-size: 11px;
-}
-.pr-switcher__copy {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-}
-.pr-switcher__app {
-  font-size: 14px;
-  font-weight: 600;
-}
-.pr-switcher__page {
-  overflow: hidden;
-  color: var(--pr-fg-muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pr-switcher__here {
-  flex-shrink: 0;
-  color: var(--pr-fg-muted);
-  font-size: 12px;
 }
 
 .pr-wayback {
@@ -1497,20 +1350,14 @@ a.pr-sidebar__brand:focus-visible {
     margin-right: 0;
     justify-content: center;
   }
-  .pr-switcher__menu {
-    position: fixed;
-    top: 56px;
-    left: 12px;
-    right: 12px;
-    width: auto;
-  }
+  
 }
 
 @media (max-width: 720px) {
-  .pr-global-header[data-navigation='switcher'] {
+  .pr-global-header[data-navigation='unified'] {
     gap: 4px;
   }
-  .pr-global-header[data-navigation='switcher'] .pr-global-header__start:empty {
+  .pr-global-header[data-navigation='unified'] .pr-global-header__start:empty {
     display: none;
   }
   .pr-global-header__switch {
@@ -1518,21 +1365,9 @@ a.pr-sidebar__brand:focus-visible {
     flex-shrink: 1;
     gap: 4px;
   }
-  .pr-switcher {
-    min-width: 0;
-  }
-  .pr-switcher__trigger {
-    max-width: 100%;
-    min-width: 0;
-    padding: 0 6px;
-  }
-  .pr-switcher__name {
-    min-width: 0;
-    max-width: 72px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  
+  
+  
   /* Only the arrow: the link keeps its full aria-label. */
   .pr-wayback {
     padding: 0 8px;
@@ -1542,7 +1377,7 @@ a.pr-sidebar__brand:focus-visible {
   }
 }
 
-/* ---- «Mis apps» in the sidebar (appsInSidebar) ---- */
+/* ---- «Mis apps» in the sidebar (navigation="unified") ---- */
 .pr-favs {
   display: flex;
   flex-direction: column;
@@ -1691,4 +1526,12 @@ a.pr-sidebar__brand:focus-visible {
     padding-left: var(--pr-nav-item-px);
     padding-right: var(--pr-nav-item-px);
   }
+}
+.pr-favs__error {
+  margin: 0;
+  padding: 2px 12px 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--pr-sidebar-fg);
+  font-weight: 600;
 }

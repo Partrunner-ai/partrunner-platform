@@ -3,9 +3,9 @@ import { UserRound } from 'lucide-react';
 import type { AppLink } from '@partrunner-ai/app-registry';
 import { AppLauncher } from './AppLauncher';
 import { SidebarTrigger } from './AppShell';
-import { AppBarSection, appBarApps } from './AppBar';
-import { SwitcherSection } from './AppSwitcher';
 import { GoToPalette } from './GoToPalette';
+import { appNavApps } from './navShared';
+import { WayBackSection } from './WayBackChip';
 import {
   HeaderOwnsSidebarTriggerContext,
   isAppNavigation,
@@ -113,11 +113,9 @@ export function GlobalHeader({
   const { locale } = shell.preferences;
   const messages = MESSAGES[locale];
   const nav = useShellNavigation();
-  const appNav = nav && isAppNavigation(nav.mode) ? nav : null;
-  const switcher = nav?.mode === 'switcher' ? nav : null;
-  const appbar = nav?.mode === 'appbar' ? nav : null;
-  const barSub = appNav ? (appNav.appSub ?? currentSub) : currentSub;
-  const barApps = appNav ? appBarApps(apps) : [];
+  const unified = nav && isAppNavigation(nav.mode) ? nav : null;
+  const navSub = unified ? (unified.appSub ?? currentSub) : currentSub;
+  const navApps = unified ? appNavApps(apps) : [];
   const profileItem: UserMenuItem = {
     label: messages.profile,
     href: shell.profileHref,
@@ -127,47 +125,32 @@ export function GlobalHeader({
   return (
     <header
       className={`pr-global-header${className ? ` ${className}` : ''}`}
-      data-navigation={appNav ? appNav.mode : undefined}
+      data-navigation={unified ? unified.mode : undefined}
       aria-label={messages.landmark}
     >
-      {switcher ? <SidebarTrigger /> : null}
-      {switcher ? (
-        <SwitcherSection
-          nav={switcher}
-          apps={barApps}
-          currentSub={barSub}
+      {unified ? <SidebarTrigger /> : null}
+      {unified ? (
+        <WayBackSection
+          nav={unified}
+          currentSub={navSub}
           headerSub={currentSub}
           locale={locale}
         />
       ) : null}
-      {switcher ? (
+      {unified ? (
         <HeaderOwnsSidebarTriggerContext.Provider value>
           <div className="pr-global-header__start">{start}</div>
         </HeaderOwnsSidebarTriggerContext.Provider>
       ) : (
         <div className="pr-global-header__start">{start}</div>
       )}
-      {appbar ? (
-        <div className="pr-global-header__nav">
-          <AppBarSection
-            nav={appbar}
-            apps={barApps}
-            currentSub={barSub}
-            headerSub={currentSub}
-            locale={locale}
-            label={messages.apps}
-          />
-        </div>
-      ) : (
-        <div className="pr-global-header__spacer" />
-      )}
+      <div className="pr-global-header__spacer" />
       <div className="pr-global-header__controls">
-        {appNav ? (
+        {unified ? (
           <GoToPalette
-            nav={appNav}
-            variant={switcher ? 'field' : 'button'}
-            apps={barApps}
-            currentSub={barSub}
+            nav={unified}
+            apps={navApps}
+            currentSub={navSub}
             locale={locale}
             extraPages={shell.pages}
           />

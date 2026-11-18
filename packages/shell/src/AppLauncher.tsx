@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { APPS, appHref, type AppLink, type AppTone } from '@partrunner-ai/app-registry';
-import { originOf, useNavMemory } from './AppBar';
+import { originOf, useNavMemory } from './navShared';
 import { isAppNavigation, notifyNavigate, useShellNavigation } from './NavigationContext';
 import { isStorableNavPath } from './navMemory';
 import { useDismiss } from './useDismiss';
@@ -43,7 +43,7 @@ export function AppLauncher({
   const close = useCallback(() => setOpen(false), []);
   useDismiss(wrapperRef, open, close);
 
-  // In `'appbar'` and `'switcher'` modes a tile opens the last page used in
+  // In `'unified'` mode a tile opens the last page used in
   // that app and carries the way back. Launcher mode and a bare launcher keep
   // the start pages.
   const nav = useShellNavigation();

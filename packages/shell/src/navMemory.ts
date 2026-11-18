@@ -1,5 +1,5 @@
 /**
- * Visit memory for `navigation="appbar"`.
+ * Visit memory for `navigation="unified"`.
  *
  * Two small cookies let one app open the page you last used in another app:
  *

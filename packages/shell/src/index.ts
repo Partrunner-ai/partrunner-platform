@@ -69,7 +69,7 @@ export { UserMenu, type UserMenuItem, type UserMenuProps } from './UserMenu';
 // Re-export the registry so consumers can import both from one place.
 export {
   APPS,
-  APP_BAR_APPS,
+  APP_NAV_APPS,
   appHref,
   buildAppUrl,
   configureAppRegistry,

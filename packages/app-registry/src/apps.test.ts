@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { APPS, APP_BAR_APPS, APP_BAR_ORDER, appHref, sortAppBarApps, findApp, type AppLink } from './apps';
+import { APPS, APP_NAV_APPS, APP_NAV_ORDER, appHref, sortAppNavApps, findApp, type AppLink } from './apps';
 import { configureAppRegistry } from './url';
 
 const PROD = { hostPrefix: '', baseDomain: 'partrunner.ai' };
@@ -128,15 +128,15 @@ describe('the registry as a whole', () => {
   });
 });
 
-describe('the app bar list', () => {
-  it('follows APP_BAR_ORDER, leaves out Comunidad, and leaves APPS in its own order', () => {
-    expect(APP_BAR_APPS.map((entry) => entry.sub)).toEqual([...APP_BAR_ORDER]);
-    expect(findApp('community')!.appBar).toBe(false);
+describe('the staff navigation list', () => {
+  it('follows APP_NAV_ORDER, leaves out Comunidad, and leaves APPS in its own order', () => {
+    expect(APP_NAV_APPS.map((entry) => entry.sub)).toEqual([...APP_NAV_ORDER]);
+    expect(findApp('community')!.appNav).toBe(false);
     expect(APPS[1]!.label).toBe('Supply');
   });
 
   it('puts unlisted apps last in their own order', () => {
     const list = [{ sub: 'zeta' }, { sub: 'fds' }, { sub: 'alpha' }, { sub: 'nexus' }];
-    expect(sortAppBarApps(list).map((entry) => entry.sub)).toEqual(['nexus', 'fds', 'zeta', 'alpha']);
+    expect(sortAppNavApps(list).map((entry) => entry.sub)).toEqual(['nexus', 'fds', 'zeta', 'alpha']);
   });
 });

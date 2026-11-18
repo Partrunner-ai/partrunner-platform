@@ -47,21 +47,15 @@ together with `unseenCount`, `onOpen` and `sound`.
 
 ## Navigation modes (`navigation`)
 
-Opt-in. Without the prop nothing changes: `navigation` defaults to
-`'launcher'`. Two other modes share the brand rule, the visit memory, the
-«Ir a» palette, and `onNavigate`:
-
-- `'switcher'` (recommended): no always-visible bar. The header shows an app
-  switcher («Supply ▾»), a way back («← LiveOps») when the person came from
-  another app, and a «Buscar o ir a… ⌘K» search field. The familiar apps grid stays at the top right (see below).
-- `'appbar'` (an alternative): the header shows every app as a bar, plus an
-  «Ir a…» button.
+Two modes. `'launcher'` is the default: nothing changes without the prop.
+`'unified'` is the staff navigation. Every staff app adopts it; there are no
+per-app options.
 
 ```tsx
 <AppShell
   sections={sections}
   currentPath={pathname}
-  navigation="switcher"
+  navigation="unified"
   appSub="supply"
   cookieDomain=".partrunner.ai"
   brandHref="/"
@@ -70,105 +64,103 @@ Opt-in. Without the prop nothing changes: `navigation` defaults to
 >
 ```
 
-Shared by both modes:
+In `'unified'` mode:
 
+- The header shows, in order: the menu button (mobile only), the way back
+  («← LiveOps», when the person came from another app), the host `start`, the
+  «Buscar o ir a… ⌘K» search field, the apps grid, the theme button, the bell,
+  and the avatar. The grid sits where it sits in launcher mode.
+- The sidebar shows «Mis apps» under the brand, above the app's menu.
 - The brand block opens the start page of the app you are in (`brandHref`, else
   `/`). `onBrandSelect` runs only when you pass it. The pinned «Nexus» item is
-  not rendered; Nexus is a row in the switcher or «Inicio» in the bar.
-- «Ir a…» (⌘K / Ctrl+K, «/», or the header button) opens a palette. «/» works
+  not rendered; Nexus is a tile in the grid and a row in «Mis apps» when marked.
+- «Ir a…» (⌘K / Ctrl+K, «/», or the search field) opens a palette. «/» works
   when focus is not in an input, a textarea, a select, or an editable element, and
   with no Ctrl, Meta, or Alt key (Shift is allowed: «/» is Shift+7 on some
   layouts). Some browsers and launcher apps take ⌘K first, so «/» is the
-  fallback. The palette lists «Volver» (the way back), «Recientes», and «Apps» with the page each one
-  opens. With a query it searches this app's pages, recents, the host's page
-  index, and the apps. A host can fill `pages` in the staff-shell context
-  (`StaffShellPage`: `app`, `label`, absolute `href`, `section`) to search other
-  apps' pages.
-- `onNavigate({ source, fromSub, toSub, href })` runs before the app bar, the
-  switcher, the way back, the palette, the brand block, or a sidebar link
-  navigates (`source`: `'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' |
-  'menu' | 'favorites' | 'launcher'`). Forward it to usage tracking. A throwing callback is ignored.
+  fallback. The palette lists «Volver» (the way back), «Recientes», and «Apps»
+  with the page each one opens. With a query it searches this app's pages,
+  recents, the host's page index, and the apps (`appNav` in the registry decides
+  which apps; Comunidad is not there). A host can fill `pages` in the
+  staff-shell context (`StaffShellPage`: `app`, `label`, absolute `href`,
+  `section`) to search other apps' pages.
+- `onNavigate({ source, fromSub, toSub, href })` runs before the grid, «Mis
+  apps», the way back, the palette, the brand block, or a sidebar link navigates
+  (`source`: `'launcher' | 'favorites' | 'goto' | 'wayback' | 'brand' |
+  'menu'`). Forward it to usage tracking. A throwing callback is ignored.
 - `useShellNavigation()` returns the navigation state (`mode`, `currentPath`,
   `appSub`, `pages`, `activeLabel`, `wayBack`, ...) inside `AppShell`, else
   `null`.
 
-### `'switcher'`
+### The way back
 
-- The trigger shows the name of the current app. The menu has one row per app
-  of `APP_BAR_ORDER` (Comunidad is not there), numbered 1-7. Each row shows the
-  label of the page it opens: the last page used there, else «Inicio». The
-  current row is marked «aquí» and routes in place. Keys: arrows, Home, End,
-  digits 1-9, Esc.
-- The way back: when you arrive from another app, «← App» opens the exact page
-  you left. Every cross-app link the shell builds (switcher rows, app bar items,
-  palette rows, the chip itself) carries a fragment,
-  `#pr-from=<sub>:<encoded pathname>`. On the first mount the shell reads the
-  fragment, removes only that fragment from the address bar with
-  `history.replaceState`, and keeps `{ s, p }` in `sessionStorage` (`pr-nav-from`,
-  per origin and per tab). Without a fragment it falls back to
-  `document.referrer` when that is the origin of another registry app, and opens
-  that app's last page, else its start page. Nothing goes to a server: a
-  fragment is never sent in an HTTP request. A same-app or external link never
-  gets the fragment. Only hrefs whose origin belongs to an app in `APPS` get it,
-  so an app that a host adds through a custom `apps` list gets no way back.
-  Browsers cut a cross-origin referrer to its origin, so any page on
-  `partrunner.app` counts as Finanzas in the referrer fallback.
-- `pr-nav-last` holds `{ [sub]: { p, l? } }` (path and the label of its menu
-  page). The older `{ [sub]: path }` form is still read.
+When you arrive from another app, «← App» opens the exact page you left. Every
+cross-app link the shell builds (grid tiles, «Mis apps» rows, palette rows, the
+chip itself) carries a fragment, `#pr-from=<sub>:<encoded pathname>`. On the
+first mount the shell reads the fragment, removes only that fragment from the
+address bar with `history.replaceState`, and keeps `{ s, p }` in
+`sessionStorage` (`pr-nav-from`, per origin and per tab). Without a fragment it
+falls back to `document.referrer` when that is the origin of another registry
+app, and opens that app's last page, else its start page. Nothing goes to a
+server: a fragment is never sent in an HTTP request. A same-app or external link
+never gets the fragment. Only hrefs whose origin belongs to an app in `APPS` get
+it, so an app that a host adds through a custom `apps` list gets no way back.
+Browsers cut a cross-origin referrer to its origin, so any page on
+`partrunner.app` counts as Finanzas in the referrer fallback. `pr-nav-last`
+holds `{ [sub]: { p, l? } }` (path and the label of its menu page). The older
+`{ [sub]: path }` form is still read.
 
-### `'appbar'`
+### The apps grid
 
-`GlobalHeader` shows an app bar: every app in `APP_BAR_ORDER` (Inicio, Comercial,
-Solicitudes, Supply, LiveOps, Finanzas, FDS). The current app is marked. Another
-app opens the last page you used there, else its start page. The bar shows when
-its slot in the header is 500px wide or more (the bar itself is about 470px).
-The launcher grid button stays visible at every width: it is the way to Comunidad
-and the overflow path. Apps with `appBar: false` in the registry (Comunidad) are
-not in the bar.
-
-### The apps grid in `'switcher'` and `'appbar'`
-
-`GlobalHeader` renders the `AppLauncher` grid in `'switcher'` mode too, in the
-same place as in launcher mode (before the divider and the avatar), with the same
-apps (Comunidad included). In `'appbar'` and `'switcher'` modes a tile opens the
-last page used in that app (the validated path of `pr-nav-last`, else the start
-page), carries the way-back fragment when the URL is a registry origin, and
-reports `onNavigate({ source: 'launcher', ... })`. The tile of the current app
-behaves as before. In launcher mode the grid is unchanged: start pages, no
-fragment, no event.
-
-`appSwitcher` (`AppShell`, default `true`) set to `false` hides the app-name
-selector in `'switcher'` mode. The menu button, the way back, `start`, the
-search field, and the grid stay. It has no effect in other modes.
+`GlobalHeader` renders the `AppLauncher` grid in both modes, with the same apps
+(Comunidad included). In `'unified'` mode a tile opens the last page used in that
+app (the validated path of `pr-nav-last`, else the start page), carries the
+way-back fragment when the URL is a registry origin, and reports
+`onNavigate({ source: 'launcher', ... })`. The tile of the current app behaves as
+before. In launcher mode the grid is unchanged: start pages, no fragment, no
+event.
 
 ### «Mis apps» in the sidebar
 
-`appsInSidebar` (default `false`, `'appbar'` and `'switcher'` only) puts a «Mis apps»
-section under the brand and above the app's menu. It lists the apps in
-`favoriteApps` (registry subs, in the person's order, at most 5) from the
-staff-shell context, each with an icon tile, the app name, and the page it opens
-(the last page used there, else «Inicio»). A click reports `onNavigate` with
-`source: 'favorites'`; the current app is marked and routes in place. With
-`setFavoriteApps` the section has «Editar»: a checkbox per app (the rest are
-disabled at 5) and «Listo»; the shell saves the subs in `APP_BAR_ORDER`. An empty
-list shows «Elige tus apps». Without a setter the list is read-only; without a
-`StaffShellProvider` or a list the section is not rendered. The collapsed rail
-shows the icon tiles only. Storage is the host's job (the snapshot does not carry
-favorites yet).
+The section lists the apps in `preferences.favoriteApps` (registry subs, in the
+person's order, at most 5) of the staff-shell context, each with an icon tile,
+the app name, and the page it opens (the last page used there, else «Inicio»). A
+click reports `onNavigate` with `source: 'favorites'`; the current app is marked
+and routes in place. With `setFavoriteApps` (top level of the context, like
+`setTheme`) the section has «Editar»: a checkbox per app (the rest are disabled
+at 5) and «Listo»; the shell saves the subs in `APP_NAV_ORDER`. An empty list
+shows «Elige tus apps». Without a setter the list is read-only; without a
+`StaffShellProvider`, or with no list and no setter, the section is not rendered.
+The edit shows at once (optimistic). When `setFavoriteApps` throws or returns a
+promise that rejects, the shell puts the previous list back and shows one line,
+«No se pudo guardar. Intenta de nuevo.» (`role="status"`). The shell drops subs
+the installed registry does not know (or that have `appNav: false`) when it
+renders rows and the edit list. The collapsed rail shows the icon tiles only.
+
+Storage: Nexus stores the list in `identity.staff_preferences.favorite_apps` and
+sends it as `preferences.favoriteApps` in the staff-shell snapshot.
+`parseStaffShellSnapshot` keeps only strings that match `^[a-z0-9-]{1,40}$`,
+drops duplicates (the first wins), keeps at most 5 in order, and reads a missing
+or non-array value as absent (it never rejects the snapshot for it). A satellite
+passes the snapshot `preferences` through and wires `setFavoriteApps` to its
+`PATCH /api/staff-shell` BFF with the body `{ favoriteApps }`.
 
 ### Adoption steps
 
-1. Set `navigation="switcher"` and `appSub` (the registry `sub`) on `AppShell`.
+1. Set `navigation="unified"` and `appSub` (the registry `sub`) on `AppShell`.
 2. Set `cookieDomain=".partrunner.ai"` so the visit memory is shared between
    apps. Without it the memory stays on one host.
-   In `'switcher'` mode, remove `SidebarTrigger` from `start`: the header
-   renders it first (mobile only) before the way back and the switcher. Also
-   remove any product-name label from `start` that repeats the app name (for
-   example «LiveOps»), because the switcher already shows it.
 3. Set `brandHref` when the start page of the app is not `/`, for example
    `/admin/dashboard` for Finanzas.
-4. Pass `navMemoryIgnore` for extra paths that must not be remembered.
-5. A page that owns its own ⌘K or «/» (Supply has a ⌘K in
+4. Forward `onNavigate` to usage telemetry.
+5. Remove `SidebarTrigger` from `start`: the header renders the menu button
+   first (mobile only). Also remove any app-name label from `start` (for example
+   «LiveOps»): the sidebar and the grid already show where you are.
+6. Pass the snapshot `preferences` (with `favoriteApps`) through and wire
+   `setFavoriteApps` in the staff-shell context. Until Nexus sends the list, the
+   section stays hidden.
+7. Pass `navMemoryIgnore` for extra paths that must not be remembered.
+8. A page that owns its own ⌘K or «/» (Supply has a ⌘K in
    onboarding/conversaciones) must listen on `window` in the capture phase and
    call `preventDefault()`. The shell listens on `document` in the bubble phase,
    so it runs later and does not open «Ir a». The shell also ignores ⌘K with

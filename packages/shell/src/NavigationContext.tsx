@@ -2,11 +2,11 @@ import { createContext, useContext } from 'react';
 import type { LinkComponent } from './AppShell';
 import type { WayBackTarget } from './wayBack';
 
-export type ShellNavigationMode = 'launcher' | 'appbar' | 'switcher';
+export type ShellNavigationMode = 'launcher' | 'unified';
 
-/** `'appbar'` and `'switcher'` share the brand, memory, palette, and event rules. */
+/** `'unified'` is the staff navigation: brand, memory, palette, and event rules. */
 export function isAppNavigation(mode: ShellNavigationMode | undefined): boolean {
-  return mode === 'appbar' || mode === 'switcher';
+  return mode === 'unified';
 }
 
 /** One visible destination of the current app. */
@@ -19,7 +19,7 @@ export interface ShellNavigationPage {
 }
 
 export interface ShellNavigateEvent {
-  source: 'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' | 'menu' | 'favorites' | 'launcher';
+  source: 'launcher' | 'favorites' | 'goto' | 'wayback' | 'brand' | 'menu';
   fromSub?: string;
   toSub?: string;
   href: string;
@@ -39,8 +39,6 @@ export interface ShellNavigationValue {
   activePath?: string;
   /** The app this tab came from and the page left there, when known. */
   wayBack?: WayBackTarget | null;
-  /** `false` hides the app-name selector in `'switcher'` mode. Default `true`. */
-  appSwitcher?: boolean;
   /** Extra paths that visit memory must not record. */
   navMemoryIgnore: readonly string[];
   /** Called before a shell link navigates; hosts forward it to usage tracking. */
@@ -55,7 +53,7 @@ export function useShellNavigation(): ShellNavigationValue | null {
 }
 
 /**
- * True inside the `start` slot of a `'switcher'` header, which renders its own
+ * True inside the `start` slot of a `'unified'` header, which renders its own
  * menu button: a host's `<SidebarTrigger />` there renders nothing.
  */
 export const HeaderOwnsSidebarTriggerContext = createContext(false);
