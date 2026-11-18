@@ -1535,3 +1535,7 @@ a.pr-sidebar__brand:focus-visible {
   color: var(--pr-sidebar-fg);
   font-weight: 600;
 }
+
+.pr-favs__error:empty {
+  padding: 0;
+}

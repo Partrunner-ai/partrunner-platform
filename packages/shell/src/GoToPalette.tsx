@@ -131,6 +131,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+/** Is the target inside a dialog that is not the palette itself? */
+function inOtherDialog(target: EventTarget | null, panel: HTMLElement | null): boolean {
+  if (!(target instanceof Element)) return false;
+  const dialog = target.closest('[role="dialog"],[aria-modal="true"]');
+  return dialog !== null && dialog !== panel;
+}
+
 function isMac(): boolean {
   if (typeof navigator === 'undefined') return true;
   return /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
@@ -173,6 +180,9 @@ export function GoToPalette({
 
   useDismiss(panelRef, open, close, triggerRef);
 
+  const openRef = useRef(false);
+  openRef.current = open;
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // The shell listens on document (bubble phase). A page that owns its own ⌘K
@@ -183,18 +193,23 @@ export function GoToPalette({
       const modifier = isMac() ? event.metaKey : event.ctrlKey;
       if (modifier && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setOpen((value) => !value);
+        // Closing goes through `close()`: reset the query, return the focus.
+        if (openRef.current) close();
+        else setOpen(true);
         return;
       }
       // «/» opens the palette too, for browsers and launcher apps that take ⌘K
-      // first. Never while the person types, and never with Ctrl, Meta, or Alt.
-      // Shift is fine: «/» is Shift+7 on some layouts.
+      // first. Never while the person types or composes text, never inside another
+      // dialog, and never with Ctrl, Meta, or Alt. Shift is fine: «/» is Shift+7
+      // on some layouts.
       if (
         event.key === '/' &&
         !event.metaKey &&
         !event.ctrlKey &&
         !event.altKey &&
-        !isEditableTarget(event.target)
+        !event.isComposing &&
+        !isEditableTarget(event.target) &&
+        !inOtherDialog(event.target, panelRef.current)
       ) {
         event.preventDefault();
         setOpen(true);
@@ -202,7 +217,7 @@ export function GoToPalette({
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [close]);
 
   const entries = useMemo<Entry[]>(() => {
     if (!open) return [];

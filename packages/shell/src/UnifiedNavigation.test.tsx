@@ -5,7 +5,6 @@ import { configureAppRegistry } from '@partrunner-ai/app-registry';
 import { SidebarTrigger } from './AppShell';
 import { AppShell } from './AppShell';
 import { GlobalHeader } from './GlobalHeader';
-import { isAppNavigation } from './NavigationContext';
 import { NAV_LAST_COOKIE } from './navMemory';
 import { StaffShellProvider } from './StaffShellContext';
 import { WAY_BACK_KEY } from './wayBack';
@@ -46,10 +45,18 @@ function swallow(event: Event) {
 }
 
 describe('unified mode in the shell', () => {
-  it('knows which modes share the app navigation rules', () => {
-    expect(isAppNavigation('unified')).toBe(true);
-    expect(isAppNavigation('launcher')).toBe(false);
-    expect(isAppNavigation(undefined)).toBe(false);
+  it('opens the registry start page of the app from the brand when it is not /', () => {
+    const { container } = render(<Unified appSub="sube-tu-factura" header={{ currentSub: 'sube-tu-factura' }} />);
+    expect(container.querySelector('a.pr-sidebar__brand')!.getAttribute('href')).toBe(
+      '/admin/finanzas/dashboard',
+    );
+  });
+
+  it('falls back to / for an unknown app, and an explicit brandHref wins', () => {
+    const { container, rerender } = render(<Unified appSub="nope" header={{ currentSub: 'nope' }} />);
+    expect(container.querySelector('a.pr-sidebar__brand')!.getAttribute('href')).toBe('/');
+    rerender(<Unified appSub="sube-tu-factura" brandHref="/custom" header={{ currentSub: 'sube-tu-factura' }} />);
+    expect(container.querySelector('a.pr-sidebar__brand')!.getAttribute('href')).toBe('/custom');
   });
 
   it('opens this app from the brand, drops the Nexus item, and has no bar', () => {
@@ -254,6 +261,12 @@ describe('the way back', () => {
     expect(await screen.findByTitle('Volver a LiveOps')).toBeTruthy();
   });
 
+  it('ignores a stored arrival on an ignored path', () => {
+    window.sessionStorage.setItem(WAY_BACK_KEY, JSON.stringify({ s: 'nexus', p: '/logout' }));
+    const { container } = render(<Unified />);
+    expect(container.querySelector('.pr-wayback')).toBeNull();
+  });
+
   it('ignores a stored arrival from the current app', () => {
     window.sessionStorage.setItem(WAY_BACK_KEY, JSON.stringify({ s: 'supply', p: '/x' }));
     const { container } = render(<Unified />);
@@ -265,6 +278,8 @@ describe('the way back', () => {
     ['a protocol-relative path', '#pr-from=liveops:%2F%2Fevil.com'],
     ['a backslash path', '#pr-from=liveops:%2F%5Cevil.com'],
     ['a control character', '#pr-from=liveops:%2Fa%09b'],
+    ['an ignored login path', '#pr-from=nexus:%2Flogout'],
+    ['an ignored auth path', '#pr-from=liveops:%2Fauth%2Fcallback'],
     ['a malformed escape', '#pr-from=liveops:%E0%A4%A'],
   ])('rejects %s but still removes the fragment', (_name, hash) => {
     arriveFrom(hash);

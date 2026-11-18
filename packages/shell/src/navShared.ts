@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   APP_NAV_APPS,
   appHref,
@@ -51,12 +51,20 @@ export function startPath(url: string): string {
 
 /**
  * Reads the visit memory after mount (the server has no cookie) and again when
- * the page changes or the tab comes back into view.
+ * the page changes or the tab comes back into view. It sets state only when the
+ * cookie text changed. With `enabled` false it does nothing: no read, no listeners.
  */
-export function useNavMemory(refreshKey: string): NavMemory {
+export function useNavMemory(refreshKey: string, enabled = true): NavMemory {
   const [memory, setMemory] = useState<NavMemory>(EMPTY_NAV_MEMORY);
+  const lastCookie = useRef<string | null>(null);
   useEffect(() => {
-    const read = () => setMemory(readNavMemory());
+    if (!enabled) return;
+    const read = () => {
+      const raw = document.cookie;
+      if (raw === lastCookie.current) return;
+      lastCookie.current = raw;
+      setMemory(readNavMemory(raw));
+    };
     read();
     const onVisible = () => {
       if (document.visibilityState === 'visible') read();
@@ -67,7 +75,7 @@ export function useNavMemory(refreshKey: string): NavMemory {
       window.removeEventListener('focus', read);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [refreshKey]);
+  }, [refreshKey, enabled]);
   return memory;
 }
 

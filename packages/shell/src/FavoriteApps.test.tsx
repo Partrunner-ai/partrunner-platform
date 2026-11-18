@@ -239,7 +239,7 @@ describe('«Mis apps» in the sidebar', () => {
     // The next edit clears the line.
     setFavoriteApps.mockImplementation(() => Promise.resolve());
     await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
-    expect(within(favs()).queryByRole('status')).toBeNull();
+    expect(within(favs()).getByRole('status').textContent).toBe('');
   });
 
   it('restores the previous list when the setter throws, in English', async () => {
@@ -274,6 +274,108 @@ describe('«Mis apps» in the sidebar', () => {
     await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
     expect(within(favs()).getAllByRole('checkbox')).toHaveLength(7);
     await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
-    expect(setFavoriteApps).toHaveBeenLastCalledWith(['nexus', 'liveops']);
+    expect(setFavoriteApps).toHaveBeenLastCalledWith(['nexus', 'liveops', 'ghost', 'community']);
+  });
+
+  it('keeps a pending second toggle when the first save fails late', async () => {
+    const user = userEvent.setup();
+    const first = deferred();
+    const second = deferred();
+    const setFavoriteApps = vi
+      .fn<(subs: readonly string[]) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    render(<UnifiedShell context={staffContext({ favoriteApps: ['liveops'], setFavoriteApps })} />);
+    await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
+    await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
+    await user.click(within(favs()).getByRole('checkbox', { name: /FDS/ }));
+    first.reject(new Error('late'));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // The second toggle is still the latest save: its edit stays.
+    await user.click(within(favs()).getByRole('button', { name: 'Listo' }));
+    expect(
+      within(favs()).getAllByRole('link').map((link) => link.querySelector('.pr-favs__name')!.textContent),
+    ).toEqual(['Nexus', 'LiveOps', 'FDS']);
+    expect(within(favs()).getByRole('status').textContent).toBe('');
+  });
+
+  it('does not write an old list over a newer host list when a save fails late', async () => {
+    const user = userEvent.setup();
+    const pending = deferred();
+    const setFavoriteApps = vi.fn((): Promise<void> => pending.promise);
+    const { rerender } = render(
+      <UnifiedShell context={staffContext({ favoriteApps: ['liveops'], setFavoriteApps })} />,
+    );
+    await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
+    await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
+    // The host list changes (a refresh) while the save is pending.
+    rerender(
+      <UnifiedShell
+        context={staffContext({ favoriteApps: ['liveops', 'supply', 'fds'], setFavoriteApps })}
+      />,
+    );
+    pending.reject(new Error('late'));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await user.click(within(favs()).getByRole('button', { name: 'Listo' }));
+    expect(
+      within(favs()).getAllByRole('link').map((link) => link.querySelector('.pr-favs__name')!.textContent),
+    ).toEqual(['LiveOps', 'Supply', 'FDS']);
+    expect(within(favs()).getByRole('status').textContent).toBe('');
+  });
+
+  it('builds the saved list from the host list, so an unknown sub is kept', async () => {
+    const user = userEvent.setup();
+    const setFavoriteApps = vi.fn();
+    render(
+      <UnifiedShell
+        context={staffContext({ favoriteApps: ['future-app', 'liveops'], setFavoriteApps })}
+      />,
+    );
+    await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
+    await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
+    expect(setFavoriteApps).toHaveBeenLastCalledWith(['nexus', 'liveops', 'future-app']);
+    await user.click(within(favs()).getByRole('checkbox', { name: /FDS/ }));
+    expect(setFavoriteApps).toHaveBeenLastCalledWith(['nexus', 'liveops', 'fds', 'future-app']);
+  });
+
+  it('counts the host list, unknown subs included, against the limit of five', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell
+        context={staffContext({
+          favoriteApps: ['x-one', 'x-two', 'x-three', 'x-four', 'liveops'],
+          setFavoriteApps: vi.fn(),
+        })}
+      />,
+    );
+    await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
+    expect(within(favs()).getByRole('checkbox', { name: /Nexus/ })).toHaveProperty('disabled', true);
+  });
+
+  it('renders the status container before the error text, so it is announced', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell
+        context={staffContext({
+          favoriteApps: ['liveops'],
+          setFavoriteApps: () => Promise.reject(new Error('down')),
+        })}
+      />,
+    );
+    const status = within(favs()).getByRole('status');
+    expect(status.textContent).toBe('');
+    await user.click(within(favs()).getByRole('button', { name: 'Editar' }));
+    await user.click(within(favs()).getByRole('checkbox', { name: /Nexus/ }));
+    await within(favs()).findByText('No se pudo guardar. Intenta de nuevo.');
+    // The same node got the text.
+    expect(within(favs()).getByRole('status')).toBe(status);
   });
 });
+
+function deferred() {
+  let reject!: (error: Error) => void;
+  const promise = new Promise<void>((_, rej) => {
+    reject = rej;
+  });
+  return { promise, reject };
+}

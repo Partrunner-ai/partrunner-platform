@@ -315,6 +315,43 @@ describe('«Ir a» palette', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('closes with the shortcut through close(): query reset, focus back on the trigger', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    const trigger = screen.getByRole('button', { name: /Buscar o ir a…/ });
+    await user.keyboard('/');
+    await user.type(screen.getByRole('combobox'), 'zzz');
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    await user.keyboard('/');
+    expect((screen.getByRole('combobox') as HTMLInputElement).value).toBe('');
+  });
+
+  it('does not open with «/» inside another dialog or while composing text', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell>
+        <div role="dialog" aria-label="Otro">
+          <button type="button">dentro</button>
+        </div>
+      </UnifiedShell>,
+    );
+    await user.click(screen.getByRole('button', { name: 'dentro' }));
+    await user.keyboard('/');
+    expect(screen.queryByRole('combobox')).toBeNull();
+    act(() => {
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: '/', isComposing: true, bubbles: true }),
+      );
+    });
+    expect(screen.queryByRole('combobox')).toBeNull();
+    // Outside the other dialog it still opens.
+    (document.activeElement as HTMLElement).blur();
+    await user.keyboard('/');
+    expect(screen.getByRole('combobox')).toBeTruthy();
+  });
+
   it('does not listen for the shortcut in launcher mode', async () => {
     const user = userEvent.setup();
     render(<UnifiedShell navigation="launcher" globalHeader={<div>plain</div>} />);

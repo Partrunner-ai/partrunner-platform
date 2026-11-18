@@ -325,6 +325,11 @@ export function readNavMemory(
 }
 
 function writeCookie(name: string, value: string, cookieDomain?: string): void {
+  // With a shared domain, a stale host-only cookie of the same name would win on
+  // read: expire it first (no Domain attribute targets the host-only cookie).
+  if (cookieDomain) {
+    document.cookie = `${name}=; Path=/; SameSite=Lax; Max-Age=0`;
+  }
   const domain = cookieDomain ? `; Domain=${cookieDomain}` : '';
   const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : '';
   document.cookie = `${name}=${value}; Path=/; SameSite=Lax; Max-Age=${NAV_MEMORY_MAX_AGE}${domain}${secure}`;

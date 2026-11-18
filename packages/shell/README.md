@@ -72,7 +72,7 @@ In `'unified'` mode:
   and the avatar. The grid sits where it sits in launcher mode.
 - The sidebar shows «Mis apps» under the brand, above the app's menu.
 - The brand block opens the start page of the app you are in (`brandHref`, else
-  `/`). `onBrandSelect` runs only when you pass it. The pinned «Nexus» item is
+  the registry start path of `appSub`, else `/`). `onBrandSelect` runs only when you pass it. The pinned «Nexus» item is
   not rendered; Nexus is a tile in the grid and a row in «Mis apps» when marked.
 - «Ir a…» (⌘K / Ctrl+K, «/», or the search field) opens a palette. «/» works
   when focus is not in an input, a textarea, a select, or an editable element, and
@@ -106,7 +106,10 @@ server: a fragment is never sent in an HTTP request. A same-app or external link
 never gets the fragment. Only hrefs whose origin belongs to an app in `APPS` get
 it, so an app that a host adds through a custom `apps` list gets no way back.
 Browsers cut a cross-origin referrer to its origin, so any page on
-`partrunner.app` counts as Finanzas in the referrer fallback. `pr-nav-last`
+`partrunner.app` counts as Finanzas in the referrer fallback. The way back lasts
+for the tab session: until the tab leaves the app or a newer arrival replaces
+it. Paths in `NAV_MEMORY_IGNORE` (login, logout, `/auth/*`, ...) never become a
+way back, from a fragment or from storage. `pr-nav-last`
 holds `{ [sub]: { p, l? } }` (path and the label of its menu page). The older
 `{ [sub]: path }` form is still read.
 
@@ -150,8 +153,9 @@ passes the snapshot `preferences` through and wires `setFavoriteApps` to its
 1. Set `navigation="unified"` and `appSub` (the registry `sub`) on `AppShell`.
 2. Set `cookieDomain=".partrunner.ai"` so the visit memory is shared between
    apps. Without it the memory stays on one host.
-3. Set `brandHref` when the start page of the app is not `/`, for example
-   `/admin/dashboard` for Finanzas.
+3. The brand opens the registry start path of `appSub` (for example
+   `/admin/finanzas/dashboard` for Finanzas), else `/`. Set `brandHref` only to
+   open another page.
 4. Forward `onNavigate` to usage telemetry.
 5. Remove `SidebarTrigger` from `start`: the header renders the menu button
    first (mobile only). Also remove any app-name label from `start` (for example
@@ -177,7 +181,9 @@ drops its oldest apps past 2000). They hold the pathname only, never the query o
 the hash. Login, logout, `/auth/*`, `/sso*`, `/unauthorized`, and
 `/solicitar-acceso` are never stored (`NAV_MEMORY_IGNORE`). `pr-nav-last` keeps
 the exact path, so a detail path such as `/rutas/<id>` is stored there for 30
-days. Both cookies get `Secure` on https. The names carry the environment
+days. Both cookies get `Secure` on https. When `cookieDomain` is set, writing a cookie
+also expires any host-only cookie of the same name, so a stale host-only copy
+cannot win on read. The names carry the environment
 (`pr-nav-last-staging` on staging hosts; see `navMemoryCookieNames()`).
 
 Finanzas lives on `partrunner.app` and cannot read `.partrunner.ai` cookies. Its

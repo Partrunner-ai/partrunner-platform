@@ -19,13 +19,13 @@ import {
   PanelLeftOpen,
   type LucideIcon,
 } from 'lucide-react';
-import { buildAppUrl, type AppTone } from '@partrunner-ai/app-registry';
+import { appHref, buildAppUrl, findApp, type AppTone } from '@partrunner-ai/app-registry';
+import { startPath } from './navShared';
 import { BrandMark } from './BrandMark';
 import { BrandWordmark } from './BrandWordmark';
 import {
   HeaderOwnsSidebarTriggerContext,
   ShellNavigationContext,
-  isAppNavigation,
   notifyNavigate,
   type ShellNavigateEvent,
   type ShellNavigationPage,
@@ -581,16 +581,21 @@ export function AppShell({
    * "no link". Resolved lazily rather than in a default parameter because
    * `configureAppRegistry` can change the base domain after module load.
    */
-  const unified = isAppNavigation(navigation);
+  const unified = navigation === 'unified';
   // Read without throwing: «Mis apps» also renders (empty) with no provider.
   const staffShell = useOptionalStaffShell();
   const resolvedBrandHref = useMemo(() => {
     if (brandHref !== undefined) return brandHref;
     // The grid owns the way to Nexus, so the brand stays in the current app.
-    if (unified) return '/';
+    // Unified mode: the start page of this app, else `/`.
+    if (unified) {
+      const app = appSub ? findApp(appSub) : undefined;
+      const start = app ? appHref(app) : null;
+      return start ? startPath(start) : '/';
+    }
     if (nexusHref) return nexusHref;
     return buildAppUrl({ scheme: 'subdomain', sub: 'nexus' });
-  }, [unified, brandHref, nexusHref]);
+  }, [unified, brandHref, nexusHref, appSub]);
   const brandSelect = unified
     ? onBrandSelect
     : (onBrandSelect ?? (brandHref === undefined ? onNexusSelect : undefined));

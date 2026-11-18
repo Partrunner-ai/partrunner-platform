@@ -1,7 +1,9 @@
-import { render, screen, within } from '@testing-library/react';
+import { Profiler } from 'react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureAppRegistry } from '@partrunner-ai/app-registry';
+import { AppLauncher } from './AppLauncher';
 import { AppShell } from './AppShell';
 import { GlobalHeader } from './GlobalHeader';
 import { NAV_LAST_COOKIE } from './navMemory';
@@ -129,5 +131,49 @@ describe('the apps grid in unified mode', () => {
     expect(tile(menu, /LiveOps/).getAttribute('href')).toBe('https://liveops.partrunner.ai');
     await user.click(tile(menu, /LiveOps/));
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('adds no listeners and never re-renders on focus outside the unified mode', () => {
+    const added: string[] = [];
+    const winSpy = vi.spyOn(window, 'addEventListener').mockImplementation((type: string) => {
+      added.push(`window:${type}`);
+    });
+    const docSpy = vi.spyOn(document, 'addEventListener').mockImplementation((type: string) => {
+      added.push(`document:${type}`);
+    });
+    const renders = vi.fn();
+    try {
+      render(
+        <Profiler id="launcher" onRender={renders}>
+          <AppLauncher />
+        </Profiler>,
+      );
+      expect(added.filter((entry) => /focus|visibilitychange/.test(entry))).toEqual([]);
+    } finally {
+      winSpy.mockRestore();
+      docSpy.mockRestore();
+    }
+    const before = renders.mock.calls.length;
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(renders.mock.calls.length).toBe(before);
+  });
+
+  it('does not re-render on focus in unified mode when the cookies did not change', () => {
+    const renders = vi.fn();
+    render(
+      <Profiler id="grid" onRender={renders}>
+        <UnifiedShell />
+      </Profiler>,
+    );
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    const settled = renders.mock.calls.length;
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(renders.mock.calls.length).toBe(settled);
   });
 });

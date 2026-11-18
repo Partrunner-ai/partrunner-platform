@@ -1,5 +1,5 @@
 import { APPS, appHref, findApp, type AppLink } from '@partrunner-ai/app-registry';
-import { isStorableNavPath } from './navMemory';
+import { isIgnoredNavPath, isStorableNavPath } from './navMemory';
 
 /**
  * The way back: after a person comes to this app from another app in the same
@@ -66,7 +66,7 @@ export function parseWayBackHash(hash: string): WayBackTarget | null {
   } catch {
     return null;
   }
-  if (!findApp(match[1]!) || !isStorableNavPath(path)) return null;
+  if (!findApp(match[1]!) || !isStorableNavPath(path) || isIgnoredNavPath(path)) return null;
   return { s: match[1]!, p: path };
 }
 
@@ -132,7 +132,9 @@ export function readWayBackStorage(): WayBackTarget | null {
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<WayBackTarget> | null;
     if (!value || typeof value.s !== 'string' || !findApp(value.s)) return null;
-    return isStorableNavPath(value.p) ? { s: value.s, p: value.p } : null;
+    return isStorableNavPath(value.p) && !isIgnoredNavPath(value.p)
+      ? { s: value.s, p: value.p }
+      : null;
   } catch {
     return null;
   }

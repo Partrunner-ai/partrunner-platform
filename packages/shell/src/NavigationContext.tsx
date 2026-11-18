@@ -4,11 +4,6 @@ import type { WayBackTarget } from './wayBack';
 
 export type ShellNavigationMode = 'launcher' | 'unified';
 
-/** `'unified'` is the staff navigation: brand, memory, palette, and event rules. */
-export function isAppNavigation(mode: ShellNavigationMode | undefined): boolean {
-  return mode === 'unified';
-}
-
 /** One visible destination of the current app. */
 export interface ShellNavigationPage {
   label: string;

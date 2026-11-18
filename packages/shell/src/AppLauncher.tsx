@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { APPS, appHref, type AppLink, type AppTone } from '@partrunner-ai/app-registry';
 import { originOf, useNavMemory } from './navShared';
-import { isAppNavigation, notifyNavigate, useShellNavigation } from './NavigationContext';
+import { notifyNavigate, useShellNavigation } from './NavigationContext';
 import { isStorableNavPath } from './navMemory';
 import { useDismiss } from './useDismiss';
 import { withWayBack } from './wayBack';
@@ -47,8 +47,8 @@ export function AppLauncher({
   // that app and carries the way back. Launcher mode and a bare launcher keep
   // the start pages.
   const nav = useShellNavigation();
-  const appNav = nav && isAppNavigation(nav.mode) ? nav : null;
-  const memory = useNavMemory(appNav ? appNav.currentPath : '');
+  const appNav = nav?.mode === 'unified' ? nav : null;
+  const memory = useNavMemory(appNav ? appNav.currentPath : '', appNav !== null);
   const fromSub = appNav ? (appNav.appSub ?? currentSub) : currentSub;
 
   return (

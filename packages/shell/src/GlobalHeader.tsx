@@ -8,7 +8,6 @@ import { appNavApps } from './navShared';
 import { WayBackSection } from './WayBackChip';
 import {
   HeaderOwnsSidebarTriggerContext,
-  isAppNavigation,
   useShellNavigation,
 } from './NavigationContext';
 import {
@@ -113,7 +112,7 @@ export function GlobalHeader({
   const { locale } = shell.preferences;
   const messages = MESSAGES[locale];
   const nav = useShellNavigation();
-  const unified = nav && isAppNavigation(nav.mode) ? nav : null;
+  const unified = nav?.mode === 'unified' ? nav : null;
   const navSub = unified ? (unified.appSub ?? currentSub) : currentSub;
   const navApps = unified ? appNavApps(apps) : [];
   const profileItem: UserMenuItem = {

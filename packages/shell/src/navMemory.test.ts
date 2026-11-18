@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { configureAppRegistry } from '@partrunner-ai/app-registry';
 import {
   EMPTY_NAV_MEMORY,
@@ -309,6 +309,36 @@ describe('cookie I/O', () => {
     // The test page is https, so the written cookie carries Secure and jsdom keeps it.
     rememberNavVisit({ sub: 'supply', path: '/fleets', label: 'Flotas' });
     expect(readNavMemory().last.supply).toBe('/fleets');
+  });
+
+  it('expires the host-only cookie of the same name before it writes a domain cookie', () => {
+    const writes: string[] = [];
+    const spy = vi.spyOn(Document.prototype, 'cookie', 'set').mockImplementation((value: string) => {
+      writes.push(value);
+    });
+    try {
+      rememberNavVisit({ sub: 'supply', path: '/fleets', label: 'Flotas' }, '.partrunner.ai');
+    } finally {
+      spy.mockRestore();
+    }
+    const last = navMemoryCookieNames().last;
+    const expire = writes.findIndex((w) => w.startsWith(`${last}=;`) && w.includes('Max-Age=0') && !w.includes('Domain'));
+    const write = writes.findIndex((w) => w.startsWith(`${last}=%`) && w.includes('Domain=.partrunner.ai'));
+    expect(expire).toBeGreaterThanOrEqual(0);
+    expect(write).toBeGreaterThan(expire);
+  });
+
+  it('does not expire anything extra without a cookie domain', () => {
+    const writes: string[] = [];
+    const spy = vi.spyOn(Document.prototype, 'cookie', 'set').mockImplementation((value: string) => {
+      writes.push(value);
+    });
+    try {
+      rememberNavVisit({ sub: 'supply', path: '/fleets', label: 'Flotas' });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(writes.some((w) => w.includes('Max-Age=0'))).toBe(false);
   });
 
   it('reads an empty memory when there is no cookie string', () => {

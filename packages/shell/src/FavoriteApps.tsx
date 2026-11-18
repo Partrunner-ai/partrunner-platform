@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Check } from 'lucide-react';
 import { APP_NAV_ORDER, type AppLink } from '@partrunner-ai/app-registry';
 import { appNavApps, navAppRows, useNavMemory, type NavAppRow } from './navShared';
@@ -71,12 +71,25 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
   const messages = MESSAGES[locale];
   const memory = useNavMemory(nav.currentPath);
   const [editing, setEditing] = useState(false);
-  // The edit shows at once (optimistic). A failed save puts the previous list back.
+  // The edit shows at once (optimistic). A failed save drops it, so the host list shows.
   const [local, setLocal] = useState<string[] | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
-  const hostKey = (staff?.preferences.favoriteApps ?? []).join(',');
+  const hostList = staff?.preferences.favoriteApps ?? [];
+  const hostKey = hostList.join(',');
+  // One id per save: only the latest save may act on a failure, and only while
+  // the local edit is still there. `mounted` guards a result after unmount.
+  const latestSave = useRef(0);
+  const localRef = useRef<string[] | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   useEffect(() => {
     // The host list changed (its own optimistic update or a refresh): it wins.
+    localRef.current = null;
     setLocal(null);
   }, [hostKey]);
   const { LinkComponent, currentPath, onNavigate, appSub } = nav;
@@ -84,8 +97,10 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
   const setFavorites = staff?.setFavoriteApps;
   const apps = appNavApps();
   const known = new Set(apps.map((app) => app.sub));
-  // Subs unknown to the installed registry are dropped here, never stored.
-  const favorites = (local ?? staff?.preferences.favoriteApps ?? []).filter((sub, index, list) => {
+  // The list to edit and to save is the host list as it is. Subs unknown to the
+  // installed registry (a newer app) are dropped only when rows are drawn.
+  const stored = local ?? hostList;
+  const favorites = stored.filter((sub, index, list) => {
     return known.has(sub) && list.indexOf(sub) === index;
   });
   if (favorites.length === 0 && !setFavorites) return null;
@@ -97,15 +112,19 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
 
   const toggle = (sub: string) => {
     if (!setFavorites) return;
-    const next = favorites.includes(sub) ? favorites.filter((item) => item !== sub) : [...favorites, sub];
-    if (next.length > FAVORITE_APPS_LIMIT) return;
-    const ordered = inBarOrder(next);
-    const previous = favorites;
+    const has = stored.includes(sub);
+    if (!has && stored.length >= FAVORITE_APPS_LIMIT) return;
+    const ordered = inBarOrder(has ? stored.filter((item) => item !== sub) : [...stored, sub]);
+    const id = latestSave.current + 1;
+    latestSave.current = id;
     const fail = () => {
-      setLocal(previous);
+      if (!mounted.current || id !== latestSave.current || localRef.current === null) return;
+      localRef.current = null;
+      setLocal(null);
       setSaveFailed(true);
     };
     setSaveFailed(false);
+    localRef.current = ordered;
     setLocal(ordered);
     try {
       const result = setFavorites(ordered) as unknown;
@@ -158,16 +177,15 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
           </button>
         ) : null}
       </div>
-      {saveFailed ? (
-        <p className="pr-favs__error" role="status">
-          {messages.saveError}
-        </p>
-      ) : null}
+      {/* Always in the tree, so a screen reader announces the text when it arrives. */}
+      <p className="pr-favs__error" role="status">
+        {saveFailed ? messages.saveError : ''}
+      </p>
       {editing ? (
         <ul className="pr-favs__list" aria-label={messages.editLabel}>
           {apps.map((app) => {
             const checked = favorites.includes(app.sub);
-            const full = !checked && favorites.length >= FAVORITE_APPS_LIMIT;
+            const full = !checked && stored.length >= FAVORITE_APPS_LIMIT;
             const name = rowsBySub.get(app.sub)?.name ?? app.label;
             return (
               <li key={app.sub}>
