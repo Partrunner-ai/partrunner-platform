@@ -9,6 +9,9 @@ import { NAV_LAST_COOKIE, NAV_RECENT_COOKIE } from './navMemory';
 import { StaffShellProvider } from './StaffShellContext';
 import { AppbarShell, SECTIONS, staffContext, useProductionRegistry } from './test/appbar-fixtures';
 
+// Links to other apps carry the page the person leaves.
+const FROM = '#pr-from=supply:%2Ffleets';
+
 beforeEach(() => {
   useProductionRegistry();
 });
@@ -139,9 +142,9 @@ describe('AppShell navigation="appbar"', () => {
   it('remembers the menu page for recents on a detail page', () => {
     render(<AppbarShell currentPath="/fleets/123" />);
     const cookie = decodeURIComponent(document.cookie);
-    expect(cookie).toContain('"supply":"/fleets/123"');
+    expect(cookie).toContain('"supply":{"p":"/fleets/123"');
     expect(cookie).toContain('"p":"/fleets","l":"Flotas"');
-    expect(cookie).not.toContain('"p":"/fleets/123"');
+    expect(cookie).not.toContain('"s":"supply","p":"/fleets/123"');
   });
 
   it('does not store a query or an ignored auth page', () => {
@@ -154,7 +157,7 @@ describe('AppShell navigation="appbar"', () => {
 
   it('falls back to the header currentSub for visit memory when appSub is absent', () => {
     render(<AppbarShell appSub={undefined} header={{ currentSub: 'supply' }} />);
-    expect(decodeURIComponent(document.cookie)).toContain('"supply":"/fleets"');
+    expect(decodeURIComponent(document.cookie)).toContain('"supply":{"p":"/fleets"');
   });
 });
 
@@ -189,7 +192,7 @@ describe('the app bar', () => {
     seed({ liveops: '/\\evil.com' });
     render(<AppbarShell />);
     expect(within(bar()).getByRole('link', { name: 'LiveOps' }).getAttribute('href')).toBe(
-      'https://liveops.partrunner.ai',
+      'https://liveops.partrunner.ai' + FROM,
     );
   });
 
@@ -199,7 +202,7 @@ describe('the app bar', () => {
     document.dispatchEvent(new Event('visibilitychange'));
     return waitFor(() =>
       expect(within(bar()).getByRole('link', { name: 'LiveOps' }).getAttribute('href')).toBe(
-        'https://liveops.partrunner.ai/late',
+        'https://liveops.partrunner.ai/late' + FROM,
       ),
     );
   });
@@ -207,10 +210,10 @@ describe('the app bar', () => {
   it('links other apps to their start page when nothing is remembered', () => {
     render(<AppbarShell />);
     expect(within(bar()).getByRole('link', { name: 'LiveOps' }).getAttribute('href')).toBe(
-      'https://liveops.partrunner.ai',
+      'https://liveops.partrunner.ai' + FROM,
     );
     expect(within(bar()).getByRole('link', { name: 'Inicio' }).getAttribute('href')).toBe(
-      'https://nexus.partrunner.ai',
+      'https://nexus.partrunner.ai' + FROM,
     );
   });
 
@@ -218,10 +221,10 @@ describe('the app bar', () => {
     seed({ liveops: '/routes/week', supply: '/old', 'sube-tu-factura': '/admin/pagos' });
     render(<AppbarShell />);
     expect(within(bar()).getByRole('link', { name: 'LiveOps' }).getAttribute('href')).toBe(
-      'https://liveops.partrunner.ai/routes/week',
+      'https://liveops.partrunner.ai/routes/week' + FROM,
     );
     expect(within(bar()).getByRole('link', { name: 'Finanzas' }).getAttribute('href')).toBe(
-      'https://partrunner.app/admin/pagos',
+      'https://partrunner.app/admin/pagos' + FROM,
     );
     // The current app always opens its start page.
     expect(within(bar()).getByRole('link', { name: 'Supply' }).getAttribute('href')).toBe('/');
@@ -244,7 +247,7 @@ describe('the app bar', () => {
       source: 'appbar',
       fromSub: 'supply',
       toSub: 'nexus',
-      href: 'https://nexus.partrunner.ai',
+      href: `https://nexus.partrunner.ai${FROM}`,
     });
   });
 

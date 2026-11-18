@@ -11,13 +11,18 @@ import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
 import { appHref, type AppLink } from '@partrunner-ai/app-registry';
 import { appBarLabel, originOf, useNavMemory } from './AppBar';
+import { switcherRows, switcherName } from './AppSwitcher';
 import { isStorableNavPath } from './navMemory';
+import { findApp } from '@partrunner-ai/app-registry';
+import { withWayBack } from './wayBack';
 import { notifyNavigate, type ShellNavigationValue } from './NavigationContext';
 import type { StaffLocale, StaffShellPage } from './StaffShellContext';
 import { useDismiss } from './useDismiss';
 
 interface PaletteMessages {
   trigger: string;
+  field: string;
+  back: string;
   placeholder: string;
   recent: string;
   pages: string;
@@ -30,6 +35,8 @@ interface PaletteMessages {
 const MESSAGES: Record<StaffLocale, PaletteMessages> = {
   es: {
     trigger: 'Ir a…',
+    field: 'Buscar o ir a…',
+    back: 'Volver',
     placeholder: 'Buscar páginas y apps',
     recent: 'Recientes',
     pages: 'Páginas',
@@ -40,6 +47,8 @@ const MESSAGES: Record<StaffLocale, PaletteMessages> = {
   },
   en: {
     trigger: 'Go to…',
+    field: 'Search or go to…',
+    back: 'Back',
     placeholder: 'Search pages and apps',
     recent: 'Recent',
     pages: 'Pages',
@@ -52,7 +61,7 @@ const MESSAGES: Record<StaffLocale, PaletteMessages> = {
 
 const RESULT_LIMIT = 10;
 
-type EntryGroup = 'recent' | 'pages' | 'apps';
+type EntryGroup = 'back' | 'recent' | 'pages' | 'apps';
 
 interface Entry {
   key: string;
@@ -60,6 +69,8 @@ interface Entry {
   label: string;
   /** Second line: section and app name. */
   meta: string;
+  /** What the navigation event reports. */
+  source: 'goto' | 'switcher' | 'wayback';
   /** Path for a page of this app, else an absolute URL. */
   href: string;
   /** Rendered through the host's router. */
@@ -107,6 +118,8 @@ export interface GoToPaletteProps {
   locale: StaffLocale;
   /** Optional cross-app page index from the staff-shell context. */
   extraPages?: readonly StaffShellPage[];
+  /** `'field'` renders the trigger as a search field (switcher mode). */
+  variant?: 'button' | 'field';
 }
 
 function isMac(): boolean {
@@ -118,7 +131,14 @@ function isMac(): boolean {
  * «Ir a» command palette: recent pages first, then a search over this app's
  * pages, recents, the host's cross-app index, and the apps themselves.
  */
-export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToPaletteProps) {
+export function GoToPalette({
+  nav,
+  apps,
+  currentSub,
+  locale,
+  extraPages,
+  variant = 'button',
+}: GoToPaletteProps) {
   const messages = MESSAGES[locale];
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -169,28 +189,62 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
     const meta = (sub: string, section?: string) =>
       [section, appName(sub)].filter(Boolean).join(' · ');
 
+    const crossApp = (href: string) => withWayBack(href, appSub, currentPath);
+    const wb = nav.wayBack && nav.wayBack.s !== appSub ? nav.wayBack : null;
+    const wbApp = wb ? findApp(wb.s) : undefined;
+    const backEntries: Entry[] =
+      wb && wbApp && appByLabel.has(wb.s)
+        ? [
+            {
+              key: 'b:wayback',
+              group: 'back',
+              source: 'wayback',
+              label: switcherName(wbApp),
+              meta: '',
+              href: crossApp(`${originOf(appHref(wbApp))}${wb.p}`),
+              routed: false,
+              sub: wb.s,
+            },
+          ]
+        : [];
+
     const recents: Entry[] = [];
     for (const item of memory.recent) {
       const app = appByLabel.get(item.s);
       if (!app || !isStorableNavPath(item.p)) continue;
       if (item.s === appSub && item.p === currentPath) continue;
+      if (wb && item.s === wb.s && item.p === wb.p) continue;
       const here = item.s === appSub;
       recents.push({
         key: `r:${item.s}${item.p}`,
         group: 'recent',
+        source: 'goto',
         label: item.l,
         meta: appName(item.s),
-        href: here ? item.p : `${originOf(appHref(app))}${item.p}`,
+        href: here ? item.p : crossApp(`${originOf(appHref(app))}${item.p}`),
         routed: here,
         sub: item.s,
       });
     }
 
-    if (query.trim() === '') return recents;
+    if (query.trim() === '') {
+      const rows = switcherRows(apps, appSub, currentPath, memory, locale).map<Entry>((row) => ({
+        key: `a:${row.app.sub}`,
+        group: 'apps',
+        source: 'switcher',
+        label: row.name,
+        meta: row.pageLabel,
+        href: row.href,
+        routed: row.current,
+        sub: row.app.sub,
+      }));
+      return [...backEntries, ...recents, ...rows];
+    }
 
     const own: Entry[] = nav.pages.map((page, index) => ({
       key: `p:${index}`,
       group: 'pages',
+      source: 'goto',
       label: page.label,
       meta: meta(appSub ?? '', page.sectionLabel),
       href: page.href,
@@ -207,9 +261,10 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
         {
           key: `x:${i}`,
           group: 'pages' as const,
+          source: 'goto' as const,
           label: page.label,
           meta: meta(page.app, page.section),
-          href: local ?? page.href,
+          href: local ?? (page.app === appSub ? page.href : crossApp(page.href)),
           routed: local !== null,
           sub: page.app,
         },
@@ -219,9 +274,10 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
     const appEntries: Entry[] = apps.map((app) => ({
       key: `a:${app.sub}`,
       group: 'apps',
+      source: 'switcher',
       label: messages.open(appBarLabel(app, locale)),
       meta: '',
-      href: appHref(app)!,
+      href: app.sub === appSub ? appHref(app)! : crossApp(appHref(app)!),
       routed: false,
       sub: app.sub,
     }));
@@ -238,7 +294,7 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
       if (out.length >= RESULT_LIMIT) break;
     }
     return out;
-  }, [open, query, memory.recent, nav.pages, extraPages, apps, appSub, currentPath, locale, messages]);
+  }, [open, query, memory, nav.pages, nav.wayBack, extraPages, apps, appSub, currentPath, locale, messages]);
 
   useEffect(() => {
     setActive(0);
@@ -275,7 +331,7 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
 
   const select = (entry: Entry) => {
     notifyNavigate(onNavigate, {
-      source: 'goto',
+      source: entry.source,
       fromSub: appSub,
       toSub: entry.external ? undefined : entry.sub || undefined,
       href: entry.href,
@@ -285,6 +341,7 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
   };
 
   const heading: Record<EntryGroup, string> = {
+    back: messages.back,
     recent: messages.recent,
     pages: messages.pages,
     apps: messages.apps,
@@ -381,14 +438,16 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
       <button
         ref={triggerRef}
         type="button"
-        className="pr-goto-trigger"
+        className={`pr-goto-trigger${variant === 'field' ? ' pr-goto-trigger--field' : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-keyshortcuts="Control+K Meta+K"
         onClick={() => setOpen(true)}
       >
         <Search size={15} aria-hidden />
-        <span className="pr-goto-trigger__label">{messages.trigger}</span>
+        <span className="pr-goto-trigger__label">
+          {variant === 'field' ? messages.field : messages.trigger}
+        </span>
         <kbd className="pr-goto-trigger__hint">{hint}</kbd>
       </button>
       {dialog && typeof document !== 'undefined' ? createPortal(dialog, document.body) : null}

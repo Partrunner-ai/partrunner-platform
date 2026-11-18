@@ -45,16 +45,23 @@ into view. The timing lives here so every app refreshes the same way. A custom
 header that renders `NotificationCenter` directly passes it as `onRefresh`,
 together with `unseenCount`, `onOpen` and `sound`.
 
-## App bar and «Ir a» (`navigation="appbar"`)
+## Navigation modes (`navigation`)
 
 Opt-in. Without the prop nothing changes: `navigation` defaults to
-`'launcher'`.
+`'launcher'`. Two other modes share the brand rule, the visit memory, the
+«Ir a» palette, and `onNavigate`:
+
+- `'switcher'` (recommended): no always-visible bar. The header shows an app
+  switcher («Supply ▾»), a way back («← LiveOps») when the person came from
+  another app, and a «Buscar o ir a… ⌘K» search field. No apps-grid button.
+- `'appbar'` (an alternative): the header shows every app as a bar, plus an
+  «Ir a…» button.
 
 ```tsx
 <AppShell
   sections={sections}
   currentPath={pathname}
-  navigation="appbar"
+  navigation="switcher"
   appSub="supply"
   cookieDomain=".partrunner.ai"
   brandHref="/"
@@ -63,33 +70,59 @@ Opt-in. Without the prop nothing changes: `navigation` defaults to
 >
 ```
 
-In this mode:
+Shared by both modes:
 
-- `GlobalHeader` shows an app bar: every app in one fixed order (Inicio,
-  Comercial, Solicitudes, Supply, LiveOps, Finanzas, FDS). The current app is
-  marked. Another app opens the last page you used there, else its start page.
-  The bar shows when its slot in the header is 500px wide or more (the bar itself is about 470px). The launcher
-  grid button stays visible at every width: it is the way to Comunidad and the
-  overflow path. Apps with `appBar: false` in the
-  registry (Comunidad) are not in the bar.
-- «Ir a…» (⌘K / Ctrl+K, or the header button) opens a palette. It lists recent
-  pages first, then searches this app's pages, recents, the host's page index,
-  and the apps. A host can fill `pages` in the staff-shell context
-  (`StaffShellPage`: `app`, `label`, absolute `href`, `section`) to search other
-  apps' pages.
 - The brand block opens the start page of the app you are in (`brandHref`, else
   `/`). `onBrandSelect` runs only when you pass it. The pinned «Nexus» item is
-  not rendered; Nexus is «Inicio» in the bar.
+  not rendered; Nexus is a row in the switcher or «Inicio» in the bar.
+- «Ir a…» (⌘K / Ctrl+K, or the header button) opens a palette. With no query it
+  lists «Volver» (the way back), «Recientes», and «Apps» with the page each one
+  opens. With a query it searches this app's pages, recents, the host's page
+  index, and the apps. A host can fill `pages` in the staff-shell context
+  (`StaffShellPage`: `app`, `label`, absolute `href`, `section`) to search other
+  apps' pages.
 - `onNavigate({ source, fromSub, toSub, href })` runs before the app bar, the
-  palette, the brand block, or a sidebar link navigates
-  (`source`: `'appbar' | 'goto' | 'brand' | 'menu'`). Forward it to usage
-  tracking. A throwing callback is ignored.
+  switcher, the way back, the palette, the brand block, or a sidebar link
+  navigates (`source`: `'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' |
+  'menu'`). Forward it to usage tracking. A throwing callback is ignored.
 - `useShellNavigation()` returns the navigation state (`mode`, `currentPath`,
-  `appSub`, `pages`, `activeLabel`, ...) inside `AppShell`, else `null`.
+  `appSub`, `pages`, `activeLabel`, `wayBack`, ...) inside `AppShell`, else
+  `null`.
 
-Adoption steps:
+### `'switcher'`
 
-1. Set `navigation="appbar"` and `appSub` (the registry `sub`) on `AppShell`.
+- The trigger shows the name of the current app. The menu has one row per app
+  of `APP_BAR_ORDER` (Comunidad is not there), numbered 1-7. Each row shows the
+  label of the page it opens: the last page used there, else «Inicio». The
+  current row is marked «aquí» and routes in place. Keys: arrows, Home, End,
+  digits 1-9, Esc.
+- The way back: when you arrive from another app, «← App» opens the exact page
+  you left. Every cross-app link the shell builds (switcher rows, app bar items,
+  palette rows, the chip itself) carries a fragment,
+  `#pr-from=<sub>:<encoded pathname>`. On the first mount the shell reads the
+  fragment, removes only that fragment from the address bar with
+  `history.replaceState`, and keeps `{ s, p }` in `sessionStorage` (`pr-nav-from`,
+  per origin and per tab). Without a fragment it falls back to
+  `document.referrer` when that is the origin of another registry app, and opens
+  that app's last page, else its start page. Nothing goes to a server: a
+  fragment is never sent in an HTTP request. A same-app or external link never
+  gets the fragment.
+- `pr-nav-last` holds `{ [sub]: { p, l? } }` (path and the label of its menu
+  page). The older `{ [sub]: path }` form is still read.
+
+### `'appbar'`
+
+`GlobalHeader` shows an app bar: every app in `APP_BAR_ORDER` (Inicio, Comercial,
+Solicitudes, Supply, LiveOps, Finanzas, FDS). The current app is marked. Another
+app opens the last page you used there, else its start page. The bar shows when
+its slot in the header is 500px wide or more (the bar itself is about 470px).
+The launcher grid button stays visible at every width: it is the way to Comunidad
+and the overflow path. Apps with `appBar: false` in the registry (Comunidad) are
+not in the bar.
+
+### Adoption steps
+
+1. Set `navigation="switcher"` and `appSub` (the registry `sub`) on `AppShell`.
 2. Set `cookieDomain=".partrunner.ai"` so the visit memory is shared between
    apps. Without it the memory stays on one host.
 3. Set `brandHref` when the start page of the app is not `/`, for example
@@ -98,22 +131,26 @@ Adoption steps:
 5. A page that owns its own ⌘K (Supply has one in onboarding/conversaciones)
    must listen on `window` in the capture phase and call `preventDefault()`.
    The shell listens on `document` in the bubble phase, so it runs later and
-   does not open «Ir a». The shell also ignores ⌘K with Shift or
-   Alt held.
+   does not open «Ir a». The shell also ignores ⌘K with Shift or Alt held.
 
-Visit memory uses two cookies, `pr-nav-last` (last path per app) and
-`pr-nav-recent` (the last 8 menu pages with their labels; a detail page such
-as `/rutas/123` is stored as its menu page `/rutas`), kept for 30 days. They go
-with every request to every `*.partrunner.ai` host, so they stay small (paths
-up to 160 characters; the recent list drops its oldest entries past 1500
-encoded characters). They
-hold the pathname only, never the query or the hash. Login, logout, `/auth/*`,
-`/sso*`, `/unauthorized`, and `/solicitar-acceso` are never stored
-(`NAV_MEMORY_IGNORE`). `pr-nav-last` keeps the exact path, so a detail path such
-as `/rutas/<id>` is stored there for 30 days. Both cookies get `Secure` on
-https. Finanzas lives on `partrunner.app` and cannot read `.partrunner.ai` cookies. Its
-app bar therefore opens start pages, and its visits do not reach the other
-apps.
+### Visit memory
+
+Two cookies, `pr-nav-last` (last path per app) and `pr-nav-recent` (the last 8
+menu pages with their labels; a detail page such as `/rutas/123` is stored as its
+menu page `/rutas`), are kept for 30 days. They go with every request to every
+`*.partrunner.ai` host, so they stay small (paths up to 160 characters; the
+recent list drops its oldest entries past 1500 encoded characters; the last list
+drops its oldest apps past 2000). They hold the pathname only, never the query or
+the hash. Login, logout, `/auth/*`, `/sso*`, `/unauthorized`, and
+`/solicitar-acceso` are never stored (`NAV_MEMORY_IGNORE`). `pr-nav-last` keeps
+the exact path, so a detail path such as `/rutas/<id>` is stored there for 30
+days. Both cookies get `Secure` on https. The names carry the environment
+(`pr-nav-last-staging` on staging hosts; see `navMemoryCookieNames()`).
+
+Finanzas lives on `partrunner.app` and cannot read `.partrunner.ai` cookies. Its
+rows therefore open start pages, and its visits do not reach the other apps (it
+has no shared last-page memory). The way back still works for it: the fragment
+travels in the link, and `sessionStorage` is per origin.
 
 ## Bell sound
 

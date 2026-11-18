@@ -70,7 +70,13 @@ describe('«Ir a» palette', () => {
     expect(screen.getByText('Recientes')).toBeTruthy();
     // The current page (Flotas, /fleets) is recorded by the shell and left out;
     // Unidades (supply) stays.
-    expect(optionLabels()).toEqual(['NegociosComercial', 'RutasLiveOps', 'UnidadesSupply']);
+    expect(optionLabels().slice(0, 3)).toEqual([
+      'NegociosComercial',
+      'RutasLiveOps',
+      'UnidadesSupply',
+    ]);
+    // Then the apps, with the page each one opens.
+    expect(screen.getByText('Apps')).toBeTruthy();
   });
 
   it('says what to do when there is nothing recent', async () => {
@@ -78,7 +84,8 @@ describe('«Ir a» palette', () => {
     const user = userEvent.setup();
     render(<AppbarShell currentPath="/login" />);
     await user.click(screen.getByRole('button', { name: /Ir a…/ }));
-    expect(screen.getByText('Escribe para buscar')).toBeTruthy();
+    expect(screen.queryByText('Recientes')).toBeNull();
+    expect(screen.getByText('Apps')).toBeTruthy();
   });
 
   it('searches without regard to accents or case, across pages, recents, and apps', async () => {
@@ -138,7 +145,7 @@ describe('«Ir a» palette', () => {
     const option = screen.getByRole('option');
     expect(option.textContent).toBe('CotizacionesVentas · Comercial');
     expect(within(option).getByRole('link').getAttribute('href')).toBe(
-      'https://sales.partrunner.ai/quotes',
+      'https://sales.partrunner.ai/quotes#pr-from=supply:%2Ffleets',
     );
   });
 
@@ -197,13 +204,13 @@ describe('«Ir a» palette', () => {
     await user.click(screen.getByRole('button', { name: /Ir a…/ }));
     expect(
       within(screen.getAllByRole('option')[0]!).getByRole('link').getAttribute('href'),
-    ).toBe('https://sales.partrunner.ai/deals');
+    ).toBe('https://sales.partrunner.ai/deals#pr-from=supply:%2Ffleets');
     await user.keyboard('{Enter}');
     expect(onNavigate).toHaveBeenCalledWith({
       source: 'goto',
       fromSub: 'supply',
       toSub: 'sales',
-      href: 'https://sales.partrunner.ai/deals',
+      href: 'https://sales.partrunner.ai/deals#pr-from=supply:%2Ffleets',
     });
     expect(screen.queryByRole('dialog')).toBeNull();
   });

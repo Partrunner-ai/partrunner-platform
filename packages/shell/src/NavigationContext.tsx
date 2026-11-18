@@ -1,7 +1,13 @@
 import { createContext, useContext } from 'react';
 import type { LinkComponent } from './AppShell';
+import type { WayBackTarget } from './wayBack';
 
-export type ShellNavigationMode = 'launcher' | 'appbar';
+export type ShellNavigationMode = 'launcher' | 'appbar' | 'switcher';
+
+/** `'appbar'` and `'switcher'` share the brand, memory, palette, and event rules. */
+export function isAppNavigation(mode: ShellNavigationMode | undefined): boolean {
+  return mode === 'appbar' || mode === 'switcher';
+}
 
 /** One visible destination of the current app. */
 export interface ShellNavigationPage {
@@ -13,7 +19,7 @@ export interface ShellNavigationPage {
 }
 
 export interface ShellNavigateEvent {
-  source: 'appbar' | 'goto' | 'brand' | 'menu';
+  source: 'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' | 'menu';
   fromSub?: string;
   toSub?: string;
   href: string;
@@ -31,6 +37,8 @@ export interface ShellNavigationValue {
   activeLabel?: string;
   /** Path of the menu page that owns `activeLabel` (a detail page sits under it). */
   activePath?: string;
+  /** The app this tab came from and the page left there, when known. */
+  wayBack?: WayBackTarget | null;
   /** Extra paths that visit memory must not record. */
   navMemoryIgnore: readonly string[];
   /** Called before a shell link navigates; hosts forward it to usage tracking. */

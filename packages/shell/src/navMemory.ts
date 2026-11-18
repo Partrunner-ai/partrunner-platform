@@ -66,11 +66,14 @@ export interface NavRecentEntry {
 }
 
 export interface NavMemory {
+  /** Last exact path per app. */
   last: Record<string, string>;
+  /** Label of the menu page behind each `last` path, when there was one. */
+  labels: Record<string, string>;
   recent: NavRecentEntry[];
 }
 
-export const EMPTY_NAV_MEMORY: NavMemory = { last: {}, recent: [] };
+export const EMPTY_NAV_MEMORY: NavMemory = { last: {}, labels: {}, recent: [] };
 
 function hasControlCharacter(value: string): boolean {
   for (let i = 0; i < value.length; i += 1) {
@@ -118,12 +121,44 @@ function decodeJson(raw: string | null | undefined): unknown {
   }
 }
 
-export function parseNavLast(raw: string | null | undefined): Record<string, string> {
+/**
+ * Reads `pr-nav-last`. The value is `{ [sub]: { p, l? } }`; the older
+ * `{ [sub]: path }` form from an earlier build is still accepted as `{ p }`.
+ */
+export function parseNavLastEntries(raw: string | null | undefined): {
+  last: Record<string, string>;
+  labels: Record<string, string>;
+} {
   const value = decodeJson(raw);
-  const out: Record<string, string> = {};
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
-  for (const [sub, path] of Object.entries(value as Record<string, unknown>)) {
-    if (isStorableSub(sub) && isStorablePath(path)) out[sub] = path;
+  const last: Record<string, string> = {};
+  const labels: Record<string, string> = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { last, labels };
+  for (const [sub, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!isStorableSub(sub)) continue;
+    if (typeof entry === 'string') {
+      if (isStorablePath(entry)) last[sub] = entry;
+    } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      const { p, l } = entry as Record<string, unknown>;
+      if (!isStorablePath(p)) continue;
+      last[sub] = p;
+      if (typeof l === 'string' && l.length > 0 && l.length <= NAV_LABEL_LIMIT) labels[sub] = l;
+    }
+  }
+  return { last, labels };
+}
+
+export function parseNavLast(raw: string | null | undefined): Record<string, string> {
+  return parseNavLastEntries(raw).last;
+}
+
+function lastEntries(
+  last: Record<string, string>,
+  labels: Record<string, string>,
+): Record<string, { p: string; l?: string }> {
+  const out: Record<string, { p: string; l?: string }> = {};
+  for (const [sub, p] of Object.entries(last)) {
+    const l = labels[sub];
+    out[sub] = l ? { p, l } : { p };
   }
   return out;
 }
@@ -152,8 +187,11 @@ function encodeValue(value: unknown): string {
 }
 
 /** Encoded last-page cookie, or `null` when it would be too large. */
-export function serializeNavLast(last: Record<string, string>): string | null {
-  const encoded = encodeValue(last);
+export function serializeNavLast(
+  last: Record<string, string>,
+  labels: Record<string, string> = {},
+): string | null {
+  const encoded = encodeValue(lastEntries(last, labels));
   return encoded.length > LAST_VALUE_LIMIT ? null : encoded;
 }
 
@@ -164,10 +202,11 @@ export function serializeNavLast(last: Record<string, string>): string | null {
 export function trimNavLast(
   last: Record<string, string>,
   keep: string,
+  labels: Record<string, string> = {},
 ): Record<string, string> {
   const out = { ...last };
   for (const key of Object.keys(out)) {
-    if (encodeValue(out).length <= LAST_VALUE_LIMIT) break;
+    if (encodeValue(lastEntries(out, labels)).length <= LAST_VALUE_LIMIT) break;
     if (key !== keep) delete out[key];
   }
   return out;
@@ -233,9 +272,18 @@ export function recordNavVisit(
   // Remove, then add: the visited app becomes the newest key.
   const others = { ...memory.last };
   delete others[visit.sub];
-  const last = trimNavLast({ ...others, [visit.sub]: path }, visit.sub);
-  let recent = memory.recent;
   const label = visit.label?.trim();
+  const labelOk = Boolean(label) && label!.length <= NAV_LABEL_LIMIT;
+  const allLabels = { ...memory.labels };
+  delete allLabels[visit.sub];
+  if (labelOk) allLabels[visit.sub] = label!;
+  const trimmed = trimNavLast({ ...others, [visit.sub]: path }, visit.sub, allLabels);
+  const last = trimmed;
+  const labels: Record<string, string> = {};
+  for (const sub of Object.keys(last)) {
+    if (allLabels[sub]) labels[sub] = allLabels[sub]!;
+  }
+  let recent = memory.recent;
   const recentPath = (visit.labelPath ?? path).split('?')[0]!.split('#')[0]!;
   if (
     label &&
@@ -248,7 +296,7 @@ export function recordNavVisit(
       ...memory.recent.filter((entry) => !(entry.s === visit.sub && entry.p === recentPath)),
     ].slice(0, NAV_RECENT_LIMIT);
   }
-  return { last, recent };
+  return { last, labels, recent };
 }
 
 function readCookie(source: string, name: string): string | undefined {
@@ -268,8 +316,10 @@ export function readNavMemory(
 ): NavMemory {
   if (!cookieSource) return EMPTY_NAV_MEMORY;
   const names = navMemoryCookieNames();
+  const { last, labels } = parseNavLastEntries(readCookie(cookieSource, names.last));
   return {
-    last: parseNavLast(readCookie(cookieSource, names.last)),
+    last,
+    labels,
     recent: parseNavRecent(readCookie(cookieSource, names.recent)),
   };
 }
@@ -285,7 +335,7 @@ export function writeNavMemory(memory: NavMemory, cookieDomain?: string): void {
   if (typeof document === 'undefined') return;
   try {
     const names = navMemoryCookieNames();
-    const last = serializeNavLast(memory.last);
+    const last = serializeNavLast(memory.last, memory.labels);
     if (last !== null) writeCookie(names.last, last, cookieDomain);
     writeCookie(names.recent, serializeNavRecent(memory.recent), cookieDomain);
   } catch {

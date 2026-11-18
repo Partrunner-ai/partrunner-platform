@@ -3,8 +3,9 @@ import { UserRound } from 'lucide-react';
 import type { AppLink } from '@partrunner-ai/app-registry';
 import { AppLauncher } from './AppLauncher';
 import { AppBarSection, appBarApps } from './AppBar';
+import { SwitcherSection } from './AppSwitcher';
 import { GoToPalette } from './GoToPalette';
-import { useShellNavigation } from './NavigationContext';
+import { isAppNavigation, useShellNavigation } from './NavigationContext';
 import {
   NotificationCenter,
   type NotificationCenterLabels,
@@ -107,9 +108,11 @@ export function GlobalHeader({
   const { locale } = shell.preferences;
   const messages = MESSAGES[locale];
   const nav = useShellNavigation();
+  const appNav = nav && isAppNavigation(nav.mode) ? nav : null;
+  const switcher = nav?.mode === 'switcher' ? nav : null;
   const appbar = nav?.mode === 'appbar' ? nav : null;
-  const barSub = appbar ? (appbar.appSub ?? currentSub) : currentSub;
-  const barApps = appbar ? appBarApps(apps) : [];
+  const barSub = appNav ? (appNav.appSub ?? currentSub) : currentSub;
+  const barApps = appNav ? appBarApps(apps) : [];
   const profileItem: UserMenuItem = {
     label: messages.profile,
     href: shell.profileHref,
@@ -119,9 +122,18 @@ export function GlobalHeader({
   return (
     <header
       className={`pr-global-header${className ? ` ${className}` : ''}`}
-      data-navigation={appbar ? 'appbar' : undefined}
+      data-navigation={appNav ? appNav.mode : undefined}
       aria-label={messages.landmark}
     >
+      {switcher ? (
+        <SwitcherSection
+          nav={switcher}
+          apps={barApps}
+          currentSub={barSub}
+          headerSub={currentSub}
+          locale={locale}
+        />
+      ) : null}
       <div className="pr-global-header__start">{start}</div>
       {appbar ? (
         <div className="pr-global-header__nav">
@@ -138,9 +150,10 @@ export function GlobalHeader({
         <div className="pr-global-header__spacer" />
       )}
       <div className="pr-global-header__controls">
-        {appbar ? (
+        {appNav ? (
           <GoToPalette
-            nav={appbar}
+            nav={appNav}
+            variant={switcher ? 'field' : 'button'}
             apps={barApps}
             currentSub={barSub}
             locale={locale}
@@ -174,12 +187,14 @@ export function GlobalHeader({
           onRefresh={shell.refreshNotifications}
           labels={messages.notifications}
         />
-        <AppLauncher
-          apps={apps}
-          currentSub={currentSub}
-          label={messages.launcher}
-          triggerLabel={messages.launcher}
-        />
+        {switcher ? null : (
+          <AppLauncher
+            apps={apps}
+            currentSub={currentSub}
+            label={messages.launcher}
+            triggerLabel={messages.launcher}
+          />
+        )}
         <span className="pr-global-header__divider" aria-hidden />
         <UserMenu
           name={shell.user.name}

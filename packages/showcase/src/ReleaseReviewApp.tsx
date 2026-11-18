@@ -11,7 +11,7 @@ import { AppBarDemo } from './AppBarDemo';
 import { BrandMarkDemo } from './BrandMarkDemo';
 import './review.css';
 
-export type ReviewView = 'components' | 'shell' | 'brand' | 'appbar';
+export type ReviewView = 'components' | 'shell' | 'brand' | 'appbar' | 'switcher';
 export type ReviewTheme = 'light' | 'dark';
 
 const VIEWS: Array<{ id: ReviewView; label: string }> = [
@@ -19,6 +19,7 @@ const VIEWS: Array<{ id: ReviewView; label: string }> = [
   { id: 'shell', label: 'App shell' },
   { id: 'brand', label: 'Brand mark' },
   { id: 'appbar', label: 'App bar' },
+  { id: 'switcher', label: 'Switcher' },
 ];
 
 function viewFromHash(): ReviewView {
@@ -130,6 +131,7 @@ export function ReleaseReviewApp({
         {view === 'shell' && theme === 'dark' ? <ShellDarkCatalog /> : null}
         {view === 'brand' ? <BrandMarkDemo /> : null}
         {view === 'appbar' ? <AppBarDemo /> : null}
+        {view === 'switcher' ? <AppBarDemo mode="switcher" /> : null}
       </div>
     </div>
   );

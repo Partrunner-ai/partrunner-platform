@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ComponentType,
@@ -23,12 +24,14 @@ import { BrandMark } from './BrandMark';
 import { BrandWordmark } from './BrandWordmark';
 import {
   ShellNavigationContext,
+  isAppNavigation,
   notifyNavigate,
   type ShellNavigateEvent,
   type ShellNavigationPage,
   type ShellNavigationValue,
 } from './NavigationContext';
-import { rememberNavVisit } from './navMemory';
+import { readNavMemory, rememberNavVisit } from './navMemory';
+import { captureWayBack, type WayBackTarget } from './wayBack';
 import {
   appShellGroupsKey,
   decodeAppShellGroups,
@@ -107,6 +110,8 @@ export type LinkComponent = ComponentType<{
   'aria-current'?: 'page';
   /** Only set on the brand block in `navigation="appbar"` mode. */
   'data-canonical-brand'?: string;
+  /** Set by the shell on app-switcher rows. */
+  role?: 'menuitem';
 }>;
 
 const DefaultLink: LinkComponent = ({ href, children, ...rest }) => (
@@ -118,11 +123,12 @@ const DefaultLink: LinkComponent = ({ href, children, ...rest }) => (
 export interface AppShellProps {
   sections: NavSection[];
   /**
-   * `'launcher'` (default) keeps today's shell. `'appbar'` adds the app bar and
-   * the «Ir a» palette to `GlobalHeader`, makes the brand open this app's start
-   * page, and drops the pinned «Nexus» item.
+   * `'launcher'` (default) keeps today's shell. `'switcher'` (recommended) puts
+   * an app switcher, a way back to the app you came from, and the «Ir a» search
+   * in `GlobalHeader`. `'appbar'` shows every app as a bar instead. Both make
+   * the brand open this app's start page and drop the pinned «Nexus» item.
    */
-  navigation?: 'launcher' | 'appbar';
+  navigation?: 'launcher' | 'appbar' | 'switcher';
   /** Registry `sub` of this app (for example `'supply'`). Keys the visit memory. */
   appSub?: string;
   /** Extra paths the visit memory must not record, on top of the auth pages. */
@@ -570,7 +576,7 @@ export function AppShell({
    * "no link". Resolved lazily rather than in a default parameter because
    * `configureAppRegistry` can change the base domain after module load.
    */
-  const appbar = navigation === 'appbar';
+  const appbar = isAppNavigation(navigation);
   const resolvedBrandHref = useMemo(() => {
     if (brandHref !== undefined) return brandHref;
     // The app bar owns the way to Nexus, so the brand stays in the current app.
@@ -612,6 +618,15 @@ export function AppShell({
     return pages.find((page) => !page.external && navPath(page.href) === activeHref)?.label;
   }, [appbar, activeHref, pages]);
 
+  // The arrival is read once, on the first mount, and kept in sessionStorage.
+  const [wayBack, setWayBack] = useState<WayBackTarget | null>(null);
+  const wayBackRead = useRef(false);
+  useEffect(() => {
+    if (!appbar || wayBackRead.current) return;
+    wayBackRead.current = true;
+    setWayBack(captureWayBack(appSub, readNavMemory().last));
+  }, [appbar, appSub]);
+
   const navigationValue = useMemo<ShellNavigationValue>(
     () => ({
       mode: navigation,
@@ -622,6 +637,7 @@ export function AppShell({
       pages,
       activeLabel,
       activePath: activeLabel === undefined ? undefined : activeHref,
+      wayBack,
       navMemoryIgnore: navMemoryIgnore ?? [],
       onNavigate,
     }),
@@ -634,6 +650,7 @@ export function AppShell({
       pages,
       activeLabel,
       activeHref,
+      wayBack,
       navMemoryIgnore,
       onNavigate,
     ],

@@ -51,8 +51,20 @@ const STAFF: StaffShellContextValue = {
  * the palette. Pages of the demo app route in place; other apps are real links
  * built by the app registry.
  */
-export function AppBarDemo() {
+export function AppBarDemo({ mode = 'appbar' }: { mode?: 'appbar' | 'switcher' }) {
   const [path, setPath] = useState('/fleets');
+  // Remounting the shell makes it read the address fragment again.
+  const [arrival, setArrival] = useState(0);
+
+  const simulateArrival = () => {
+    window.sessionStorage.removeItem('pr-nav-from');
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${window.location.search}#pr-from=liveops:%2Frutas%2F123`,
+    );
+    setArrival((value) => value + 1);
+  };
   const [events, setEvents] = useState<string[]>([]);
 
   const Link = useMemo<LinkComponent>(
@@ -78,8 +90,9 @@ export function AppBarDemo() {
   return (
     <StaffShellProvider value={STAFF}>
       <AppShell
+        key={arrival}
         sections={SECTIONS}
-        navigation="appbar"
+        navigation={mode}
         appSub="supply"
         currentPath={path}
         subtitle="Supply"
@@ -88,13 +101,29 @@ export function AppBarDemo() {
         onNavigate={(event) =>
           setEvents((list) => [`${event.source}: ${event.fromSub} → ${event.toSub ?? '—'} ${event.href}`, ...list].slice(0, 5))
         }
-        globalHeader={<GlobalHeader currentSub="supply" start={<strong>Supply</strong>} />}
+        globalHeader={
+          <GlobalHeader
+            currentSub="supply"
+            start={mode === 'appbar' ? <strong>Supply</strong> : undefined}
+          />
+        }
       >
         <div style={{ padding: 32, display: 'grid', gap: 12 }}>
-          <h1 style={{ margin: 0 }}>App bar and «Ir a»</h1>
+          <h1 style={{ margin: 0 }}>
+            {mode === 'switcher' ? 'App switcher, way back and «Ir a»' : 'App bar and «Ir a»'}
+          </h1>
+          {mode === 'switcher' ? (
+            <p style={{ margin: 0 }}>
+              <button type="button" onClick={simulateArrival}>
+                Simulate arriving from LiveOps
+              </button>{' '}
+              shows the «← LiveOps» chip before the switcher.
+            </p>
+          ) : null}
           <p style={{ margin: 0, color: 'var(--pr-fg-muted)' }}>
-            Current page: <code>{path}</code>. Widen the window until the bar shows (the
-            header slot needs 500px); the launcher button is always there.
+            Current page: <code>{path}</code>. {mode === 'switcher'
+              ? 'The app name in the header opens the switcher.'
+              : 'Widen the window until the bar shows (the header slot needs 500px); the launcher button is always there.'}
           </p>
           <pre style={{ margin: 0, fontSize: 12 }}>
             {events.length ? events.join('\n') : 'onNavigate events appear here.'}

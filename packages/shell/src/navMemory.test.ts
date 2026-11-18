@@ -6,6 +6,7 @@ import {
   isStorableNavPath,
   navMemoryCookieNames,
   parseNavLast,
+  parseNavLastEntries,
   parseNavRecent,
   readNavMemory,
   recordNavVisit,
@@ -133,6 +134,62 @@ describe('cookie size', () => {
   });
 });
 
+describe('the last-page cookie format', () => {
+  it('round-trips the object form with labels', () => {
+    const last = { supply: '/fleets', sales: '/deals' };
+    const labels = { supply: 'Flotas' };
+    expect(parseNavLastEntries(serializeNavLast(last, labels))).toEqual({ last, labels });
+    expect(decodeURIComponent(serializeNavLast(last, labels)!)).toBe(
+      '{"supply":{"p":"/fleets","l":"Flotas"},"sales":{"p":"/deals"}}',
+    );
+  });
+
+  it('still reads the older string form', () => {
+    expect(parseNavLastEntries(enc({ supply: '/fleets' }))).toEqual({
+      last: { supply: '/fleets' },
+      labels: {},
+    });
+  });
+
+  it('drops bad entries and over-long labels', () => {
+    const parsed = parseNavLastEntries(
+      enc({
+        a: { p: '/ok', l: 'x'.repeat(61) },
+        b: { p: '/\\evil.com', l: 'B' },
+        c: { l: 'no path' },
+        d: [1],
+        e: { p: '/fine', l: 'E' },
+      }),
+    );
+    expect(parsed.last).toEqual({ a: '/ok', e: '/fine' });
+    expect(parsed.labels).toEqual({ e: 'E' });
+  });
+
+  it('keeps the label with its path and drops the label of a visit without one', () => {
+    let memory = recordNavVisit(EMPTY_NAV_MEMORY, { sub: 'supply', path: '/fleets', label: 'Flotas' });
+    expect(memory.labels).toEqual({ supply: 'Flotas' });
+    memory = recordNavVisit(memory, { sub: 'supply', path: '/fleets/9' });
+    expect(memory.labels).toEqual({});
+  });
+
+  it('trims the oldest other apps and keeps the current visit, labels included', () => {
+    const long = `/${'é'.repeat(50)}`;
+    let memory = EMPTY_NAV_MEMORY;
+    for (let i = 0; i < 8; i += 1) {
+      memory = recordNavVisit(memory, {
+        sub: `app${i}`,
+        path: `${long}${i}`,
+        label: `Página con nombre largo ${i}`,
+      });
+    }
+    expect(serializeNavLast(memory.last, memory.labels)).not.toBeNull();
+    expect(memory.last.app7).toBe(`${long}7`);
+    expect(memory.labels.app7).toBe('Página con nombre largo 7');
+    expect(memory.last.app0).toBeUndefined();
+    expect(Object.keys(memory.labels).every((sub) => sub in memory.last)).toBe(true);
+  });
+});
+
 describe('isIgnoredNavPath', () => {
   it('ignores auth pages and their children', () => {
     for (const path of [
@@ -243,6 +300,7 @@ describe('cookie I/O', () => {
     expect(document.cookie).toContain(`${names.recent}=`);
     expect(readNavMemory()).toEqual({
       last: { supply: '/fleets' },
+      labels: { supply: 'Flotas' },
       recent: [{ s: 'supply', p: '/fleets', l: 'Flotas' }],
     });
   });

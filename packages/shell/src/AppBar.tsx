@@ -11,6 +11,7 @@ import {
   isStorableNavPath,
   readNavMemory, rememberNavVisit, type NavMemory } from './navMemory';
 import type { StaffLocale } from './StaffShellContext';
+import { withWayBack } from './wayBack';
 
 /** The registry label, except Nexus, which reads «Inicio» in the app bar. */
 export function appBarLabel(app: AppLink, locale: StaffLocale): string {
@@ -37,7 +38,7 @@ export function originOf(url: string | null): string {
 }
 
 /** Pathname of an app's start URL, for the router link of the current app. */
-function startPath(url: string): string {
+export function startPath(url: string): string {
   try {
     return new URL(url).pathname || '/';
   } catch {
@@ -68,7 +69,7 @@ export function useNavMemory(refreshKey: string): NavMemory {
 }
 
 /** Records a visit for a header that only knows `currentSub`, not `appSub`. */
-function useHeaderVisitRecorder(nav: ShellNavigationValue, headerSub?: string): void {
+export function useHeaderVisitRecorder(nav: ShellNavigationValue, headerSub?: string): void {
   const enabled = !nav.appSub && Boolean(headerSub);
   useEffect(() => {
     if (!enabled || !headerSub) return;
@@ -96,6 +97,8 @@ export interface AppBarProps {
   onNavigate?: ShellNavigationValue['onNavigate'];
   /** Router link for the current app's start page (client routing). */
   LinkComponent?: ShellNavigationValue['LinkComponent'];
+  /** Current page, for the way-back fragment on links to other apps. */
+  currentPath?: string;
 }
 
 /**
@@ -111,6 +114,7 @@ export function AppBar({
   memory,
   onNavigate,
   LinkComponent,
+  currentPath,
 }: AppBarProps) {
   return (
     <nav className="pr-appbar" aria-label={label}>
@@ -119,7 +123,8 @@ export function AppBar({
         const current = currentSub !== undefined && app.sub === currentSub;
         const rememberedPath = !current ? memory.last[app.sub] : undefined;
         const remembered = isStorableNavPath(rememberedPath) ? rememberedPath : undefined;
-        const href = remembered ? `${originOf(start)}${remembered}` : start;
+        const base = remembered ? `${originOf(start)}${remembered}` : start;
+        const href = current ? start : withWayBack(base, currentSub, currentPath);
         const notify = () =>
           notifyNavigate(onNavigate, {
             source: 'appbar',
@@ -192,6 +197,7 @@ export function AppBarSection({
       memory={memory}
       onNavigate={nav.onNavigate}
       LinkComponent={nav.LinkComponent}
+      currentPath={nav.currentPath}
     />
   );
 }
