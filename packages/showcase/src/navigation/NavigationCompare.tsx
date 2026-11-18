@@ -151,7 +151,9 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
         event.preventDefault();
       } else if (route.kind === 'app') {
         event.preventDefault();
-        goTo(route.sub, route.path);
+        // After the event: a render now would unmount the link before React
+        // runs its onClick (the shell's onNavigate call).
+        setTimeout(() => goTo(route.sub, route.path), 0);
       } else {
         event.preventDefault();
         showNotice(`Enlace bloqueado: ${route.host} no es una app de la simulación.`);

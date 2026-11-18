@@ -185,7 +185,7 @@ export function AppSwitcher({ apps, currentSub, locale, memory, nav }: AppSwitch
               <LinkComponent
                 key={row.app.sub}
                 role="menuitem"
-                className="pr-switcher__item"
+                className="pr-switcher__item pr-switcher__item--current"
                 href={row.href}
                 data-active="true"
                 aria-current={row.atStart ? 'page' : undefined}

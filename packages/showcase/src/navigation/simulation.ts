@@ -1,5 +1,5 @@
 import { APP_BAR_APPS, navMemoryCookieNames } from '@partrunner-ai/shell';
-import { registryOrigin, simApp, type SimApp } from './fixtures';
+import { registryOrigin, simApp, simPages, type SimApp } from './fixtures';
 
 /** Key the shell reads for the way back (`pr-nav-from`, per tab). */
 export const WAY_BACK_STORAGE_KEY = 'pr-nav-from';
@@ -40,10 +40,14 @@ export function routeLink(href: string, pageOrigin: string): LinkRoute {
   return { kind: 'blocked', host: url.host };
 }
 
-/** An empty path or `/` opens the home page of the app. */
+/**
+ * An empty path, `/`, or a path that is not a page of the app (for example an
+ * old remembered cookie) opens the home page of the app.
+ */
 export function resolvePath(app: SimApp, rawPath: string): string {
   const path = rawPath.split('?')[0]!.split('#')[0]!;
-  return path === '' || path === '/' ? app.home : path;
+  if (path === '' || path === '/') return app.home;
+  return simPages(app).some((page) => page.href === path) ? path : app.home;
 }
 
 /** Same as `resolvePath` for a sub; an unknown sub keeps the path. */

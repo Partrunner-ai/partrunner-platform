@@ -166,7 +166,7 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
             <li key={row.app.sub}>
               {row.current ? (
                 <LinkComponent
-                  className="pr-favs__row"
+                  className="pr-favs__row pr-favs__row--current"
                   href={row.href}
                   title={row.name}
                   data-active="true"

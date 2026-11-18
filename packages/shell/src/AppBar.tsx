@@ -137,7 +137,7 @@ export function AppBar({
           return (
             <LinkComponent
               key={`${app.sub}:${app.path ?? ''}`}
-              className="pr-appbar__item"
+              className="pr-appbar__item pr-appbar__item--current"
               href={startPath(start)}
               title={app.description}
               data-active="true"
@@ -151,7 +151,7 @@ export function AppBar({
         return (
           <a
             key={`${app.sub}:${app.path ?? ''}`}
-            className="pr-appbar__item"
+            className={`pr-appbar__item${current ? ' pr-appbar__item--current' : ''}`}
             href={href}
             title={app.description}
             aria-current={current ? 'page' : undefined}

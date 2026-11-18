@@ -1,8 +1,9 @@
 import { Boxes } from 'lucide-react';
+import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureAppRegistry } from '@partrunner-ai/app-registry';
-import { AppShell } from './AppShell';
+import { AppShell, type LinkComponent } from './AppShell';
 import { GlobalHeader } from './GlobalHeader';
 import { useShellNavigation, type ShellNavigationValue } from './NavigationContext';
 import { NAV_LAST_COOKIE, NAV_RECENT_COOKIE } from './navMemory';
@@ -302,5 +303,34 @@ describe('the app bar styles', () => {
     );
     expect(launcher.container.querySelector('.pr-global-header__spacer')).toBeTruthy();
     expect(launcher.container.querySelector('.pr-global-header__nav')).toBeNull();
+  });
+});
+
+describe('the current item without data attributes', () => {
+  // A host link that forwards only href, className, children, and onClick.
+  const BareLink: LinkComponent = ({ href, className, children, onClick }) => (
+    <a href={href} className={className} onClick={onClick}>
+      {children}
+    </a>
+  );
+
+  it('marks the current app in the bar, the switcher, and «Mis apps» with a class', async () => {
+    const user = userEvent.setup();
+    const context = staffContext({ favoriteApps: ['supply', 'liveops'] });
+    const bar = render(<AppbarShell LinkComponent={BareLink} appsInSidebar context={context} />);
+    expect(bar.container.querySelector('.pr-appbar__item--current')!.textContent).toBe('Supply');
+    expect(bar.container.querySelector('.pr-favs__row--current')!.textContent).toContain('Supply');
+    bar.unmount();
+
+    render(
+      <AppbarShell
+        navigation="switcher"
+        LinkComponent={BareLink}
+        header={{ currentSub: 'supply' }}
+        context={context}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /Supply/ }));
+    expect(document.querySelector('.pr-switcher__item--current')!.textContent).toContain('Supply');
   });
 });

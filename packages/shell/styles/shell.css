@@ -1167,6 +1167,7 @@ a.pr-sidebar__brand:focus-visible {
   background: var(--pr-surface);
   color: var(--pr-fg);
 }
+.pr-appbar__item.pr-appbar__item--current,
 .pr-appbar__item[data-current='true'] {
   background: var(--pr-accent);
   color: var(--pr-accent-ink);
@@ -1399,6 +1400,7 @@ a.pr-sidebar__brand:focus-visible {
   outline: none;
   background: var(--pr-border);
 }
+.pr-switcher__item.pr-switcher__item--current,
 .pr-switcher__item[data-active='true'] {
   box-shadow: inset 0 0 0 1px var(--pr-accent);
 }
@@ -1613,6 +1615,7 @@ a.pr-sidebar__brand:focus-visible {
 .pr-favs__choice:hover {
   background: var(--pr-sidebar-hover-bg);
 }
+.pr-favs__row.pr-favs__row--current,
 .pr-favs__row[data-active='true'] {
   background: var(--pr-sidebar-active-bg);
   color: var(--pr-sidebar-active-fg);

@@ -23,6 +23,7 @@ test('a switcher row opens the simulated app, not the real one', async ({ mount,
 
   await expect(page.getByTestId('address-bar')).toContainText('supply.partrunner.ai/onboarding/mi-dia');
   await expect(page.getByTestId('loads')).toHaveText('1');
+  await expect(page.getByText('Último evento:')).toContainText('switcher: liveops → supply');
   await expect(page.getByTestId('clicks')).toHaveText('2');
   // The way back chip shows the page left in LiveOps.
   await expect(page.getByLabel('Volver a LiveOps')).toBeVisible();
@@ -61,4 +62,26 @@ test('a task counts the clicks and reports the goal', async ({ mount, page }) =>
   await page.getByRole('menuitem', { name: /Supply/ }).click();
   await page.getByRole('link', { name: 'Afiliación' }).first().click();
   await expect(page.getByRole('status').filter({ hasText: 'Meta alcanzada' })).toContainText('3 clics');
+});
+
+test('the current app is highlighted in option A', async ({ mount, page }) => {
+  await mount(<NavigationCompare initialOption="a" />);
+  await expect(page.locator('.pr-appbar__item--current')).toHaveText('LiveOps');
+  await page.getByRole('link', { name: 'Supply' }).click();
+  await expect(page.locator('.pr-appbar__item--current')).toHaveText('Supply');
+  await expect(page.getByText('Último evento:')).toContainText('appbar: liveops → supply');
+});
+
+test('an unknown remembered path opens the app start page', async ({ mount, page }) => {
+  await page.context().addCookies([
+    {
+      name: 'pr-nav-last-staging',
+      value: encodeURIComponent(JSON.stringify({ supply: { p: '/fleets', l: 'Flotas' } })),
+      url: page.url(),
+    },
+  ]);
+  await mount(<NavigationCompare initialOption="b" />);
+  await page.locator('.pr-switcher__trigger').click();
+  await page.getByRole('menuitem', { name: /Supply/ }).click();
+  await expect(page.getByTestId('address-bar')).toContainText('supply.partrunner.ai/onboarding/mi-dia');
 });
