@@ -7,10 +7,11 @@ import {
   UiDarkCatalog,
   UiLightCatalog,
 } from '../../ui/e2e/component-gallery.story';
-import { AppBarDemo } from './AppBarDemo';
 import { BrandMarkDemo } from './BrandMarkDemo';
+import { NavigationCompare } from './navigation/NavigationCompare';
 import './review.css';
 
+/** `'appbar'` is an alias of `'switcher'`: the same view, opened on option A. */
 export type ReviewView = 'components' | 'shell' | 'brand' | 'appbar' | 'switcher';
 export type ReviewTheme = 'light' | 'dark';
 
@@ -18,13 +19,13 @@ const VIEWS: Array<{ id: ReviewView; label: string }> = [
   { id: 'components', label: 'Components' },
   { id: 'shell', label: 'App shell' },
   { id: 'brand', label: 'Brand mark' },
-  { id: 'appbar', label: 'App bar' },
-  { id: 'switcher', label: 'Switcher' },
+  { id: 'switcher', label: 'Navegación' },
 ];
 
 function viewFromHash(): ReviewView {
   if (typeof window === 'undefined') return 'components';
   const candidate = window.location.hash.slice(1);
+  if (candidate === 'appbar') return 'appbar';
   return VIEWS.some(({ id }) => id === candidate)
     ? (candidate as ReviewView)
     : 'components';
@@ -108,6 +109,8 @@ export function ReleaseReviewApp({
     () => initialView ?? viewFromHash(),
   );
   const [theme, setTheme] = useState<ReviewTheme>(initialTheme);
+  // `#appbar` opens the navigation view on option A (the old app-bar demo).
+  const navigationView = view === 'appbar' ? 'switcher' : view;
 
   const selectView = (nextView: ReviewView) => {
     setView(nextView);
@@ -119,7 +122,7 @@ export function ReleaseReviewApp({
   return (
     <div className="review-app">
       <ShowcaseToolbar
-        view={view}
+        view={navigationView}
         theme={theme}
         onViewChange={selectView}
         onThemeChange={setTheme}
@@ -130,8 +133,9 @@ export function ReleaseReviewApp({
         {view === 'shell' && theme === 'light' ? <ShellLightCatalog /> : null}
         {view === 'shell' && theme === 'dark' ? <ShellDarkCatalog /> : null}
         {view === 'brand' ? <BrandMarkDemo /> : null}
-        {view === 'appbar' ? <AppBarDemo /> : null}
-        {view === 'switcher' ? <AppBarDemo mode="switcher" /> : null}
+        {navigationView === 'switcher' ? (
+          <NavigationCompare initialOption={view === 'appbar' ? 'a' : undefined} />
+        ) : null}
       </div>
     </div>
   );
