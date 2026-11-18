@@ -11,14 +11,36 @@
  * or foreign value reads as empty and never throws.
  */
 
+import { getAppRegistryConfig } from '@partrunner-ai/app-registry';
+
+/** Base cookie names. Use `navMemoryCookieNames()` for the real, per-environment names. */
 export const NAV_LAST_COOKIE = 'pr-nav-last';
 export const NAV_RECENT_COOKIE = 'pr-nav-recent';
+/**
+ * Staging and production share the `.partrunner.ai` cookie domain, so the names
+ * carry the environment: an empty host prefix keeps the base names, and
+ * `staging.` gives `pr-nav-last-staging`. Read at call time, because
+ * `configureAppRegistry` can run after this module loads.
+ */
+export function navMemoryCookieNames(): { last: string; recent: string } {
+  const suffix = getAppRegistryConfig().hostPrefix.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const tail = suffix ? `-${suffix}` : '';
+  return { last: `${NAV_LAST_COOKIE}${tail}`, recent: `${NAV_RECENT_COOKIE}${tail}` };
+}
+
 export const NAV_MEMORY_MAX_AGE = 60 * 60 * 24 * 30;
 export const NAV_RECENT_LIMIT = 8;
-export const NAV_PATH_LIMIT = 200;
+export const NAV_PATH_LIMIT = 160;
 export const NAV_LABEL_LIMIT = 60;
-/** Encoded cookie values above this size are not written (browser cap is ~4 KB). */
-const COOKIE_VALUE_LIMIT = 3500;
+/**
+ * Both cookies travel with every request to every `*.partrunner.ai` host, so
+ * they stay small. The last-page cookie is skipped when it is larger; the
+ * recent cookie drops its oldest entries until it fits.
+ */
+const LAST_VALUE_LIMIT = 2000;
+const RECENT_VALUE_LIMIT = 1500;
+/** Larger raw cookie values are not even parsed. */
+const PARSE_VALUE_LIMIT = 4000;
 
 /**
  * Paths that are never remembered: a person must not land on a login or an SSO
@@ -66,7 +88,7 @@ function isStorableSub(value: unknown): value is string {
 }
 
 function decodeJson(raw: string | null | undefined): unknown {
-  if (!raw || raw.length > COOKIE_VALUE_LIMIT * 3) return undefined;
+  if (!raw || raw.length > PARSE_VALUE_LIMIT) return undefined;
   try {
     return JSON.parse(decodeURIComponent(raw));
   } catch {
@@ -103,18 +125,25 @@ export function parseNavRecent(raw: string | null | undefined): NavRecentEntry[]
   return out;
 }
 
-/** Encodes a value for a cookie, or `null` when it would be too large. */
-function encodeValue(value: unknown): string | null {
-  const encoded = encodeURIComponent(JSON.stringify(value));
-  return encoded.length > COOKIE_VALUE_LIMIT ? null : encoded;
+function encodeValue(value: unknown): string {
+  return encodeURIComponent(JSON.stringify(value));
 }
 
+/** Encoded last-page cookie, or `null` when it would be too large. */
 export function serializeNavLast(last: Record<string, string>): string | null {
-  return encodeValue(last);
+  const encoded = encodeValue(last);
+  return encoded.length > LAST_VALUE_LIMIT ? null : encoded;
 }
 
-export function serializeNavRecent(recent: readonly NavRecentEntry[]): string | null {
-  return encodeValue(recent.slice(0, NAV_RECENT_LIMIT));
+/** Encoded recent cookie. The oldest entries go first until it fits. */
+export function serializeNavRecent(recent: readonly NavRecentEntry[]): string {
+  const list = recent.slice(0, NAV_RECENT_LIMIT);
+  let encoded = encodeValue(list);
+  while (list.length > 0 && encoded.length > RECENT_VALUE_LIMIT) {
+    list.pop();
+    encoded = encodeValue(list);
+  }
+  return encoded;
 }
 
 /** Does `path` match the built-in or host-supplied ignore list? */
@@ -142,6 +171,12 @@ export interface NavVisit {
   path: string;
   /** Label of the active page, when the shell knows one. */
   label?: string;
+  /**
+   * Path of the menu page that owns `label`. A detail page such as `/rutas/123`
+   * sits under the menu item `/rutas`; recents keep the menu page so the
+   * palette does not list one item many times. `last` keeps the exact path.
+   */
+  labelPath?: string;
 }
 
 /**
@@ -160,10 +195,16 @@ export function recordNavVisit(
   const last = { ...memory.last, [visit.sub]: path };
   let recent = memory.recent;
   const label = visit.label?.trim();
-  if (label && label.length <= NAV_LABEL_LIMIT) {
+  const recentPath = (visit.labelPath ?? path).split('?')[0]!.split('#')[0]!;
+  if (
+    label &&
+    label.length <= NAV_LABEL_LIMIT &&
+    isStorablePath(recentPath) &&
+    !isIgnoredNavPath(recentPath, ignore)
+  ) {
     recent = [
-      { s: visit.sub, p: path, l: label },
-      ...memory.recent.filter((entry) => !(entry.s === visit.sub && entry.p === path)),
+      { s: visit.sub, p: recentPath, l: label },
+      ...memory.recent.filter((entry) => !(entry.s === visit.sub && entry.p === recentPath)),
     ].slice(0, NAV_RECENT_LIMIT);
   }
   return { last, recent };
@@ -185,9 +226,10 @@ export function readNavMemory(
     : document.cookie,
 ): NavMemory {
   if (!cookieSource) return EMPTY_NAV_MEMORY;
+  const names = navMemoryCookieNames();
   return {
-    last: parseNavLast(readCookie(cookieSource, NAV_LAST_COOKIE)),
-    recent: parseNavRecent(readCookie(cookieSource, NAV_RECENT_COOKIE)),
+    last: parseNavLast(readCookie(cookieSource, names.last)),
+    recent: parseNavRecent(readCookie(cookieSource, names.recent)),
   };
 }
 
@@ -200,10 +242,10 @@ function writeCookie(name: string, value: string, cookieDomain?: string): void {
 export function writeNavMemory(memory: NavMemory, cookieDomain?: string): void {
   if (typeof document === 'undefined') return;
   try {
+    const names = navMemoryCookieNames();
     const last = serializeNavLast(memory.last);
-    if (last !== null) writeCookie(NAV_LAST_COOKIE, last, cookieDomain);
-    const recent = serializeNavRecent(memory.recent);
-    if (recent !== null) writeCookie(NAV_RECENT_COOKIE, recent, cookieDomain);
+    if (last !== null) writeCookie(names.last, last, cookieDomain);
+    writeCookie(names.recent, serializeNavRecent(memory.recent), cookieDomain);
   } catch {
     /* a remembered page is a nicety, never a failure */
   }

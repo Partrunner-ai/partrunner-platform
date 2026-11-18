@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { configureAppRegistry } from '@partrunner-ai/app-registry';
 import {
   EMPTY_NAV_MEMORY,
-  NAV_LAST_COOKIE,
-  NAV_RECENT_COOKIE,
   isIgnoredNavPath,
+  navMemoryCookieNames,
   parseNavLast,
   parseNavRecent,
   readNavMemory,
@@ -70,6 +70,41 @@ describe('navMemory parsing', () => {
   });
 });
 
+describe('cookie size', () => {
+  it('drops the oldest recent entries until the value fits in 1500 characters', () => {
+    const recent = Array.from({ length: 8 }, (_, i) => ({
+      s: 'supply',
+      p: `/${'é'.repeat(50)}${i}`,
+      l: `Página ${i}`,
+    }));
+    const encoded = serializeNavRecent(recent);
+    expect(encoded.length).toBeLessThanOrEqual(1500);
+    const kept = parseNavRecent(encoded);
+    expect(kept.length).toBeGreaterThan(0);
+    expect(kept.length).toBeLessThan(8);
+    // The newest entries stay.
+    expect(kept[0]).toEqual(recent[0]);
+  });
+
+  it('keeps all entries when they fit', () => {
+    const recent = [{ s: 'supply', p: '/a', l: 'A' }];
+    expect(parseNavRecent(serializeNavRecent(recent))).toEqual(recent);
+  });
+
+  it('skips the last-page cookie above 2000 characters', () => {
+    const last = Object.fromEntries(
+      Array.from({ length: 8 }, (_, i) => [`app${i}`, `/${'é'.repeat(60)}`]),
+    );
+    expect(serializeNavLast(last)).toBeNull();
+    expect(serializeNavLast({ supply: '/fleets' })).not.toBeNull();
+  });
+
+  it('refuses a path over 160 characters', () => {
+    expect(parseNavLast(enc({ supply: `/${'a'.repeat(160)}` }))).toEqual({});
+    expect(parseNavLast(enc({ supply: `/${'a'.repeat(159)}` }))).not.toEqual({});
+  });
+});
+
 describe('isIgnoredNavPath', () => {
   it('ignores auth pages and their children', () => {
     for (const path of [
@@ -117,6 +152,34 @@ describe('recordNavVisit', () => {
     expect(memory.recent.filter((entry) => entry.p === '/p5')).toHaveLength(1);
   });
 
+  it('keeps the menu page in recents and the exact path in last', () => {
+    const memory = recordNavVisit(EMPTY_NAV_MEMORY, {
+      sub: 'liveops',
+      path: '/rutas/123?tab=1',
+      label: 'Rutas',
+      labelPath: '/rutas',
+    });
+    expect(memory.last.liveops).toBe('/rutas/123');
+    expect(memory.recent).toEqual([{ s: 'liveops', p: '/rutas', l: 'Rutas' }]);
+  });
+
+  it('collapses two detail pages of one menu item into one recent entry', () => {
+    let memory = recordNavVisit(EMPTY_NAV_MEMORY, {
+      sub: 'liveops',
+      path: '/rutas/1',
+      label: 'Rutas',
+      labelPath: '/rutas',
+    });
+    memory = recordNavVisit(memory, {
+      sub: 'liveops',
+      path: '/rutas/2',
+      label: 'Rutas',
+      labelPath: '/rutas',
+    });
+    expect(memory.recent).toEqual([{ s: 'liveops', p: '/rutas', l: 'Rutas' }]);
+    expect(memory.last.liveops).toBe('/rutas/2');
+  });
+
   it('stores the pathname only', () => {
     const memory = recordNavVisit(EMPTY_NAV_MEMORY, {
       sub: 'supply',
@@ -147,8 +210,9 @@ describe('recordNavVisit', () => {
 describe('cookie I/O', () => {
   it('writes both cookies and reads them back', () => {
     rememberNavVisit({ sub: 'supply', path: '/fleets', label: 'Flotas' });
-    expect(document.cookie).toContain(`${NAV_LAST_COOKIE}=`);
-    expect(document.cookie).toContain(`${NAV_RECENT_COOKIE}=`);
+    const names = navMemoryCookieNames();
+    expect(document.cookie).toContain(`${names.last}=`);
+    expect(document.cookie).toContain(`${names.recent}=`);
     expect(readNavMemory()).toEqual({
       last: { supply: '/fleets' },
       recent: [{ s: 'supply', p: '/fleets', l: 'Flotas' }],
@@ -158,5 +222,37 @@ describe('cookie I/O', () => {
   it('reads an empty memory when there is no cookie string', () => {
     expect(readNavMemory('')).toBe(EMPTY_NAV_MEMORY);
     expect(readNavMemory('a=1; b=2')).toEqual(EMPTY_NAV_MEMORY);
+  });
+});
+
+describe('cookie names by environment', () => {
+  afterEach(() => {
+    configureAppRegistry({ hostPrefix: 'staging.', baseDomain: 'partrunner.ai' });
+  });
+
+  it('uses the base names in production', () => {
+    configureAppRegistry({ hostPrefix: '' });
+    expect(navMemoryCookieNames()).toEqual({ last: 'pr-nav-last', recent: 'pr-nav-recent' });
+  });
+
+  it('adds the host prefix, cleaned, outside production', () => {
+    configureAppRegistry({ hostPrefix: 'staging.' });
+    expect(navMemoryCookieNames()).toEqual({
+      last: 'pr-nav-last-staging',
+      recent: 'pr-nav-recent-staging',
+    });
+    configureAppRegistry({ hostPrefix: 'Pr-12.Preview_x.' });
+    expect(navMemoryCookieNames().last).toBe('pr-nav-last-pr-12previewx');
+  });
+
+  it('follows a later configureAppRegistry call and keeps environments apart', () => {
+    configureAppRegistry({ hostPrefix: '' });
+    rememberNavVisit({ sub: 'supply', path: '/prod-page', label: 'Prod' });
+    configureAppRegistry({ hostPrefix: 'staging.' });
+    expect(readNavMemory()).toEqual(EMPTY_NAV_MEMORY);
+    rememberNavVisit({ sub: 'supply', path: '/stg-page', label: 'Stg' });
+    expect(readNavMemory().last.supply).toBe('/stg-page');
+    configureAppRegistry({ hostPrefix: '' });
+    expect(readNavMemory().last.supply).toBe('/prod-page');
   });
 });

@@ -29,6 +29,8 @@ export interface ShellNavigationValue {
   pages: readonly ShellNavigationPage[];
   /** Label of the active leaf, when there is one. */
   activeLabel?: string;
+  /** Path of the menu page that owns `activeLabel` (a detail page sits under it). */
+  activePath?: string;
   /** Extra paths that visit memory must not record. */
   navMemoryIgnore: readonly string[];
   /** Called before a shell link navigates; hosts forward it to usage tracking. */

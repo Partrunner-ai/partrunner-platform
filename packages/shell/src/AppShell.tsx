@@ -621,6 +621,7 @@ export function AppShell({
       LinkComponent,
       pages,
       activeLabel,
+      activePath: activeLabel === undefined ? undefined : activeHref,
       navMemoryIgnore: navMemoryIgnore ?? [],
       onNavigate,
     }),
@@ -632,6 +633,7 @@ export function AppShell({
       LinkComponent,
       pages,
       activeLabel,
+      activeHref,
       navMemoryIgnore,
       onNavigate,
     ],
@@ -642,13 +644,13 @@ export function AppShell({
   useEffect(() => {
     if (!appbar || !appSub) return;
     rememberNavVisit(
-      { sub: appSub, path: currentPath, label: activeLabel },
+      { sub: appSub, path: currentPath, label: activeLabel, labelPath: activeHref },
       cookieDomain,
       navMemoryIgnore,
     );
     // The ignore list is a host constant; a new array must not re-record.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appbar, appSub, currentPath, activeLabel, cookieDomain]);
+  }, [appbar, appSub, currentPath, activeLabel, activeHref, cookieDomain]);
 
   const menuSelect = appbar
     ? (item: NavItem) =>

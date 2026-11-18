@@ -31,7 +31,7 @@ export {
   type ShellNavigationPage,
   type ShellNavigationValue,
 } from './NavigationContext';
-export { NAV_MEMORY_IGNORE } from './navMemory';
+export { NAV_MEMORY_IGNORE, navMemoryCookieNames } from './navMemory';
 export { LocaleToggle, type LocaleToggleProps } from './LocaleToggle';
 export {
   NOTIFICATION_REFRESH_MS,

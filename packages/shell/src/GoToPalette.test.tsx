@@ -190,6 +190,28 @@ describe('«Ir a» palette', () => {
     });
   });
 
+  it('stays closed when a page claims the shortcut first', async () => {
+    const user = userEvent.setup();
+    const claim = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') event.preventDefault();
+    };
+    window.addEventListener('keydown', claim, true);
+    try {
+      render(<AppbarShell />);
+      await user.keyboard('{Control>}k{/Control}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      window.removeEventListener('keydown', claim, true);
+    }
+  });
+
+  it('ignores Shift and Alt variants of the shortcut', async () => {
+    const user = userEvent.setup();
+    render(<AppbarShell />);
+    await user.keyboard('{Control>}{Shift>}k{/Shift}{/Control}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('does not listen for the shortcut in launcher mode', async () => {
     const user = userEvent.setup();
     render(<AppbarShell navigation="launcher" globalHeader={<div>plain</div>} />);

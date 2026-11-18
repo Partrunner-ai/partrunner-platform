@@ -1132,8 +1132,13 @@ a.pr-sidebar__brand:focus-visible {
 }
 
 /* ---- App bar and «Ir a» palette (navigation="appbar") ---- */
-.pr-global-header[data-navigation='appbar'] {
-  /* The bar shows only when the header is wide enough; see the query below. */
+.pr-global-header__nav {
+  /* Takes the place of the spacer. The bar shows only when this slot is wide
+     enough; see the container query below. */
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   container-type: inline-size;
 }
 .pr-appbar {
@@ -1171,13 +1176,9 @@ a.pr-sidebar__brand:focus-visible {
   outline: none;
   box-shadow: var(--pr-focus-ring);
 }
-@container (min-width: 1100px) {
+@container (min-width: 680px) {
   .pr-appbar {
     display: flex;
-  }
-  /* The bar already lists every app, so the grid button would only repeat it. */
-  .pr-global-header[data-navigation='appbar'] .pr-launcher {
-    display: none;
   }
 }
 

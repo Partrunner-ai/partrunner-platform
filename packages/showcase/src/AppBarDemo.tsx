@@ -93,8 +93,8 @@ export function AppBarDemo() {
         <div style={{ padding: 32, display: 'grid', gap: 12 }}>
           <h1 style={{ margin: 0 }}>App bar and «Ir a»</h1>
           <p style={{ margin: 0, color: 'var(--pr-fg-muted)' }}>
-            Current page: <code>{path}</code>. Widen the window to 1100px or more to see
-            the app bar; below that the launcher grid takes over.
+            Current page: <code>{path}</code>. Widen the window until the bar shows (the
+            header slot needs 680px); the launcher button is always there.
           </p>
           <pre style={{ margin: 0, fontSize: 12 }}>
             {events.length ? events.join('\n') : 'onNavigate events appear here.'}

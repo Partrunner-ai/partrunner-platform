@@ -68,8 +68,9 @@ In this mode:
 - `GlobalHeader` shows an app bar: every app in one fixed order (Inicio,
   Comercial, Solicitudes, Supply, LiveOps, Finanzas, FDS). The current app is
   marked. Another app opens the last page you used there, else its start page.
-  The bar shows when the header is 1100px wide or more; below that the launcher
-  grid stays as the way to switch apps. Apps with `appBar: false` in the
+  The bar shows when its slot in the header is 680px wide or more. The launcher
+  grid button stays visible at every width: it is the way to Comunidad and the
+  overflow path. Apps with `appBar: false` in the
   registry (Comunidad) are not in the bar.
 - «Ir a…» (⌘K / Ctrl+K, or the header button) opens a palette. It lists recent
   pages first, then searches this app's pages, recents, the host's page index,
@@ -94,9 +95,17 @@ Adoption steps:
 3. Set `brandHref` when the start page of the app is not `/`, for example
    `/admin/dashboard` for Finanzas.
 4. Pass `navMemoryIgnore` for extra paths that must not be remembered.
+5. A page that owns its own ⌘K (Supply has one in onboarding/conversaciones)
+   must listen in the capture phase on `window` and call `preventDefault()`.
+   The shell then does not open «Ir a». The shell also ignores ⌘K with Shift or
+   Alt held.
 
 Visit memory uses two cookies, `pr-nav-last` (last path per app) and
-`pr-nav-recent` (the last 8 pages with their labels), kept for 30 days. They
+`pr-nav-recent` (the last 8 menu pages with their labels; a detail page such
+as `/rutas/123` is stored as its menu page `/rutas`), kept for 30 days. They go
+with every request to every `*.partrunner.ai` host, so they stay small (paths
+up to 160 characters; the recent list drops its oldest entries past 1500
+encoded characters). They
 hold the pathname only, never the query or the hash. Login, logout, `/auth/*`,
 `/sso*`, `/unauthorized`, and `/solicitar-acceso` are never stored
 (`NAV_MEMORY_IGNORE`). Finanzas lives on `partrunner.app`, so it does not share

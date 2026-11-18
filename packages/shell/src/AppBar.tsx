@@ -47,13 +47,18 @@ function useHeaderVisitRecorder(nav: ShellNavigationValue, headerSub?: string): 
   useEffect(() => {
     if (!enabled || !headerSub) return;
     rememberNavVisit(
-      { sub: headerSub, path: nav.currentPath, label: nav.activeLabel },
+      {
+        sub: headerSub,
+        path: nav.currentPath,
+        label: nav.activeLabel,
+        labelPath: nav.activePath,
+      },
       nav.cookieDomain,
       nav.navMemoryIgnore,
     );
     // The ignore list is a host constant; a new array must not re-record.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, headerSub, nav.currentPath, nav.activeLabel, nav.cookieDomain]);
+  }, [enabled, headerSub, nav.currentPath, nav.activeLabel, nav.activePath, nav.cookieDomain]);
 }
 
 export interface AppBarProps {

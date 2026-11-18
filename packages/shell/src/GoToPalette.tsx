@@ -146,6 +146,8 @@ export function GoToPalette({ nav, apps, currentSub, locale, extraPages }: GoToP
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // A page that owns its own ⌘K claims it first (capture phase, preventDefault).
+      if (event.defaultPrevented || event.altKey || event.shiftKey) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setOpen((value) => !value);

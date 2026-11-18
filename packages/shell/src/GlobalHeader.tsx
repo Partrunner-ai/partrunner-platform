@@ -124,16 +124,19 @@ export function GlobalHeader({
     >
       <div className="pr-global-header__start">{start}</div>
       {appbar ? (
-        <AppBarSection
-          nav={appbar}
-          apps={barApps}
-          currentSub={barSub}
-          headerSub={currentSub}
-          locale={locale}
-          label={messages.apps}
-        />
-      ) : null}
-      <div className="pr-global-header__spacer" />
+        <div className="pr-global-header__nav">
+          <AppBarSection
+            nav={appbar}
+            apps={barApps}
+            currentSub={barSub}
+            headerSub={currentSub}
+            locale={locale}
+            label={messages.apps}
+          />
+        </div>
+      ) : (
+        <div className="pr-global-header__spacer" />
+      )}
       <div className="pr-global-header__controls">
         {appbar ? (
           <GoToPalette

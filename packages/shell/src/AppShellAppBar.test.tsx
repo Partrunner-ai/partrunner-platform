@@ -136,6 +136,14 @@ describe('AppShell navigation="appbar"', () => {
     expect(() => screen.getByRole('link', { name: 'Unidades' }).click()).not.toThrow();
   });
 
+  it('remembers the menu page for recents on a detail page', () => {
+    render(<AppbarShell currentPath="/fleets/123" />);
+    const cookie = decodeURIComponent(document.cookie);
+    expect(cookie).toContain('"supply":"/fleets/123"');
+    expect(cookie).toContain('"p":"/fleets","l":"Flotas"');
+    expect(cookie).not.toContain('"p":"/fleets/123"');
+  });
+
   it('does not store a query or an ignored auth page', () => {
     const { rerender } = render(<AppbarShell currentPath="/fleets?code=secret" />);
     expect(decodeURIComponent(document.cookie)).not.toContain('secret');
@@ -248,15 +256,30 @@ describe('the app bar', () => {
 });
 
 describe('the app bar styles', () => {
-  it('shows the bar only on wide headers through a container query', async () => {
+  it('shows the bar through a container query on its own slot, not on the header', async () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const css = readFileSync(join(__dirname, '../styles/shell.css'), 'utf8');
-    expect(css).toMatch(
-      /\.pr-global-header\[data-navigation='appbar'\]\s*\{[^}]*container-type:\s*inline-size/,
-    );
-    expect(css).toMatch(/@container \(min-width: 1100px\)\s*\{[^@]*\.pr-appbar\s*\{[^}]*display:\s*flex/);
+    expect(css).toMatch(/\.pr-global-header__nav\s*\{[^}]*container-type:\s*inline-size/);
+    expect(css).toMatch(/\.pr-global-header__nav\s*\{[^}]*flex:\s*1 1 0/);
+    expect(css).not.toMatch(/\.pr-global-header\[data-navigation='appbar'\]\s*\{[^}]*container-type/);
+    expect(css).toMatch(/@container \(min-width: 680px\)\s*\{[^@]*\.pr-appbar\s*\{[^}]*display:\s*flex/);
     expect(css).toMatch(/\.pr-appbar\s*\{[^}]*display:\s*none/);
+    // The launcher stays visible at every width in appbar mode.
+    expect(css).not.toMatch(/data-navigation='appbar'\]\s*\.pr-launcher/);
+  });
+
+  it('renders the nav slot instead of the spacer in appbar mode only', () => {
+    const { container, unmount } = render(<AppbarShell />);
+    expect(container.querySelector('.pr-global-header__nav .pr-appbar')).toBeTruthy();
+    expect(container.querySelector('.pr-global-header__spacer')).toBeNull();
+    unmount();
+    const launcher = render(
+      <StaffShellProvider value={staffContext()}>
+        <GlobalHeader currentSub="supply" />
+      </StaffShellProvider>,
+    );
+    expect(launcher.container.querySelector('.pr-global-header__spacer')).toBeTruthy();
+    expect(launcher.container.querySelector('.pr-global-header__nav')).toBeNull();
   });
 });
-
