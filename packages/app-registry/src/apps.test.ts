@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { APPS, appHref, findApp, type AppLink } from './apps';
+import { APPS, APP_BAR_APPS, appHref, findApp, type AppLink } from './apps';
 import { configureAppRegistry } from './url';
 
 const PROD = { hostPrefix: '', baseDomain: 'partrunner.ai' };
@@ -93,10 +93,10 @@ describe('the registry as a whole', () => {
   it('contains only current fleet applications', () => {
     expect(APPS.map((entry) => entry.label)).toEqual([
       'Home',
+      'Comercial',
+      'Solicitudes',
       'Supply',
       'LiveOps',
-      'Solicitudes',
-      'Comercial',
       'Finanzas',
       'FDS',
       'Comunidad',
@@ -125,5 +125,20 @@ describe('the registry as a whole', () => {
       // to prevent.
       expect(href, entry.label).not.toContain('staging.');
     }
+  });
+});
+
+describe('the app bar list', () => {
+  it('keeps the order of the work and leaves out Comunidad', () => {
+    expect(APP_BAR_APPS.map((entry) => entry.sub)).toEqual([
+      'nexus',
+      'sales',
+      'solicitudes',
+      'supply',
+      'liveops',
+      'sube-tu-factura',
+      'fds',
+    ]);
+    expect(findApp('community')!.appBar).toBe(false);
   });
 });

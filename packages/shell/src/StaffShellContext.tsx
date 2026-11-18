@@ -67,6 +67,20 @@ export interface StaffNotificationsState {
 }
 
 /**
+ * One page of the cross-app index that powers the «Ir a» palette in
+ * `navigation="appbar"` mode. Hosts (Nexus, later) fill it; it is optional.
+ */
+export interface StaffShellPage {
+  /** Registry `sub` of the app that owns the page. */
+  app: string;
+  label: string;
+  /** Absolute URL. */
+  href: string;
+  /** Section heading shown next to the label. */
+  section?: string;
+}
+
+/**
  * The host-owned adapter consumed by the shared staff shell.
  *
  * Apps keep ownership of authentication, routing, fetching, and persistence.
@@ -100,6 +114,8 @@ export interface StaffShellContextValue {
    */
   refreshNotifications?: () => StaffShellMutation;
   signOut?: () => StaffShellMutation;
+  /** Optional cross-app page index for the «Ir a» palette (`navigation="appbar"`). */
+  pages?: readonly StaffShellPage[];
 }
 
 const StaffShellContext = createContext<StaffShellContextValue | null>(null);

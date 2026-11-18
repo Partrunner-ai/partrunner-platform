@@ -7,16 +7,18 @@ import {
   UiDarkCatalog,
   UiLightCatalog,
 } from '../../ui/e2e/component-gallery.story';
+import { AppBarDemo } from './AppBarDemo';
 import { BrandMarkDemo } from './BrandMarkDemo';
 import './review.css';
 
-export type ReviewView = 'components' | 'shell' | 'brand';
+export type ReviewView = 'components' | 'shell' | 'brand' | 'appbar';
 export type ReviewTheme = 'light' | 'dark';
 
 const VIEWS: Array<{ id: ReviewView; label: string }> = [
   { id: 'components', label: 'Components' },
   { id: 'shell', label: 'App shell' },
   { id: 'brand', label: 'Brand mark' },
+  { id: 'appbar', label: 'App bar' },
 ];
 
 function viewFromHash(): ReviewView {
@@ -127,6 +129,7 @@ export function ReleaseReviewApp({
         {view === 'shell' && theme === 'light' ? <ShellLightCatalog /> : null}
         {view === 'shell' && theme === 'dark' ? <ShellDarkCatalog /> : null}
         {view === 'brand' ? <BrandMarkDemo /> : null}
+        {view === 'appbar' ? <AppBarDemo /> : null}
       </div>
     </div>
   );

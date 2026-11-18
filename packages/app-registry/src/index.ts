@@ -1,5 +1,6 @@
 export {
   APPS,
+  APP_BAR_APPS,
   appHref,
   findApp,
   type AppKpi,

@@ -22,6 +22,14 @@ import { buildAppUrl, type AppTone } from '@partrunner-ai/app-registry';
 import { BrandMark } from './BrandMark';
 import { BrandWordmark } from './BrandWordmark';
 import {
+  ShellNavigationContext,
+  notifyNavigate,
+  type ShellNavigateEvent,
+  type ShellNavigationPage,
+  type ShellNavigationValue,
+} from './NavigationContext';
+import { rememberNavVisit } from './navMemory';
+import {
   appShellGroupsKey,
   decodeAppShellGroups,
   encodeAppShellGroups,
@@ -97,6 +105,8 @@ export type LinkComponent = ComponentType<{
   'data-active'?: string;
   'data-tour'?: string;
   'aria-current'?: 'page';
+  /** Only set on the brand block in `navigation="appbar"` mode. */
+  'data-canonical-brand'?: string;
 }>;
 
 const DefaultLink: LinkComponent = ({ href, children, ...rest }) => (
@@ -107,6 +117,21 @@ const DefaultLink: LinkComponent = ({ href, children, ...rest }) => (
 
 export interface AppShellProps {
   sections: NavSection[];
+  /**
+   * `'launcher'` (default) keeps today's shell. `'appbar'` adds the app bar and
+   * the «Ir a» palette to `GlobalHeader`, makes the brand open this app's start
+   * page, and drops the pinned «Nexus» item.
+   */
+  navigation?: 'launcher' | 'appbar';
+  /** Registry `sub` of this app (for example `'supply'`). Keys the visit memory. */
+  appSub?: string;
+  /** Extra paths the visit memory must not record, on top of the auth pages. */
+  navMemoryIgnore?: string[];
+  /**
+   * Called synchronously before a shell link navigates in `appbar` mode. Hosts
+   * forward it to their usage tracking. A throwing callback is ignored.
+   */
+  onNavigate?: (event: ShellNavigateEvent) => void;
   /** Standard navigation, or a section-first drill navigation. */
   variant?: 'standard' | 'drill';
   /** Direct links rendered on the drill landing, above the product areas. */
@@ -371,6 +396,10 @@ function writeGroups(
 /** Standardized sidebar + topbar chrome. Page content goes in `children`. */
 export function AppShell({
   sections,
+  navigation = 'launcher',
+  appSub,
+  navMemoryIgnore,
+  onNavigate,
   variant = 'standard',
   drillHomeItems = [],
   drillBackLabel = 'Inicio',
@@ -541,12 +570,95 @@ export function AppShell({
    * "no link". Resolved lazily rather than in a default parameter because
    * `configureAppRegistry` can change the base domain after module load.
    */
+  const appbar = navigation === 'appbar';
   const resolvedBrandHref = useMemo(() => {
     if (brandHref !== undefined) return brandHref;
+    // The app bar owns the way to Nexus, so the brand stays in the current app.
+    if (appbar) return '/';
     if (nexusHref) return nexusHref;
     return buildAppUrl({ scheme: 'subdomain', sub: 'nexus' });
-  }, [brandHref, nexusHref]);
-  const brandSelect = onBrandSelect ?? (brandHref === undefined ? onNexusSelect : undefined);
+  }, [appbar, brandHref, nexusHref]);
+  const brandSelect = appbar
+    ? onBrandSelect
+    : (onBrandSelect ?? (brandHref === undefined ? onNexusSelect : undefined));
+
+  const pages = useMemo<ShellNavigationPage[]>(() => {
+    if (!appbar) return [];
+    const out: ShellNavigationPage[] = [];
+    const add = (item: NavItem, sectionLabel?: string) => {
+      if (!item.href) return;
+      out.push({
+        label: item.label,
+        href: item.href,
+        ...(sectionLabel ? { sectionLabel } : {}),
+        ...(item.external ? { external: true } : {}),
+      });
+    };
+    for (const item of visibleDrillHomeItems) add(item);
+    for (const section of visibleSections) {
+      for (const item of section.items) {
+        if (item.children) {
+          for (const child of item.children) add(child, section.label);
+        } else {
+          add(item, section.label);
+        }
+      }
+    }
+    return out;
+  }, [appbar, visibleDrillHomeItems, visibleSections]);
+
+  const activeLabel = useMemo(() => {
+    if (!appbar || activeHref === undefined) return undefined;
+    return pages.find((page) => !page.external && navPath(page.href) === activeHref)?.label;
+  }, [appbar, activeHref, pages]);
+
+  const navigationValue = useMemo<ShellNavigationValue>(
+    () => ({
+      mode: navigation,
+      currentPath,
+      appSub,
+      cookieDomain,
+      LinkComponent,
+      pages,
+      activeLabel,
+      navMemoryIgnore: navMemoryIgnore ?? [],
+      onNavigate,
+    }),
+    [
+      navigation,
+      currentPath,
+      appSub,
+      cookieDomain,
+      LinkComponent,
+      pages,
+      activeLabel,
+      navMemoryIgnore,
+      onNavigate,
+    ],
+  );
+
+  // Remember the page for the app bar and «Ir a». Without `appSub` the header
+  // records it with its own `currentSub`.
+  useEffect(() => {
+    if (!appbar || !appSub) return;
+    rememberNavVisit(
+      { sub: appSub, path: currentPath, label: activeLabel },
+      cookieDomain,
+      navMemoryIgnore,
+    );
+    // The ignore list is a host constant; a new array must not re-record.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appbar, appSub, currentPath, activeLabel, cookieDomain]);
+
+  const menuSelect = appbar
+    ? (item: NavItem) =>
+        notifyNavigate(onNavigate, {
+          source: 'menu',
+          fromSub: appSub,
+          toSub: item.external ? undefined : appSub,
+          href: item.href ?? '',
+        })
+    : undefined;
 
   function renderLeaf(item: NavItem, sectionId: string) {
     const Icon = resolveIcon(item.icon);
@@ -579,10 +691,16 @@ export function AppShell({
             onExternalSelect
               ? (event) => {
                   event.preventDefault();
+                  menuSelect?.(item);
                   closeDrawer();
                   onExternalSelect(item);
                 }
-              : closeDrawer
+              : menuSelect
+                ? () => {
+                    menuSelect(item);
+                    closeDrawer();
+                  }
+                : closeDrawer
           }
         >
           {body}
@@ -599,7 +717,14 @@ export function AppShell({
         data-active={active ? 'true' : undefined}
         data-tour={item.tourId ? `nav-${item.tourId}` : undefined}
         aria-current={active ? 'page' : undefined}
-        onClick={closeDrawer}
+        onClick={
+          menuSelect
+            ? () => {
+                menuSelect(item);
+                closeDrawer();
+              }
+            : closeDrawer
+        }
       >
         {body}
       </LinkComponent>
@@ -769,6 +894,7 @@ export function AppShell({
   );
 
   return (
+    <ShellNavigationContext.Provider value={navigationValue}>
     <SidebarContext.Provider value={sidebarState}>
       <div className="pr-shell" data-variant={variant}>
         {mobileOpen && (
@@ -789,24 +915,46 @@ export function AppShell({
               rail hides, so the mobile drawer can show labels while the desktop
               preference is still "collapsed". */}
           {resolvedBrandHref ? (
-            <a
-              className="pr-sidebar__brand"
-              data-canonical-brand={canonicalBrand ? 'true' : undefined}
-              href={resolvedBrandHref}
-              title={collapsed ? brandName : undefined}
-              onClick={
-                brandSelect
-                  ? (event) => {
-                      event.preventDefault();
-                      closeDrawer();
-                      brandSelect();
-                    }
-                  : closeDrawer
-              }
-            >
-              {logo}
-              {brandCopy}
-            </a>
+            appbar && !brandSelect && !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(resolvedBrandHref) ? (
+              // A path inside this app: the host's router handles it.
+              <LinkComponent
+                className="pr-sidebar__brand"
+                data-canonical-brand={canonicalBrand ? 'true' : undefined}
+                href={resolvedBrandHref}
+                title={collapsed ? brandName : undefined}
+                onClick={() => {
+                  notifyNavigate(onNavigate, {
+                    source: 'brand',
+                    fromSub: appSub,
+                    toSub: appSub,
+                    href: resolvedBrandHref,
+                  });
+                  closeDrawer();
+                }}
+              >
+                {logo}
+                {brandCopy}
+              </LinkComponent>
+            ) : (
+              <a
+                className="pr-sidebar__brand"
+                data-canonical-brand={canonicalBrand ? 'true' : undefined}
+                href={resolvedBrandHref}
+                title={collapsed ? brandName : undefined}
+                onClick={
+                  brandSelect
+                    ? (event) => {
+                        event.preventDefault();
+                        closeDrawer();
+                        brandSelect();
+                      }
+                    : closeDrawer
+                }
+              >
+                {logo}
+                {brandCopy}
+              </a>
+            )
           ) : (
             <div
               className="pr-sidebar__brand"
@@ -820,7 +968,7 @@ export function AppShell({
           {primaryAction && <div className="pr-sidebar__primary">{primaryAction}</div>}
 
           <nav className="pr-nav" aria-label="Navegación principal">
-            {nexusHref && (
+            {nexusHref && !appbar && (
               <a
                 className="pr-nav__item"
                 href={nexusHref}
@@ -879,5 +1027,6 @@ export function AppShell({
         </div>
       </div>
     </SidebarContext.Provider>
+    </ShellNavigationContext.Provider>
   );
 }

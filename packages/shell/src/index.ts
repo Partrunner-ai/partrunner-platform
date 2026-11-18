@@ -24,6 +24,14 @@ export {
   type NavSection,
 } from './AppShell';
 export { GlobalHeader, type GlobalHeaderProps } from './GlobalHeader';
+export {
+  useShellNavigation,
+  type ShellNavigateEvent,
+  type ShellNavigationMode,
+  type ShellNavigationPage,
+  type ShellNavigationValue,
+} from './NavigationContext';
+export { NAV_MEMORY_IGNORE } from './navMemory';
 export { LocaleToggle, type LocaleToggleProps } from './LocaleToggle';
 export {
   NOTIFICATION_REFRESH_MS,
@@ -39,6 +47,7 @@ export {
   type StaffNotificationsState,
   type StaffShellContextValue,
   type StaffShellMutation,
+  type StaffShellPage,
   type StaffShellPreferences,
   type StaffShellProviderProps,
   type StaffShellUser,
@@ -60,6 +69,7 @@ export { UserMenu, type UserMenuItem, type UserMenuProps } from './UserMenu';
 // Re-export the registry so consumers can import both from one place.
 export {
   APPS,
+  APP_BAR_APPS,
   appHref,
   buildAppUrl,
   configureAppRegistry,

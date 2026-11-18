@@ -1130,3 +1130,205 @@ a.pr-sidebar__brand:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---- App bar and «Ir a» palette (navigation="appbar") ---- */
+.pr-global-header[data-navigation='appbar'] {
+  /* The bar shows only when the header is wide enough; see the query below. */
+  container-type: inline-size;
+}
+.pr-appbar {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--pr-fg) 6%, transparent);
+}
+.pr-appbar__item {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 7px;
+  color: var(--pr-fg-muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 150ms var(--pr-ease), color 150ms var(--pr-ease);
+}
+.pr-appbar__item:hover {
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+}
+.pr-appbar__item[data-current='true'] {
+  background: var(--pr-accent);
+  color: var(--pr-accent-ink);
+  font-weight: 600;
+}
+.pr-appbar__item:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+@container (min-width: 1100px) {
+  .pr-appbar {
+    display: flex;
+  }
+  /* The bar already lists every app, so the grid button would only repeat it. */
+  .pr-global-header[data-navigation='appbar'] .pr-launcher {
+    display: none;
+  }
+}
+
+.pr-goto-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin-right: 6px;
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-md);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 150ms var(--pr-ease), color 150ms var(--pr-ease);
+}
+.pr-goto-trigger:hover {
+  background: var(--pr-border);
+  color: var(--pr-fg);
+}
+.pr-goto-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--pr-focus-ring);
+}
+.pr-goto-trigger__hint {
+  padding: 1px 5px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-sm);
+  font-family: var(--pr-font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--pr-fg-faint);
+}
+
+.pr-goto__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 12px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  font-family: var(--pr-font-body, 'Barlow', 'Inter', system-ui, sans-serif);
+}
+.pr-goto,
+.pr-goto *,
+.pr-goto *::before,
+.pr-goto *::after {
+  box-sizing: border-box;
+}
+.pr-goto {
+  width: min(560px, 100%);
+  max-height: min(480px, 76vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-lg);
+  box-shadow: var(--pr-shadow-elevated);
+  animation: pr-popover-in 150ms var(--pr-ease);
+}
+.pr-goto__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--pr-border);
+  color: var(--pr-fg-muted);
+}
+.pr-goto__input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--pr-fg);
+  font: inherit;
+  font-size: 15px;
+}
+.pr-goto__input:focus {
+  outline: none;
+}
+.pr-goto__results {
+  overflow-y: auto;
+  padding: 6px;
+}
+.pr-goto__heading {
+  padding: 8px 10px 4px;
+  color: var(--pr-fg-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pr-goto__option {
+  border-radius: var(--pr-radius-md);
+}
+.pr-goto__option[data-active='true'] {
+  background: var(--pr-border);
+}
+.pr-goto__link {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  color: var(--pr-fg);
+  font-size: 14px;
+  text-decoration: none;
+}
+.pr-goto__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-goto__meta {
+  flex-shrink: 0;
+  color: var(--pr-fg-muted);
+  font-size: 12px;
+}
+.pr-goto__empty {
+  margin: 0;
+  padding: 18px 10px;
+  color: var(--pr-fg-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .pr-goto-trigger {
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    margin-right: 0;
+    padding: 0;
+    border: 0;
+  }
+  .pr-goto-trigger__label,
+  .pr-goto-trigger__hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-goto {
+    animation: none;
+  }
+}

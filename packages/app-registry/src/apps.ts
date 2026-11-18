@@ -68,6 +68,11 @@ export interface AppLink {
   comingSoon?: boolean;
   /** Prototype KPIs for the Home card. */
   kpis?: AppKpi[];
+  /**
+   * Show the app in the shell's app bar (`navigation="appbar"`). Default: shown.
+   * Set `false` for an app that belongs in the launcher grid only.
+   */
+  appBar?: boolean;
 }
 
 /** URL of the app, or `null` if not yet available. */
@@ -99,6 +104,22 @@ export const APPS: AppLink[] = [
     tile: 'bg-pr-yellow/20 text-pr-charcoal',
   },
   {
+    label: 'Comercial',
+    sub: 'sales',
+    description: 'Gestión comercial',
+    icon: LineChart,
+    tone: 'green',
+    tile: 'bg-emerald-500/15 text-emerald-500',
+  },
+  {
+    label: 'Solicitudes',
+    sub: 'solicitudes',
+    description: 'Gestión de solicitudes',
+    icon: ClipboardList,
+    tone: 'purple',
+    tile: 'bg-violet-500/15 text-violet-500',
+  },
+  {
     label: 'Supply',
     sub: 'supply',
     description: 'Operación de supply y capacidad',
@@ -113,22 +134,6 @@ export const APPS: AppLink[] = [
     icon: Radio,
     tone: 'amber',
     tile: 'bg-orange-500/15 text-orange-500',
-  },
-  {
-    label: 'Solicitudes',
-    sub: 'solicitudes',
-    description: 'Gestión de solicitudes',
-    icon: ClipboardList,
-    tone: 'purple',
-    tile: 'bg-violet-500/15 text-violet-500',
-  },
-  {
-    label: 'Comercial',
-    sub: 'sales',
-    description: 'Gestión comercial',
-    icon: LineChart,
-    tone: 'green',
-    tile: 'bg-emerald-500/15 text-emerald-500',
   },
   {
     label: 'Finanzas',
@@ -167,8 +172,17 @@ export const APPS: AppLink[] = [
     icon: UsersRound,
     tone: 'rose',
     tile: 'bg-rose-500/15 text-rose-500',
+    appBar: false,
   },
 ];
+
+/**
+ * Apps shown in the shell's app bar, in the order of the work: the registry
+ * order without `appBar: false` and without `comingSoon` entries.
+ */
+export const APP_BAR_APPS: AppLink[] = APPS.filter(
+  (app) => app.appBar !== false && !app.comingSoon,
+);
 
 /** Look up an app by its subdomain (first match; some share a `sub`). */
 export function findApp(sub: string): AppLink | undefined {

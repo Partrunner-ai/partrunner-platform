@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { UserRound } from 'lucide-react';
 import type { AppLink } from '@partrunner-ai/app-registry';
 import { AppLauncher } from './AppLauncher';
+import { AppBarSection, appBarApps } from './AppBar';
+import { GoToPalette } from './GoToPalette';
+import { useShellNavigation } from './NavigationContext';
 import {
   NotificationCenter,
   type NotificationCenterLabels,
@@ -17,6 +20,7 @@ import { UserMenu, type UserMenuItem } from './UserMenu';
 interface GlobalHeaderMessages {
   landmark: string;
   launcher: string;
+  apps: string;
   profile: string;
   signOut: string;
   userMenu: string;
@@ -39,6 +43,7 @@ const MESSAGES: Record<StaffLocale, GlobalHeaderMessages> = {
   es: {
     landmark: 'Barra global',
     launcher: 'Aplicaciones',
+    apps: 'Aplicaciones',
     profile: 'Perfil y preferencias',
     signOut: 'Cerrar sesión',
     userMenu: 'Menú de usuario',
@@ -56,6 +61,7 @@ const MESSAGES: Record<StaffLocale, GlobalHeaderMessages> = {
   en: {
     landmark: 'Global bar',
     launcher: 'Applications',
+    apps: 'Applications',
     profile: 'Profile and preferences',
     signOut: 'Sign out',
     userMenu: 'User menu',
@@ -100,6 +106,10 @@ export function GlobalHeader({
   const shell = useStaffShell();
   const { locale } = shell.preferences;
   const messages = MESSAGES[locale];
+  const nav = useShellNavigation();
+  const appbar = nav?.mode === 'appbar' ? nav : null;
+  const barSub = appbar ? (appbar.appSub ?? currentSub) : currentSub;
+  const barApps = appbar ? appBarApps(apps) : [];
   const profileItem: UserMenuItem = {
     label: messages.profile,
     href: shell.profileHref,
@@ -109,11 +119,31 @@ export function GlobalHeader({
   return (
     <header
       className={`pr-global-header${className ? ` ${className}` : ''}`}
+      data-navigation={appbar ? 'appbar' : undefined}
       aria-label={messages.landmark}
     >
       <div className="pr-global-header__start">{start}</div>
+      {appbar ? (
+        <AppBarSection
+          nav={appbar}
+          apps={barApps}
+          currentSub={barSub}
+          headerSub={currentSub}
+          locale={locale}
+          label={messages.apps}
+        />
+      ) : null}
       <div className="pr-global-header__spacer" />
       <div className="pr-global-header__controls">
+        {appbar ? (
+          <GoToPalette
+            nav={appbar}
+            apps={barApps}
+            currentSub={barSub}
+            locale={locale}
+            extraPages={shell.pages}
+          />
+        ) : null}
         {/* De vuelta a pedido de Sebastián (2026-10-29): sin él el tema sólo
             se cambiaba desde el perfil de Nexus, y Nexus lo tenía en su header
             propio mientras el resto de las apps no. */}

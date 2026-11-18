@@ -45,6 +45,63 @@ into view. The timing lives here so every app refreshes the same way. A custom
 header that renders `NotificationCenter` directly passes it as `onRefresh`,
 together with `unseenCount`, `onOpen` and `sound`.
 
+## App bar and «Ir a» (`navigation="appbar"`)
+
+Opt-in. Without the prop nothing changes: `navigation` defaults to
+`'launcher'`.
+
+```tsx
+<AppShell
+  sections={sections}
+  currentPath={pathname}
+  navigation="appbar"
+  appSub="supply"
+  cookieDomain=".partrunner.ai"
+  brandHref="/"
+  onNavigate={(event) => track('shell_navigate', event)}
+  globalHeader={<GlobalHeader currentSub="supply" />}
+>
+```
+
+In this mode:
+
+- `GlobalHeader` shows an app bar: every app in one fixed order (Inicio,
+  Comercial, Solicitudes, Supply, LiveOps, Finanzas, FDS). The current app is
+  marked. Another app opens the last page you used there, else its start page.
+  The bar shows when the header is 1100px wide or more; below that the launcher
+  grid stays as the way to switch apps. Apps with `appBar: false` in the
+  registry (Comunidad) are not in the bar.
+- «Ir a…» (⌘K / Ctrl+K, or the header button) opens a palette. It lists recent
+  pages first, then searches this app's pages, recents, the host's page index,
+  and the apps. A host can fill `pages` in the staff-shell context
+  (`StaffShellPage`: `app`, `label`, absolute `href`, `section`) to search other
+  apps' pages.
+- The brand block opens the start page of the app you are in (`brandHref`, else
+  `/`). `onBrandSelect` runs only when you pass it. The pinned «Nexus» item is
+  not rendered; Nexus is «Inicio» in the bar.
+- `onNavigate({ source, fromSub, toSub, href })` runs before the app bar, the
+  palette, the brand block, or a sidebar link navigates
+  (`source`: `'appbar' | 'goto' | 'brand' | 'menu'`). Forward it to usage
+  tracking. A throwing callback is ignored.
+- `useShellNavigation()` returns the navigation state (`mode`, `currentPath`,
+  `appSub`, `pages`, `activeLabel`, ...) inside `AppShell`, else `null`.
+
+Adoption steps:
+
+1. Set `navigation="appbar"` and `appSub` (the registry `sub`) on `AppShell`.
+2. Set `cookieDomain=".partrunner.ai"` so the visit memory is shared between
+   apps. Without it the memory stays on one host.
+3. Set `brandHref` when the start page of the app is not `/`, for example
+   `/admin/dashboard` for Finanzas.
+4. Pass `navMemoryIgnore` for extra paths that must not be remembered.
+
+Visit memory uses two cookies, `pr-nav-last` (last path per app) and
+`pr-nav-recent` (the last 8 pages with their labels), kept for 30 days. They
+hold the pathname only, never the query or the hash. Login, logout, `/auth/*`,
+`/sso*`, `/unauthorized`, and `/solicitar-acceso` are never stored
+(`NAV_MEMORY_IGNORE`). Finanzas lives on `partrunner.app`, so it does not share
+these cookies with the `partrunner.ai` apps; its bar item opens its start page.
+
 ## Bell sound
 
 The bell is silent unless the host passes `notifications.sound`
