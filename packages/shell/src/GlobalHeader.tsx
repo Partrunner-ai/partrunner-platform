@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { UserRound } from 'lucide-react';
 import type { AppLink } from '@partrunner-ai/app-registry';
 import { AppLauncher } from './AppLauncher';
+import { SidebarTrigger } from './AppShell';
 import { AppBarSection, appBarApps } from './AppBar';
 import { SwitcherSection } from './AppSwitcher';
 import { GoToPalette } from './GoToPalette';
@@ -125,6 +126,7 @@ export function GlobalHeader({
       data-navigation={appNav ? appNav.mode : undefined}
       aria-label={messages.landmark}
     >
+      {switcher ? <SidebarTrigger /> : null}
       {switcher ? (
         <SwitcherSection
           nav={switcher}

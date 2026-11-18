@@ -196,6 +196,32 @@ describe('the app switcher', () => {
   });
 });
 
+describe('the header order in switcher mode', () => {
+  it('puts the sidebar trigger first, then the way back, the switcher, and start', async () => {
+    arriveFrom('#pr-from=liveops:%2Frutas');
+    const { container } = render(<Switcher header={{ start: <span>host start</span> }} />);
+    await screen.findByTitle('Volver a LiveOps');
+    const header = container.querySelector('.pr-global-header')!;
+    const order = [
+      '.pr-sidebar__trigger',
+      '.pr-wayback',
+      '.pr-switcher',
+      '.pr-global-header__start',
+    ].map((selector) => header.querySelector(selector)!);
+    order.forEach((node) => expect(node).toBeTruthy());
+    for (let i = 1; i < order.length; i += 1) {
+      expect(
+        order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it('leaves the trigger to the host in launcher and appbar modes', () => {
+    const { container } = render(<AppbarShell />);
+    expect(container.querySelector('.pr-global-header .pr-sidebar__trigger')).toBeNull();
+  });
+});
+
 describe('the way back', () => {
   it('reads the fragment once, removes only it, and shows the chip', async () => {
     arriveFrom('#pr-from=liveops:%2Frutas%2F9');

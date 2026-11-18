@@ -125,6 +125,10 @@ not in the bar.
 1. Set `navigation="switcher"` and `appSub` (the registry `sub`) on `AppShell`.
 2. Set `cookieDomain=".partrunner.ai"` so the visit memory is shared between
    apps. Without it the memory stays on one host.
+   In `'switcher'` mode, remove `SidebarTrigger` from `start`: the header
+   renders it first (mobile only) before the way back and the switcher. Also
+   remove any product-name label from `start` that repeats the app name (for
+   example «LiveOps»), because the switcher already shows it.
 3. Set `brandHref` when the start page of the app is not `/`, for example
    `/admin/dashboard` for Finanzas.
 4. Pass `navMemoryIgnore` for extra paths that must not be remembered.
