@@ -29,9 +29,10 @@ import './navigation.css';
 const OPTIONS: Array<{ id: NavOption; label: string; hint: string }> = [
   { id: 'a', label: 'A · Barra de apps', hint: 'Todas las apps como barra en el encabezado.' },
   { id: 'b', label: 'B · Selector', hint: 'El nombre de la app abre un menú con todas las apps.' },
-  { id: 'c', label: 'C · Selector + Mis apps', hint: 'Como B, más «Mis apps» arriba del menú lateral.' },
+  { id: 'c', label: 'C · Selector + Mis apps', hint: 'Mis apps en el menú lateral, la cuadrícula de apps arriba a la derecha, «Buscar o ir a…» y «← app».' },
 ];
 
+const SELECTOR_KEY = 'pr-showcase-nav-selector';
 const START: SimLocation = { app: 'liveops', path: '/general/routes' };
 
 function readOption(): NavOption {
@@ -80,6 +81,13 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
   const [reached, setReached] = useState<{ clicks: number; loads: number } | null>(null);
   const [notice, setNotice] = useState('');
   const [lastEvent, setLastEvent] = useState('');
+  const [selector, setSelector] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(SELECTOR_KEY) === 'yes';
+    } catch {
+      return false;
+    }
+  });
   const [favorites, setFavoritesState] = useState<string[]>(readFavorites);
 
   const frameRef = useRef<HTMLDivElement>(null);
@@ -93,6 +101,15 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
     setOption(next);
     try {
       window.localStorage.setItem(OPTION_STORAGE_KEY, next);
+    } catch {
+      /* storage can be blocked */
+    }
+  };
+
+  const chooseSelector = (next: boolean) => {
+    setSelector(next);
+    try {
+      window.localStorage.setItem(SELECTOR_KEY, next ? 'yes' : 'no');
     } catch {
       /* storage can be blocked */
     }
@@ -255,6 +272,25 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
             </button>
           ))}
         </div>
+        {option === 'c' ? (
+          <div className="nav-sim__sub" role="group" aria-label="Selector en el nombre">
+            <span className="nav-sim__sub-label">Selector en el nombre:</span>
+            {[
+              { value: true, label: 'Sí' },
+              { value: false, label: 'No' },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className="nav-sim__option nav-sim__option--small"
+                aria-pressed={selector === item.value}
+                onClick={() => chooseSelector(item.value)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <p className="nav-sim__hint">
           {OPTIONS.find((item) => item.id === option)!.hint} Prueba también «/» o ⌘K / Ctrl+K para «Ir a».
         </p>
@@ -327,6 +363,7 @@ export function NavigationCompare({ initialOption }: { initialOption?: NavOption
               sections={app.sections}
               navigation={mode}
               appsInSidebar={option === 'c'}
+              appSwitcher={option !== 'c' || selector}
               appSub={app.sub}
               currentPath={loc.path}
               subtitle={app.name}

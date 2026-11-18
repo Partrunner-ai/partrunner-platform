@@ -85,3 +85,16 @@ test('an unknown remembered path opens the app start page', async ({ mount, page
   await page.getByRole('menuitem', { name: /Supply/ }).click();
   await expect(page.getByTestId('address-bar')).toContainText('supply.partrunner.ai/onboarding/mi-dia');
 });
+
+test('the apps grid is in B and C and its tiles stay inside the simulation', async ({ mount, page }) => {
+  await mount(<NavigationCompare initialOption="c" />);
+  const before = page.url();
+  await page.getByRole('button', { name: 'Aplicaciones' }).click();
+  await page.getByRole('menuitem', { name: /Solicitudes/ }).click();
+  await expect(page.getByTestId('address-bar')).toContainText('solicitudes.partrunner.ai');
+  expect(page.url()).toBe(before);
+  // The selector is off by default in C and can be turned on.
+  await expect(page.locator('.pr-switcher')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Sí', exact: true }).click();
+  await expect(page.locator('.pr-switcher')).toHaveCount(1);
+});
