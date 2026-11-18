@@ -199,14 +199,12 @@ export function GlobalHeader({
           onRefresh={shell.refreshNotifications}
           labels={messages.notifications}
         />
-        {switcher ? null : (
-          <AppLauncher
-            apps={apps}
-            currentSub={currentSub}
-            label={messages.launcher}
-            triggerLabel={messages.launcher}
-          />
-        )}
+        <AppLauncher
+          apps={apps}
+          currentSub={currentSub}
+          label={messages.launcher}
+          triggerLabel={messages.launcher}
+        />
         <span className="pr-global-header__divider" aria-hidden />
         <UserMenu
           name={shell.user.name}

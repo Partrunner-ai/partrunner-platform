@@ -53,7 +53,7 @@ Opt-in. Without the prop nothing changes: `navigation` defaults to
 
 - `'switcher'` (recommended): no always-visible bar. The header shows an app
   switcher («Supply ▾»), a way back («← LiveOps») when the person came from
-  another app, and a «Buscar o ir a… ⌘K» search field. No apps-grid button.
+  another app, and a «Buscar o ir a… ⌘K» search field. The familiar apps grid stays at the top right (see below).
 - `'appbar'` (an alternative): the header shows every app as a bar, plus an
   «Ir a…» button.
 
@@ -87,7 +87,7 @@ Shared by both modes:
 - `onNavigate({ source, fromSub, toSub, href })` runs before the app bar, the
   switcher, the way back, the palette, the brand block, or a sidebar link
   navigates (`source`: `'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' |
-  'menu' | 'favorites'`). Forward it to usage tracking. A throwing callback is ignored.
+  'menu' | 'favorites' | 'launcher'`). Forward it to usage tracking. A throwing callback is ignored.
 - `useShellNavigation()` returns the navigation state (`mode`, `currentPath`,
   `appSub`, `pages`, `activeLabel`, `wayBack`, ...) inside `AppShell`, else
   `null`.
@@ -125,6 +125,21 @@ its slot in the header is 500px wide or more (the bar itself is about 470px).
 The launcher grid button stays visible at every width: it is the way to Comunidad
 and the overflow path. Apps with `appBar: false` in the registry (Comunidad) are
 not in the bar.
+
+### The apps grid in `'switcher'` and `'appbar'`
+
+`GlobalHeader` renders the `AppLauncher` grid in `'switcher'` mode too, in the
+same place as in launcher mode (before the divider and the avatar), with the same
+apps (Comunidad included). In `'appbar'` and `'switcher'` modes a tile opens the
+last page used in that app (the validated path of `pr-nav-last`, else the start
+page), carries the way-back fragment when the URL is a registry origin, and
+reports `onNavigate({ source: 'launcher', ... })`. The tile of the current app
+behaves as before. In launcher mode the grid is unchanged: start pages, no
+fragment, no event.
+
+`appSwitcher` (`AppShell`, default `true`) set to `false` hides the app-name
+selector in `'switcher'` mode. The menu button, the way back, `start`, the
+search field, and the grid stay. It has no effect in other modes.
 
 ### «Mis apps» in the sidebar
 

@@ -272,7 +272,9 @@ export function SwitcherSection({
       {nav.wayBack ? (
         <WayBackChip target={nav.wayBack} currentSub={currentSub} locale={locale} nav={nav} />
       ) : null}
-      <AppSwitcher apps={apps} currentSub={currentSub} locale={locale} memory={memory} nav={nav} />
+      {nav.appSwitcher === false ? null : (
+        <AppSwitcher apps={apps} currentSub={currentSub} locale={locale} memory={memory} nav={nav} />
+      )}
     </div>
   );
 }

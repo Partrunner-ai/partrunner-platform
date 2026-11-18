@@ -19,7 +19,7 @@ export interface ShellNavigationPage {
 }
 
 export interface ShellNavigateEvent {
-  source: 'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' | 'menu' | 'favorites';
+  source: 'appbar' | 'switcher' | 'wayback' | 'goto' | 'brand' | 'menu' | 'favorites' | 'launcher';
   fromSub?: string;
   toSub?: string;
   href: string;
@@ -39,6 +39,8 @@ export interface ShellNavigationValue {
   activePath?: string;
   /** The app this tab came from and the page left there, when known. */
   wayBack?: WayBackTarget | null;
+  /** `false` hides the app-name selector in `'switcher'` mode. Default `true`. */
+  appSwitcher?: boolean;
   /** Extra paths that visit memory must not record. */
   navMemoryIgnore: readonly string[];
   /** Called before a shell link navigates; hosts forward it to usage tracking. */

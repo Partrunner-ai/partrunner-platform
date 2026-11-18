@@ -148,6 +148,12 @@ export interface AppShellProps {
    * page it opens. Only in `'appbar'` and `'switcher'` modes; default `false`.
    */
   appsInSidebar?: boolean;
+  /**
+   * `'switcher'` mode only: `false` hides the app-name selector. The menu
+   * button, the way back, `start`, the search field, and the apps grid stay.
+   * Default `true`.
+   */
+  appSwitcher?: boolean;
   /** Standard navigation, or a section-first drill navigation. */
   variant?: 'standard' | 'drill';
   /** Direct links rendered on the drill landing, above the product areas. */
@@ -419,6 +425,7 @@ export function AppShell({
   navMemoryIgnore,
   onNavigate,
   appsInSidebar = false,
+  appSwitcher = true,
   variant = 'standard',
   drillHomeItems = [],
   drillBackLabel = 'Inicio',
@@ -653,6 +660,7 @@ export function AppShell({
       activeLabel,
       activePath: activeLabel === undefined ? undefined : activeHref,
       wayBack,
+      appSwitcher,
       navMemoryIgnore: navMemoryIgnore ?? [],
       onNavigate,
     }),
@@ -666,6 +674,7 @@ export function AppShell({
       activeLabel,
       activeHref,
       wayBack,
+      appSwitcher,
       navMemoryIgnore,
       onNavigate,
     ],

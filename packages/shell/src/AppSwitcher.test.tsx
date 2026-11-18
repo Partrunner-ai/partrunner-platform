@@ -59,14 +59,13 @@ describe('switcher mode in the shell', () => {
     expect(isAppNavigation(undefined)).toBe(false);
   });
 
-  it('opens this app from the brand, drops the Nexus item, and has no bar or grid button', () => {
+  it('opens this app from the brand, drops the Nexus item, and has no bar', () => {
     const { container } = render(<Switcher nexusHref="https://nexus.partrunner.ai" />);
     expect(container.querySelector('a.pr-sidebar__brand')!.getAttribute('href')).toBe('/');
     expect(
       within(screen.getByRole('navigation', { name: 'Navegación principal' })).queryByText('Nexus'),
     ).toBeNull();
     expect(container.querySelector('.pr-appbar')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Aplicaciones' })).toBeNull();
     expect(container.querySelector('.pr-global-header')!.getAttribute('data-navigation')).toBe(
       'switcher',
     );
@@ -254,6 +253,34 @@ describe('the header order in switcher mode', () => {
         order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
+  });
+
+  it('hides only the selector with appSwitcher={false}; the order of the rest holds', async () => {
+    arriveFrom('#pr-from=liveops:%2Frutas');
+    const { container } = render(
+      <Switcher appSwitcher={false} header={{ start: <span>host start</span> }} />,
+    );
+    await screen.findByTitle('Volver a LiveOps');
+    const header = container.querySelector('.pr-global-header')!;
+    expect(header.querySelector('.pr-switcher')).toBeNull();
+    const order = [
+      '.pr-sidebar__trigger',
+      '.pr-wayback',
+      '.pr-global-header__start',
+      '.pr-goto-trigger--field',
+      '.pr-launcher',
+    ].map((selector) => header.querySelector(selector)!);
+    order.forEach((node) => expect(node).toBeTruthy());
+    for (let i = 1; i < order.length; i += 1) {
+      expect(
+        order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it('keeps the selector by default', () => {
+    const { container } = render(<Switcher />);
+    expect(container.querySelector('.pr-switcher')).toBeTruthy();
   });
 
   it('leaves the trigger to the host in launcher and appbar modes', () => {
