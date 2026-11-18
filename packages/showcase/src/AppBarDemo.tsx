@@ -94,7 +94,7 @@ export function AppBarDemo() {
           <h1 style={{ margin: 0 }}>App bar and «Ir a»</h1>
           <p style={{ margin: 0, color: 'var(--pr-fg-muted)' }}>
             Current page: <code>{path}</code>. Widen the window until the bar shows (the
-            header slot needs 680px); the launcher button is always there.
+            header slot needs 500px); the launcher button is always there.
           </p>
           <pre style={{ margin: 0, fontSize: 12 }}>
             {events.length ? events.join('\n') : 'onNavigate events appear here.'}

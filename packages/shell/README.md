@@ -68,7 +68,7 @@ In this mode:
 - `GlobalHeader` shows an app bar: every app in one fixed order (Inicio,
   Comercial, Solicitudes, Supply, LiveOps, Finanzas, FDS). The current app is
   marked. Another app opens the last page you used there, else its start page.
-  The bar shows when its slot in the header is 680px wide or more. The launcher
+  The bar shows when its slot in the header is 500px wide or more (the bar itself is about 470px). The launcher
   grid button stays visible at every width: it is the way to Comunidad and the
   overflow path. Apps with `appBar: false` in the
   registry (Comunidad) are not in the bar.

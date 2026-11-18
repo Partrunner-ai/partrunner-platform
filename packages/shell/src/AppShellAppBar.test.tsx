@@ -263,7 +263,7 @@ describe('the app bar styles', () => {
     expect(css).toMatch(/\.pr-global-header__nav\s*\{[^}]*container-type:\s*inline-size/);
     expect(css).toMatch(/\.pr-global-header__nav\s*\{[^}]*flex:\s*1 1 0/);
     expect(css).not.toMatch(/\.pr-global-header\[data-navigation='appbar'\]\s*\{[^}]*container-type/);
-    expect(css).toMatch(/@container \(min-width: 680px\)\s*\{[^@]*\.pr-appbar\s*\{[^}]*display:\s*flex/);
+    expect(css).toMatch(/@container \(min-width: 500px\)\s*\{[^@]*\.pr-appbar\s*\{[^}]*display:\s*flex/);
     expect(css).toMatch(/\.pr-appbar\s*\{[^}]*display:\s*none/);
     // The launcher stays visible at every width in appbar mode.
     expect(css).not.toMatch(/data-navigation='appbar'\]\s*\.pr-launcher/);
