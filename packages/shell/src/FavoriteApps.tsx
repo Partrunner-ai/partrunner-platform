@@ -80,9 +80,12 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
   // The edit shows at once (optimistic). A failed save drops it, so the host list shows.
   const [local, setLocal] = useState<string[] | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
-  // The cookie only stands in until a staff context exists; then the snapshot
-  // is the only source (a cookie of another person never outlives it).
-  const hostList = staff ? (staff.preferences.favoriteApps ?? []) : (initialFavorites ?? []);
+  // The cookie only stands in until the snapshot has its list; then the
+  // snapshot is the only source (a cookie of another person never outlives it).
+  // A host may mount the context before the snapshot arrives, with a fallback
+  // that has no `favoriteApps`: the cookie list still stands in then.
+  const snapshotList = staff?.preferences.favoriteApps;
+  const hostList = snapshotList ?? initialFavorites ?? [];
   const hostKey = hostList.join(',');
   // One id per save: only the latest save may act on a failure, and only while
   // the local edit is still there. `mounted` guards a result after unmount.
@@ -102,7 +105,10 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
   }, [hostKey]);
   const { LinkComponent, currentPath, onNavigate, appSub } = nav;
 
-  const setFavorites = staff?.setFavoriteApps;
+  // Before the snapshot list arrives, a cookie list, even an empty one, keeps
+  // the section in place and read-only: an edit saves only from the snapshot.
+  const pending = snapshotList === undefined && initialFavorites !== undefined;
+  const setFavorites = pending ? undefined : staff?.setFavoriteApps;
   const apps = appNavApps();
   const known = new Set(apps.map((app) => app.sub));
   // The list to edit and to save is the host list as it is. Subs unknown to the
@@ -111,9 +117,6 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
   const favorites = stored.filter((sub, index, list) => {
     return known.has(sub) && list.indexOf(sub) === index;
   });
-  // Before the snapshot (no staff context yet) a cookie list, even an empty one,
-  // keeps the section in place; «Editar» waits for the setter.
-  const pending = !setFavorites && staff === null && initialFavorites !== undefined;
   if (favorites.length === 0 && !setFavorites && !pending) return null;
 
   const rowsBySub = new Map(

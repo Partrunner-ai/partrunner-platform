@@ -456,16 +456,32 @@ describe('«Mis apps» before the staff snapshot (shared cookie)', () => {
     expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('ignores the cookie once a snapshot exists without a list', () => {
+  it('keeps the cookie list, read-only, while the context has no snapshot list yet', () => {
+    // The LiveOps shape: the provider mounts at once with a fallback snapshot
+    // that has no `favoriteApps`, and the setter already exists.
     const initialState = { collapsed: false, groups: {}, favoriteApps: ['liveops'] };
-    render(
+    const setFavoriteApps = vi.fn();
+    const { rerender } = render(
+      <UnifiedShell initialState={initialState} context={staffContext({ setFavoriteApps })} />,
+    );
+    const names = () =>
+      within(favs())
+        .queryAllByRole('link')
+        .map((link) => link.querySelector('.pr-favs__name')!.textContent);
+    expect(names()).toEqual(['LiveOps']);
+    expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(true);
+
+    // The snapshot list arrives (empty here): it wins, and editing opens.
+    rerender(
       <UnifiedShell
         initialState={initialState}
-        context={staffContext({ setFavoriteApps: vi.fn() })}
+        context={staffContext({ favoriteApps: [], setFavoriteApps })}
       />,
     );
-    expect(within(favs()).queryByRole('link')).toBeNull();
-    expect(within(favs()).getByRole('button', { name: 'Elige tus apps' })).toBeTruthy();
+    expect(names()).toEqual([]);
+    expect((within(favs()).getByRole('button', { name: 'Elige tus apps' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(setFavoriteApps).not.toHaveBeenCalled();
   });
 
   it('writes an empty snapshot list as «-»', () => {
