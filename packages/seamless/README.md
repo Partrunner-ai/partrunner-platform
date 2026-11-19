@@ -82,7 +82,7 @@ The content is settled when nothing busy is visible (`[aria-busy="true"]`,
 `[data-slot="skeleton"]`, `[data-pr-loading]`, or the visible seamless splash)
 and neither the DOM nor the resource list changed for `quietMs` (default 600).
 Telemetry, Sentry, ingest and analytics requests do not count. A hidden page
-cancels with no sample. `timeoutMs` (default 30000) gives a sample with
+cancels for good with no sample (call `watchPageReady` again to start a new watch), as does a bfcache restore (`pageshow` persisted). Only visible busy elements count. `timeoutMs` (default 30000) gives a sample with
 `timedOut: true`. `fromApp` is the app sub of `document.referrer` when it is
 another app under the app-registry base domain (hard loads only).
 `navStartFor('soft')` returns the time of the last same-origin link click within

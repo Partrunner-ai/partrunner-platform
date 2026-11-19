@@ -88,6 +88,30 @@ describe('watchPageReady', () => {
     },
   );
 
+  it('ignores a hidden busy element', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div hidden><div aria-busy="true"></div></div>');
+    watchPageReady({ nav: 'soft', currentApp: 'supply', onReady });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(samples).toHaveLength(1);
+  });
+
+  it('cancels on a bfcache restore', async () => {
+    watchPageReady({ nav: 'hard', currentApp: 'supply', onReady });
+    const event = new Event('pageshow') as PageTransitionEvent;
+    Object.defineProperty(event, 'persisted', { value: true });
+    window.dispatchEvent(event);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(samples).toHaveLength(0);
+  });
+
+  it('counts an app data call named analytics but not the analytics host', async () => {
+    watchPageReady({ nav: 'soft', currentApp: 'supply', startAt: 0, onReady });
+    await vi.advanceTimersByTimeAsync(400);
+    resource('https://app.test/api/analytics/summary');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(samples).toHaveLength(0);
+  });
+
   it('new resources extend the quiet window, but telemetry does not', async () => {
     watchPageReady({ nav: 'soft', currentApp: 'supply', startAt: 0, onReady });
     await vi.advanceTimersByTimeAsync(400);

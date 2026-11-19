@@ -127,12 +127,26 @@ describe('SeamlessExitProvider', () => {
     expect(overlay().getAttribute('aria-hidden')).toBe('false');
     expect(assigned).toBeNull();
     act(() => {
-      vi.advanceTimersByTime(5000); // a fixed timer would have fired by now
+      vi.advanceTimersByTime(200); // the old 460 ms timer is gone; the hidden-tab fallback is 250 ms
     });
     expect(assigned).toBeNull();
     act(flushFrame);
     expect(assigned).toBeNull();
     act(flushFrame);
+    expect(assigned).toBe('https://nexus.example/');
+    vi.useRealTimers();
+  });
+
+  it('still navigates when no animation frame runs (hidden tab)', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] });
+    const { getByText } = setup();
+    act(() => {
+      getByText('Nexus').click();
+    });
+    expect(assigned).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
     expect(assigned).toBe('https://nexus.example/');
     vi.useRealTimers();
   });

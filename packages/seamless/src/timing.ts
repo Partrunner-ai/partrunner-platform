@@ -36,7 +36,12 @@ const BUSY_SELECTOR = [
 ].join(',');
 
 /** Resource requests that must not keep a page "busy". */
-const IGNORED_RESOURCE = [/\/api\/telemetry\//, /sentry/i, /ingest/i, /analytics/i];
+const IGNORED_RESOURCE = [
+  /^[a-z]+:\/\/[^/]*\/api\/telemetry\//i,
+  /^[a-z]+:\/\/[^/]*sentry\.io\//i,
+  /^[a-z]+:\/\/[^/]*ingest\.[^/]*\//i,
+  /^[a-z]+:\/\/[^/]*(google-analytics|googletagmanager|vercel-insights|vitals\.vercel-insights)\.[^/]*\//i,
+];
 
 const LINK_CLICK_WINDOW_MS = 2000;
 const CHECK_INTERVAL_MS = 100;
@@ -93,8 +98,23 @@ function appFromReferrer(currentApp: string): string | undefined {
   }
 }
 
+function isVisible(el: Element): boolean {
+  const node = el as HTMLElement;
+  if (typeof node.checkVisibility === 'function') return node.checkVisibility();
+  // Older browsers and jsdom: walk up and look for a hidden or display:none ancestor.
+  for (let n: HTMLElement | null = node; n; n = n.parentElement) {
+    if (n.hidden) return false;
+    const style = getComputedStyle(n);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+  }
+  return true;
+}
+
 function isBusy(): boolean {
-  return document.querySelector(BUSY_SELECTOR) !== null;
+  for (const el of Array.from(document.querySelectorAll(BUSY_SELECTOR))) {
+    if (isVisible(el)) return true;
+  }
+  return false;
 }
 
 /**
@@ -165,6 +185,13 @@ export function watchPageReady(opts: WatchPageReadyOptions): () => void {
   };
   document.addEventListener('visibilitychange', onVisibility);
   cleanups.push(() => document.removeEventListener('visibilitychange', onVisibility));
+
+  // A restored bfcache page has a stale clock and observers: drop the watch.
+  const onPageShow = (event: PageTransitionEvent) => {
+    if (!done && event.persisted) finish();
+  };
+  window.addEventListener('pageshow', onPageShow);
+  cleanups.push(() => window.removeEventListener('pageshow', onPageShow));
 
   const hardExtras = (): Partial<PageReadySample> => {
     if (nav !== 'hard') return {};

@@ -50,6 +50,7 @@ export function SeamlessSplash({ minDurationMs = 360 }: { minDurationMs?: number
     const onPageShow = (e: PageTransitionEvent) => {
       if (e.persisted) {
         setVisible(true);
+        if (t !== undefined) window.clearTimeout(t);
         t = window.setTimeout(() => setVisible(false), minDurationMs);
       }
     };
@@ -121,11 +122,15 @@ export function SeamlessExitProvider({ children }: { children: React.ReactNode }
     setState({ active: true, label: label ?? null });
     // No fixed wait: navigate after the overlay has had one paint. The old page
     // stays on screen until the next one commits, so the overlay stays visible.
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        window.location.href = url;
-      });
-    });
+    let navigated = false;
+    const go = () => {
+      if (navigated) return;
+      navigated = true;
+      window.location.href = url;
+    };
+    window.requestAnimationFrame(() => window.requestAnimationFrame(go));
+    // A hidden tab runs no animation frames; do not strand the navigation.
+    window.setTimeout(go, 250);
   }, []);
 
   const value = React.useMemo(() => ({ navigateTo }), [navigateTo]);
