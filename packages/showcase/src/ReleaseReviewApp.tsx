@@ -8,11 +8,12 @@ import {
   UiLightCatalog,
 } from '../../ui/e2e/component-gallery.story';
 import { BrandMarkDemo } from './BrandMarkDemo';
+import { SkeletonsDemo } from './SkeletonsDemo';
 import { NavigationDemo } from './navigation/NavigationDemo';
 import './review.css';
 
 /** `#switcher` and `#appbar` are aliases of `#navigation`. */
-export type ReviewView = 'components' | 'shell' | 'brand' | 'navigation';
+export type ReviewView = 'components' | 'shell' | 'brand' | 'navigation' | 'skeletons';
 export type ReviewTheme = 'light' | 'dark';
 
 const VIEWS: Array<{ id: ReviewView; label: string }> = [
@@ -20,6 +21,7 @@ const VIEWS: Array<{ id: ReviewView; label: string }> = [
   { id: 'shell', label: 'App shell' },
   { id: 'brand', label: 'Brand mark' },
   { id: 'navigation', label: 'Navegación' },
+  { id: 'skeletons', label: 'Esqueletos' },
 ];
 
 function viewFromHash(): ReviewView {
@@ -132,6 +134,7 @@ export function ReleaseReviewApp({
         {view === 'shell' && theme === 'dark' ? <ShellDarkCatalog /> : null}
         {view === 'brand' ? <BrandMarkDemo /> : null}
         {view === 'navigation' ? <NavigationDemo /> : null}
+        {view === 'skeletons' ? <SkeletonsDemo /> : null}
       </div>
     </div>
   );

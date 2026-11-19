@@ -2838,6 +2838,92 @@
   }
 }
 
+/* ───────────────────── PageSkeleton ───────────────────── */
+
+.pr-page-skeleton {
+  display: block;
+  width: 100%;
+  /* Short delay so a fast load never flashes the placeholder, then a quick fade.
+     `both` holds opacity 0 during the delay. */
+  animation: pr-page-skeleton-in 150ms var(--pr-ease, ease-out) 120ms both;
+}
+@keyframes pr-page-skeleton-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.pr-page-skeleton__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.pr-page-skeleton__head { display: flex; flex-direction: column; gap: 10px; }
+.pr-page-skeleton__meta { display: flex; align-items: center; gap: 16px; }
+.pr-page-skeleton__toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pr-page-skeleton__spacer { flex: 1 1 0; }
+.pr-page-skeleton__field { border-radius: var(--pr-radius-md, 0.75rem); max-width: 100%; }
+.pr-page-skeleton__pill { border-radius: 999px; }
+/* Concentric with the panel: panel radius = inner row radius + padding. */
+.pr-page-skeleton__panel {
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-card, 0.75rem);
+  overflow: hidden;
+}
+.pr-page-skeleton__row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--pr-border);
+}
+.pr-page-skeleton__row:first-child { border-top: 0; }
+.pr-page-skeleton__row--head { padding-block: 12px; background: var(--pr-bg); }
+.pr-page-skeleton__kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.pr-page-skeleton__kpi { display: flex; flex-direction: column; gap: 12px; padding: 18px 20px; }
+.pr-page-skeleton__split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.pr-page-skeleton__split--detail { grid-template-columns: minmax(0, 5fr) minmax(0, 2fr); align-items: start; }
+.pr-page-skeleton__chart { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+.pr-page-skeleton__chart-area { height: 240px; border-radius: var(--pr-radius-sm, 0.625rem); }
+.pr-page-skeleton__list,
+.pr-page-skeleton__card { display: flex; flex-direction: column; gap: 14px; padding: 20px; }
+.pr-page-skeleton__gap { height: 8px; }
+.pr-page-skeleton__item { display: flex; align-items: center; gap: 12px; }
+.pr-page-skeleton__item-text { display: flex; flex: 1 1 0; min-width: 0; flex-direction: column; gap: 8px; }
+.pr-page-skeleton__kv { display: flex; flex-direction: column; gap: 8px; }
+.pr-page-skeleton__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.pr-page-skeleton__footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.pr-page-skeleton__chat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; min-height: 480px; }
+.pr-page-skeleton__convs { display: flex; flex-direction: column; gap: 18px; padding: 16px; }
+.pr-page-skeleton__pane { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.pr-page-skeleton__messages { display: flex; flex: 1 1 0; flex-direction: column; gap: 14px; padding-block: 8px; }
+.pr-page-skeleton__bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  border: 1px solid var(--pr-border);
+}
+.pr-page-skeleton__bubble[data-side='out'] { align-self: flex-end; }
+
+@media (max-width: 900px) {
+  .pr-page-skeleton__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pr-page-skeleton__split,
+  .pr-page-skeleton__split--detail,
+  .pr-page-skeleton__chat { grid-template-columns: minmax(0, 1fr); }
+  .pr-page-skeleton__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .pr-page-skeleton__grid { grid-template-columns: minmax(0, 1fr); }
+  .pr-page-skeleton__row { gap: 12px; padding-inline: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-page-skeleton { animation: none; }
+}
+
 /* ─────────────────────── Tooltip ─────────────────────── */
 
 .pr-tooltip {

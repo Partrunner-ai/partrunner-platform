@@ -3018,6 +3018,7 @@ import { buildAppUrl as buildStandaloneUrl } from '@partrunner-ai/app-registry/u
 import { safeNextPath, type NexusSession } from '@partrunner-ai/seamless';
 import * as seamlessReact from '@partrunner-ai/seamless/react';
 import * as seamlessServer from '@partrunner-ai/seamless/server';
+import { navStartFor, watchPageReady, type PageReadySample } from '@partrunner-ai/seamless/timing';
 import { AppShell, type StaffShellContextValue } from '@partrunner-ai/shell';
 import * as shellPreferences from '@partrunner-ai/shell/preferences';
 import { DEFAULT_BELL_SOUND, type StaffBellSound } from '@partrunner-ai/shell/bell-sound';
@@ -3097,6 +3098,8 @@ void [
   session,
   shellPreferences,
 ];
+const pageReady: Pick<PageReadySample, 'nav'> = { nav: 'hard' };
+void [navStartFor, watchPageReady, pageReady];
 const bellSound: StaffBellSound = DEFAULT_BELL_SOUND;
 void bellSound;
 const shellContext = null as StaffShellContextValue | null;

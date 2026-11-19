@@ -288,6 +288,11 @@ export {
 } from './Pagination';
 export { Skeleton, type SkeletonProps, type SkeletonShape } from './Skeleton';
 export {
+  PageSkeleton,
+  type PageSkeletonProps,
+  type PageSkeletonVariant,
+} from './PageSkeleton';
+export {
   ProgressDots,
   Stepper,
   type ProgressDotsProps,

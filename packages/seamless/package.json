@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/seamless",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Seamless cross-app navigation, browser-safe transitions, and server-only Nexus session verification for PartRunner applications.",
   "license": "MIT",
   "type": "module",
@@ -30,6 +30,16 @@
       "require": {
         "types": "./dist/react.d.cts",
         "default": "./dist/react.cjs"
+      }
+    },
+    "./timing": {
+      "import": {
+        "types": "./dist/timing.d.ts",
+        "default": "./dist/timing.js"
+      },
+      "require": {
+        "types": "./dist/timing.d.cts",
+        "default": "./dist/timing.cjs"
       }
     },
     "./server": {
@@ -80,10 +90,15 @@
     }
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.7",
+    "jsdom": "^26.1.0",
     "next": "^15.5.24",
     "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "vitest": "^4.1.11"
   },
   "publishConfig": {
