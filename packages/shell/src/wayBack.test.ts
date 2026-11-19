@@ -47,6 +47,18 @@ describe('the way-back fragment', () => {
     expect(isRegistryOrigin('not a url')).toBe(false);
   });
 
+  it('treats www.<host> as the registry origin, and staging. as another', () => {
+    expect(isRegistryOrigin('https://www.partrunner.app/admin')).toBe(true);
+    expect(isRegistryOrigin('https://staging.partrunner.app/admin')).toBe(false);
+    expect(isRegistryOrigin('https://www.evil.example/')).toBe(false);
+    expect(withWayBack('https://www.partrunner.app/admin', 'supply', '/fleets')).toBe(
+      'https://www.partrunner.app/admin#pr-from=supply:%2Ffleets',
+    );
+    expect(withWayBack('https://staging.partrunner.app/admin', 'supply', '/fleets')).toBe(
+      'https://staging.partrunner.app/admin',
+    );
+  });
+
   it('detects the prefix', () => {
     expect(hasWayBackFragment('#pr-from=x')).toBe(true);
     expect(hasWayBackFragment('#other')).toBe(false);
@@ -115,6 +127,17 @@ describe('referrer matching', () => {
         p: '/admin/finanzas/dashboard',
       });
     }
+  });
+
+  it('matches a referrer on www.<host> but not on staging.<host>', () => {
+    expect(wayBackFromReferrer('https://www.partrunner.app/admin/x', 'supply', {})).toMatchObject({
+      s: 'sube-tu-factura',
+    });
+    expect(wayBackFromReferrer('https://www.liveops.partrunner.ai/x', 'supply', {})).toEqual({
+      s: 'liveops',
+      p: '/',
+    });
+    expect(wayBackFromReferrer('https://staging.partrunner.app/admin/x', 'supply', {})).toBeNull();
   });
 
   it('otherwise needs a segment boundary for a path-hosted app', () => {

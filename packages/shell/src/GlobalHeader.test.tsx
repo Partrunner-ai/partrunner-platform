@@ -40,10 +40,11 @@ const baseContext: StaffShellContextValue = {
 function renderHeader(
   context: StaffShellContextValue,
   start: ReactNode = <span>Sales pipeline</span>,
+  showThemeToggle?: boolean,
 ) {
   return render(
     <StaffShellProvider value={context}>
-      <GlobalHeader currentSub="sales" start={start} />
+      <GlobalHeader currentSub="sales" start={start} showThemeToggle={showThemeToggle} />
     </StaffShellProvider>,
   );
 }
@@ -94,6 +95,13 @@ describe('GlobalHeader', () => {
     );
 
     expect(setTheme).toHaveBeenCalledWith('light');
+  });
+
+  it('hides the theme button when showThemeToggle is false, and keeps the rest', () => {
+    renderHeader(baseContext, undefined, false);
+    expect(screen.queryByRole('button', { name: /^Theme:/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Applications' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'User menu' })).toBeTruthy();
   });
 
   it('labels the theme button in Spanish for Spanish speakers', () => {

@@ -1,4 +1,5 @@
 import { APPS, appHref, findApp, type AppLink } from '@partrunner-ai/app-registry';
+import { canonicalOrigin } from './appOrigin';
 import { isIgnoredNavPath, isStorableNavPath } from './navMemory';
 
 /**
@@ -70,13 +71,9 @@ export function parseWayBackHash(hash: string): WayBackTarget | null {
   return { s: match[1]!, p: path };
 }
 
+/** Comparison origin: `www.<host>` and `<host>` are the same app. */
 function originOf(url: string | null): string {
-  if (!url) return '';
-  try {
-    return new URL(url).origin;
-  } catch {
-    return '';
-  }
+  return canonicalOrigin(url);
 }
 
 function pathOf(url: string): string {
@@ -107,7 +104,7 @@ export function wayBackFromReferrer(
   for (const app of apps) {
     if (app.sub === currentSub || app.comingSoon) continue;
     const start = appHref(app);
-    if (!start || originOf(start) !== ref.origin) continue;
+    if (!start || originOf(start) !== originOf(ref.href)) continue;
     if (app.scheme === 'path' && app.path) {
       // A cross-origin referrer is often cut to the origin, so `/` matches on
       // origin alone. Otherwise the first segment must match at a boundary.

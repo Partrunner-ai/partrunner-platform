@@ -92,6 +92,11 @@ export interface GlobalHeaderProps {
   apps?: AppLink[];
   /** Host-specific user actions, rendered after the canonical profile link. */
   userMenuItems?: UserMenuItem[];
+  /**
+   * Show the theme button. Default `true`. Set `false` for an app that has one
+   * theme (the fleet portal is light only): the button is then not rendered.
+   */
+  showThemeToggle?: boolean;
   className?: string;
 }
 
@@ -106,6 +111,7 @@ export function GlobalHeader({
   currentSub,
   apps,
   userMenuItems = [],
+  showThemeToggle = true,
   className,
 }: GlobalHeaderProps) {
   const shell = useStaffShell();
@@ -157,16 +163,18 @@ export function GlobalHeader({
         {/* De vuelta a pedido de Sebastián (2026-10-29): sin él el tema sólo
             se cambiaba desde el perfil de Nexus, y Nexus lo tenía en su header
             propio mientras el resto de las apps no. */}
-        <ThemeToggle
-          theme={shell.preferences.theme}
-          onThemeChange={shell.setTheme}
-          applyToDocument={false}
-          allowSystem
-          label={messages.theme(
-            shell.preferences.theme,
-            nextTheme(shell.preferences.theme),
-          )}
-        />
+        {showThemeToggle ? (
+          <ThemeToggle
+            theme={shell.preferences.theme}
+            onThemeChange={shell.setTheme}
+            applyToDocument={false}
+            allowSystem
+            label={messages.theme(
+              shell.preferences.theme,
+              nextTheme(shell.preferences.theme),
+            )}
+          />
+        ) : null}
         <NotificationCenter
           items={shell.notifications.items}
           unreadCount={shell.notifications.unreadCount}

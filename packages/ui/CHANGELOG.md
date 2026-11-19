@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.3.3
+
+### Patch Changes
+
+- Republish with the new `@partrunner-ai/shell` version pinned in `package.json` (a development dependency). No runtime change.
+
 ## 2.3.2
 
 ### Patch Changes
