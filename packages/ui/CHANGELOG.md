@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.4.2
+
+### Patch Changes
+
+- Pin the new `@partrunner-ai/shell` minor (preconnect to the target app on hover). No change to the ui components.
+
 ## 2.4.1
 
 ### Patch Changes
