@@ -95,6 +95,23 @@ describe('watchPageReady', () => {
     expect(samples).toHaveLength(1);
   });
 
+  it('asks checkVisibility to honour visibility:hidden and CSS hiding', async () => {
+    const calls: unknown[] = [];
+    const el = document.createElement('div');
+    el.setAttribute('aria-busy', 'true');
+    Object.defineProperty(el, 'checkVisibility', {
+      value: (opts: unknown) => {
+        calls.push(opts);
+        return false;
+      },
+    });
+    document.body.append(el);
+    watchPageReady({ nav: 'soft', currentApp: 'supply', onReady });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(calls[0]).toEqual({ visibilityProperty: true, checkVisibilityCSS: true });
+    expect(samples).toHaveLength(1);
+  });
+
   it('cancels on a bfcache restore', async () => {
     watchPageReady({ nav: 'hard', currentApp: 'supply', onReady });
     const event = new Event('pageshow') as PageTransitionEvent;

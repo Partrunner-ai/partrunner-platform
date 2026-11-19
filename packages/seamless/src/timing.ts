@@ -37,7 +37,7 @@ const BUSY_SELECTOR = [
 
 /** Resource requests that must not keep a page "busy". */
 const IGNORED_RESOURCE = [
-  /^[a-z]+:\/\/[^/]*\/api\/telemetry\//i,
+  /^[a-z]+:\/\/[^/]*\/api\/telemetry(?:[/?#]|$)/i,
   /^[a-z]+:\/\/[^/]*sentry\.io\//i,
   /^[a-z]+:\/\/[^/]*ingest\.[^/]*\//i,
   /^[a-z]+:\/\/[^/]*(google-analytics|googletagmanager|vercel-insights|vitals\.vercel-insights)\.[^/]*\//i,
@@ -100,7 +100,7 @@ function appFromReferrer(currentApp: string): string | undefined {
 
 function isVisible(el: Element): boolean {
   const node = el as HTMLElement;
-  if (typeof node.checkVisibility === 'function') return node.checkVisibility();
+  if (typeof node.checkVisibility === 'function') return node.checkVisibility({ visibilityProperty: true, checkVisibilityCSS: true });
   // Older browsers and jsdom: walk up and look for a hidden or display:none ancestor.
   for (let n: HTMLElement | null = node; n; n = n.parentElement) {
     if (n.hidden) return false;
