@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Check } from 'lucide-react';
 import { APP_NAV_ORDER, type AppLink } from '@partrunner-ai/app-registry';
+import { preloadOnIntent } from './preloadApp';
 import { appNavApps, navAppRows, useNavMemory, type NavAppRow } from './navShared';
 import { notifyNavigate, type ShellNavigationValue } from './NavigationContext';
 import type { StaffLocale, StaffShellContextValue } from './StaffShellContext';
@@ -252,7 +253,13 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
                   {body(row)}
                 </LinkComponent>
               ) : (
-                <a className="pr-favs__row" href={row.href} title={row.name} onClick={() => open(row)}>
+                <a
+                  className="pr-favs__row"
+                  href={row.href}
+                  title={row.name}
+                  onClick={() => open(row)}
+                  {...preloadOnIntent(row.href)}
+                >
                   {body(row)}
                 </a>
               )}

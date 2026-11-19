@@ -34,6 +34,7 @@ import {
 } from './NavigationContext';
 import { FavoriteApps } from './FavoriteApps';
 import { readNavMemory, rememberNavVisit } from './navMemory';
+import { preloadOnIntent } from './preloadApp';
 import { useOptionalStaffShell } from './StaffShellContext';
 import { captureWayBack, type WayBackTarget } from './wayBack';
 import {
@@ -1078,6 +1079,7 @@ export function AppShell({
                 className="pr-nav__item"
                 href={nexusHref}
                 title="Nexus"
+                {...preloadOnIntent(nexusHref)}
                 onClick={
                   onNexusSelect
                     ? (event) => {
