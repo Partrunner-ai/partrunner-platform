@@ -17,8 +17,8 @@ vi.stubGlobal('PointerEvent', TestPointerEvent);
 
 const TARGET = 'https://supply.partrunner.ai/fleets';
 
-function prefetches(): HTMLLinkElement[] {
-  return Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="prefetch"]'));
+function preconnects(): HTMLLinkElement[] {
+  return Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="preconnect"]'));
 }
 
 function Probe({ href }: { href: string }) {
@@ -42,16 +42,16 @@ afterEach(() => {
 });
 
 describe('preloadOnIntent', () => {
-  it('warms the target once after the intent delay on mouse hover', () => {
+  it('opens a connection to the target once after the intent delay on mouse hover', () => {
     render(<Probe href={TARGET} />);
     const link = screen.getByRole('link');
     fireEvent.pointerEnter(link, { pointerType: 'mouse' });
     vi.advanceTimersByTime(PRELOAD_INTENT_MS - 1);
-    expect(prefetches()).toHaveLength(0);
+    expect(preconnects()).toHaveLength(0);
     vi.advanceTimersByTime(1);
-    expect(prefetches()).toHaveLength(1);
-    expect(prefetches()[0]!.href).toBe(TARGET);
-    expect(document.head.querySelectorAll('link[rel="preconnect"]')).toHaveLength(1);
+    expect(preconnects()).toHaveLength(1);
+    expect(preconnects()[0]!.getAttribute('href')).toBe('https://supply.partrunner.ai');
+    expect(document.head.querySelectorAll('link[rel="prefetch"]')).toHaveLength(0);
   });
 
   it('does nothing when the pointer leaves before the delay', () => {
@@ -61,7 +61,7 @@ describe('preloadOnIntent', () => {
     vi.advanceTimersByTime(PRELOAD_INTENT_MS - 10);
     fireEvent.pointerLeave(link, { pointerType: 'mouse' });
     vi.advanceTimersByTime(500);
-    expect(prefetches()).toHaveLength(0);
+    expect(preconnects()).toHaveLength(0);
   });
 
   it('warms a target only once per page', () => {
@@ -74,7 +74,7 @@ describe('preloadOnIntent', () => {
       vi.advanceTimersByTime(PRELOAD_INTENT_MS);
     }
     preloadApp(TARGET);
-    expect(prefetches()).toHaveLength(1);
+    expect(preconnects()).toHaveLength(1);
   });
 
   it('warms once even when the user hovers again after the delay', () => {
@@ -85,15 +85,30 @@ describe('preloadOnIntent', () => {
     fireEvent.pointerLeave(link, { pointerType: 'mouse' });
     fireEvent.pointerEnter(link, { pointerType: 'pen' });
     vi.advanceTimersByTime(1000);
-    expect(prefetches()).toHaveLength(1);
+    expect(preconnects()).toHaveLength(1);
   });
 
-  it('strips the fragment and marks the prefetch as a document', () => {
-    render(<Probe href={`${TARGET}#pr-from=nexus:%2Fa`} />);
+  it('warms an origin once, whatever the path or fragment', () => {
+    render(
+      <>
+        <Probe href={`${TARGET}#pr-from=nexus:%2Fa`} />
+        <Probe href="https://supply.partrunner.ai/other" />
+      </>,
+    );
+    for (const link of screen.getAllByRole('link')) {
+      fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    }
+    vi.advanceTimersByTime(1000);
+    expect(preconnects()).toHaveLength(1);
+  });
+
+  it('never adds a prefetch or prerender link', () => {
+    render(<Probe href={TARGET} />);
     fireEvent.pointerEnter(screen.getByRole('link'), { pointerType: 'mouse' });
-    vi.advanceTimersByTime(PRELOAD_INTENT_MS);
-    expect(prefetches()[0]!.getAttribute('href')).toBe(TARGET);
-    expect(prefetches()[0]!.as).toBe('document');
+    vi.advanceTimersByTime(1000);
+    expect(
+      document.head.querySelectorAll('link[rel="prefetch"], link[rel="prerender"], link[as]'),
+    ).toHaveLength(0);
   });
 
   it('keeps the link click working', () => {
@@ -111,14 +126,14 @@ describe('preloadOnIntent', () => {
     render(<Probe href={TARGET} />);
     fireEvent.pointerEnter(screen.getByRole('link'), { pointerType: 'touch' });
     vi.advanceTimersByTime(1000);
-    expect(prefetches()).toHaveLength(0);
+    expect(preconnects()).toHaveLength(0);
   });
 
   it('ignores focus that is not from the keyboard', () => {
     render(<Probe href={TARGET} />);
     fireEvent.focus(screen.getByRole('link'));
     vi.advanceTimersByTime(1000);
-    expect(prefetches()).toHaveLength(0);
+    expect(preconnects()).toHaveLength(0);
   });
 
   it('warms on keyboard focus', () => {
@@ -127,7 +142,7 @@ describe('preloadOnIntent', () => {
     vi.spyOn(link, 'matches').mockReturnValue(true);
     fireEvent.focus(link);
     vi.advanceTimersByTime(PRELOAD_INTENT_MS);
-    expect(prefetches()).toHaveLength(1);
+    expect(preconnects()).toHaveLength(1);
   });
 
   it('respects saveData', () => {
@@ -135,7 +150,7 @@ describe('preloadOnIntent', () => {
     render(<Probe href={TARGET} />);
     fireEvent.pointerEnter(screen.getByRole('link'), { pointerType: 'mouse' });
     vi.advanceTimersByTime(1000);
-    expect(prefetches()).toHaveLength(0);
+    expect(preconnects()).toHaveLength(0);
   });
 
   it('never warms the current app, including its www alias', () => {
@@ -149,14 +164,14 @@ describe('preloadOnIntent', () => {
       fireEvent.pointerEnter(link, { pointerType: 'mouse' });
     }
     vi.advanceTimersByTime(1000);
-    expect(prefetches()).toHaveLength(0);
+    expect(preconnects()).toHaveLength(0);
   });
 
   it('ignores a non-http target', () => {
     render(<Probe href="mailto:a@b.c" />);
     fireEvent.pointerEnter(screen.getByRole('link'), { pointerType: 'mouse' });
     vi.advanceTimersByTime(1000);
-    expect(prefetches()).toHaveLength(0);
+    expect(preconnects()).toHaveLength(0);
   });
 });
 
@@ -168,12 +183,12 @@ describe('where the shell wires it', () => {
     const tiles = screen.getAllByRole('menuitem');
     for (const tile of tiles) fireEvent.pointerEnter(tile, { pointerType: 'mouse' });
     vi.advanceTimersByTime(PRELOAD_INTENT_MS);
-    expect(prefetches().length).toBeGreaterThan(0);
-    expect(prefetches().some((l) => new URL(l.href).hostname.startsWith('nexus.'))).toBe(false);
-    const before = prefetches().length;
+    expect(preconnects().length).toBeGreaterThan(0);
+    expect(preconnects().some((l) => new URL(l.href).hostname.startsWith('nexus.'))).toBe(false);
+    const before = preconnects().length;
     for (const tile of tiles) fireEvent.pointerEnter(tile, { pointerType: 'mouse' });
     vi.advanceTimersByTime(PRELOAD_INTENT_MS);
-    expect(prefetches()).toHaveLength(before);
+    expect(preconnects()).toHaveLength(before);
   });
 
   it('warms a «Mis apps» row on hover', () => {
@@ -183,7 +198,7 @@ describe('where the shell wires it', () => {
     expect(row).toBeTruthy();
     fireEvent.pointerEnter(row!, { pointerType: 'mouse' });
     vi.advanceTimersByTime(PRELOAD_INTENT_MS);
-    expect(prefetches()).toHaveLength(1);
+    expect(preconnects()).toHaveLength(1);
   });
 });
 

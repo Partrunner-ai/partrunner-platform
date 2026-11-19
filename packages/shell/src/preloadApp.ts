@@ -1,12 +1,12 @@
 import type { FocusEvent, PointerEvent } from 'react';
 import { sameAppOrigin } from './appOrigin';
 
-/** Wait this long on an item before warming its app, so a pointer passing over does nothing. */
+/** Wait this long on an item before warming its origin, so a pointer passing over does nothing. */
 export const PRELOAD_INTENT_MS = 100;
 
-/** Targets already warmed on this page (one prefetch per target, ever). */
+/** Origins already warmed on this page (one preconnect per origin, ever). */
 const warmed = new Set<string>();
-/** Pending intent timers, one per target. */
+/** Pending intent timers, one per origin. */
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** Forget every warmed target and timer. Tests only. */
@@ -21,8 +21,8 @@ function saveDataOn(): boolean {
   return connection?.saveData === true;
 }
 
-/** The URL to warm, or `null` when this page must not warm it. */
-function warmTarget(href: string | null | undefined): URL | null {
+/** The origin to warm, or `null` when this page must not warm it. */
+function warmTarget(href: string | null | undefined): string | null {
   if (typeof window === 'undefined' || !href) return null;
   if (saveDataOn()) return null;
   let url: URL;
@@ -34,31 +34,24 @@ function warmTarget(href: string | null | undefined): URL | null {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
   // The current app is already loaded; its own links are the router's job.
   if (sameAppOrigin(url.href, window.location.href)) return null;
-  url.hash = '';
-  return url;
-}
-
-function addLink(rel: 'preconnect' | 'prefetch', href: string): void {
-  const link = document.createElement('link');
-  link.rel = rel;
-  link.href = href;
-  if (rel === 'prefetch') link.as = 'document';
-  link.dataset.prPreload = '';
-  document.head.appendChild(link);
+  return url.origin;
 }
 
 /**
- * Warm the target app: open its connection and fetch its start document into
- * the HTTP cache. Once per target per page. Same-site apps share the cache
- * partition and the `.partrunner.ai` cookie, so the click can reuse the answer.
+ * Warm the target app: open its connection (DNS, TCP, TLS) before the click.
+ * Once per origin per page. It never fetches a document: staff pages are
+ * dynamic and not cacheable, so a prefetch would cost a render for nothing.
  */
 export function preloadApp(href: string | null | undefined): void {
-  const url = warmTarget(href);
-  if (!url || warmed.has(url.href)) return;
-  warmed.add(url.href);
+  const origin = warmTarget(href);
+  if (!origin || warmed.has(origin)) return;
+  warmed.add(origin);
   try {
-    addLink('preconnect', url.origin);
-    addLink('prefetch', url.href);
+    const link = document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = origin;
+    link.dataset.prPreload = '';
+    document.head.appendChild(link);
   } catch {
     /* a warm-up must never break the page */
   }
@@ -73,9 +66,8 @@ function cancel(key: string): void {
 }
 
 function schedule(href: string): void {
-  const url = warmTarget(href);
-  if (!url || warmed.has(url.href) || timers.has(url.href)) return;
-  const key = url.href;
+  const key = warmTarget(href);
+  if (!key || warmed.has(key) || timers.has(key)) return;
   timers.set(
     key,
     setTimeout(() => {
@@ -86,8 +78,7 @@ function schedule(href: string): void {
 }
 
 function keyOf(href: string): string {
-  const url = warmTarget(href);
-  return url ? url.href : '';
+  return warmTarget(href) ?? '';
 }
 
 /**
