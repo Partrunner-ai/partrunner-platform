@@ -77,6 +77,36 @@ describe('preloadOnIntent', () => {
     expect(prefetches()).toHaveLength(1);
   });
 
+  it('warms once even when the user hovers again after the delay', () => {
+    render(<Probe href={TARGET} />);
+    const link = screen.getByRole('link');
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    vi.advanceTimersByTime(PRELOAD_INTENT_MS);
+    fireEvent.pointerLeave(link, { pointerType: 'mouse' });
+    fireEvent.pointerEnter(link, { pointerType: 'pen' });
+    vi.advanceTimersByTime(1000);
+    expect(prefetches()).toHaveLength(1);
+  });
+
+  it('strips the fragment and marks the prefetch as a document', () => {
+    render(<Probe href={`${TARGET}#pr-from=nexus:%2Fa`} />);
+    fireEvent.pointerEnter(screen.getByRole('link'), { pointerType: 'mouse' });
+    vi.advanceTimersByTime(PRELOAD_INTENT_MS);
+    expect(prefetches()[0]!.getAttribute('href')).toBe(TARGET);
+    expect(prefetches()[0]!.as).toBe('document');
+  });
+
+  it('keeps the link click working', () => {
+    const onClick = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    render(
+      <a href={TARGET} onClick={onClick} {...preloadOnIntent(TARGET)}>
+        go
+      </a>,
+    );
+    fireEvent.click(screen.getByRole('link'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores touch', () => {
     render(<Probe href={TARGET} />);
     fireEvent.pointerEnter(screen.getByRole('link'), { pointerType: 'touch' });
