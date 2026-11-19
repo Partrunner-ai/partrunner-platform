@@ -10,6 +10,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
 import { appHref, type AppLink } from '@partrunner-ai/app-registry';
+import { sameAppOrigin } from './appOrigin';
 import { appNavLabel, navAppName, navAppRows, originOf, useNavMemory } from './navShared';
 import { isStorableNavPath } from './navMemory';
 import { findApp } from '@partrunner-ai/app-registry';
@@ -95,7 +96,7 @@ function matches(query: string, ...parts: Array<string | undefined>): boolean {
 function sameOriginPath(href: string): string | null {
   try {
     const url = new URL(href, window.location.href);
-    return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : null;
+    return sameAppOrigin(url.href, window.location.href) ? `${url.pathname}${url.search}${url.hash}` : null;
   } catch {
     return null;
   }

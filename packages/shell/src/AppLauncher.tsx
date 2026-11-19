@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { APPS, appHref, type AppLink, type AppTone } from '@partrunner-ai/app-registry';
-import { originOf, useNavMemory } from './navShared';
+import { navAppName, originOf, useNavMemory } from './navShared';
 import { notifyNavigate, useShellNavigation } from './NavigationContext';
 import { isStorableNavPath } from './navMemory';
 import { useDismiss } from './useDismiss';
@@ -78,7 +78,7 @@ export function AppLauncher({
                   <span className="pr-app__tile" style={tileStyle(app.tone)}>
                     <Icon size={20} aria-hidden />
                   </span>
-                  <span className="pr-app__label">{app.label}</span>
+                  <span className="pr-app__label">{appNav ? navAppName(app) : app.label}</span>
                 </>
               );
 

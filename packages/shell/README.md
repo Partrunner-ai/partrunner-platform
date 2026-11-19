@@ -38,6 +38,11 @@ package owns shared presentation and interaction contracts.
 `GlobalHeader` shows the theme toggle again (light → dark → system), driven by
 `preferences.theme` and `setTheme`; the host applies the theme to the document.
 
+`GlobalHeader` props: `start`, `currentSub`, `apps`, `userMenuItems`,
+`className`, and `showThemeToggle` (default `true`). An app with one theme, such
+as the light-only fleet portal, passes `showThemeToggle={false}`: the theme button
+is then not rendered, in either navigation mode.
+
 Hosts that expose `refreshNotifications` on the staff-shell context get a bell
 that stays current on its own: the shell calls it every
 `NOTIFICATION_REFRESH_MS` (60 s) while the tab is visible and when it comes back
@@ -119,9 +124,15 @@ holds `{ [sub]: { p, l? } }` (path and the label of its menu page). The older
 (Comunidad included). In `'unified'` mode a tile opens the last page used in that
 app (the validated path of `pr-nav-last`, else the start page), carries the
 way-back fragment when the URL is a registry origin, and reports
-`onNavigate({ source: 'launcher', ... })`. The tile of the current app behaves as
-before. In launcher mode the grid is unchanged: start pages, no fragment, no
+`onNavigate({ source: 'launcher', ... })`. In `'unified'` mode a tile uses the same app
+name as «Mis apps» and the search («Nexus», not the registry label «Home»). The
+tile of the current app behaves as before. In launcher mode the grid is unchanged: start pages, no fragment, no
 event.
+
+The shell treats `www.<host>` and `<host>` as one app origin when it compares an
+origin with a registry app (way-back source from the fragment or
+`document.referrer`, and the same-app checks). The registry URLs do not change.
+`staging.<host>` is a different origin.
 
 ### «Mis apps» in the sidebar
 

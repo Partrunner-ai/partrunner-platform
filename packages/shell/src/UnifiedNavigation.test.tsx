@@ -73,6 +73,13 @@ describe('unified mode in the shell', () => {
     expect(decodeURIComponent(document.cookie)).toContain('"supply":{"p":"/fleets"');
   });
 
+  it('hides the theme button in unified mode when showThemeToggle is false', () => {
+    const { rerender } = render(<Unified />);
+    expect(screen.getByRole('button', { name: /^Tema |^Theme:/ })).toBeTruthy();
+    rerender(<Unified header={{ showThemeToggle: false }} />);
+    expect(screen.queryByRole('button', { name: /^Tema |^Theme:/ })).toBeNull();
+  });
+
   it('keeps launcher mode as it was: grid button, no way back, no field', () => {
     const { container } = render(
       <StaffShellProvider value={staffContext()}>

@@ -47,6 +47,14 @@ describe('the apps grid in unified mode', () => {
     expect(tile(menu, /LiveOps/)).toBeTruthy();
   });
 
+  it('names Nexus «Nexus», as «Mis apps» and the search do, not «Home»', async () => {
+    render(<UnifiedShell />);
+    const { menu } = await openGrid();
+    const names = Array.from(menu.querySelectorAll('.pr-app__label')).map((el) => el.textContent);
+    expect(names).toContain('Nexus');
+    expect(names).not.toContain('Home');
+  });
+
   it('opens the start page of an app with no memory, with the way back', async () => {
     render(<UnifiedShell />);
     const { menu } = await openGrid();
@@ -131,6 +139,25 @@ describe('the apps grid in unified mode', () => {
     expect(tile(menu, /LiveOps/).getAttribute('href')).toBe('https://liveops.partrunner.ai');
     await user.click(tile(menu, /LiveOps/));
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the registry label «Home» in launcher mode', async () => {
+    render(
+      <StaffShellProvider value={staffContext()}>
+        <AppShell
+          sections={SECTIONS}
+          currentPath="/fleets"
+          appSub="supply"
+          globalHeader={<GlobalHeader currentSub="supply" />}
+        >
+          x
+        </AppShell>
+      </StaffShellProvider>,
+    );
+    const { menu } = await openGrid();
+    const names = Array.from(menu.querySelectorAll('.pr-app__label')).map((el) => el.textContent);
+    expect(names).toContain('Home');
+    expect(names).not.toContain('Nexus');
   });
 
   it('adds no listeners and never re-renders on focus outside the unified mode', () => {
