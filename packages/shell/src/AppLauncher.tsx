@@ -4,6 +4,7 @@ import { APPS, appHref, type AppLink, type AppTone } from '@partrunner-ai/app-re
 import { navAppName, originOf, useNavMemory } from './navShared';
 import { notifyNavigate, useShellNavigation } from './NavigationContext';
 import { isStorableNavPath } from './navMemory';
+import { preloadOnIntent } from './preloadApp';
 import { useDismiss } from './useDismiss';
 import { withWayBack } from './wayBack';
 
@@ -126,6 +127,7 @@ export function AppLauncher({
                   className="pr-app"
                   title={app.description}
                   role="menuitem"
+                  {...preloadOnIntent(target)}
                   onClick={() => {
                     if (appNav) {
                       notifyNavigate(appNav.onNavigate, {
