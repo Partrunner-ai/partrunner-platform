@@ -2,6 +2,14 @@ import type { ReactNode } from 'react';
 import { UserRound } from 'lucide-react';
 import type { AppLink } from '@partrunner-ai/app-registry';
 import { AppLauncher } from './AppLauncher';
+import { SidebarTrigger } from './AppShell';
+import { GoToPalette } from './GoToPalette';
+import { appNavApps } from './navShared';
+import { WayBackSection } from './WayBackChip';
+import {
+  HeaderOwnsSidebarTriggerContext,
+  useShellNavigation,
+} from './NavigationContext';
 import {
   NotificationCenter,
   type NotificationCenterLabels,
@@ -17,6 +25,7 @@ import { UserMenu, type UserMenuItem } from './UserMenu';
 interface GlobalHeaderMessages {
   landmark: string;
   launcher: string;
+  apps: string;
   profile: string;
   signOut: string;
   userMenu: string;
@@ -39,6 +48,7 @@ const MESSAGES: Record<StaffLocale, GlobalHeaderMessages> = {
   es: {
     landmark: 'Barra global',
     launcher: 'Aplicaciones',
+    apps: 'Aplicaciones',
     profile: 'Perfil y preferencias',
     signOut: 'Cerrar sesión',
     userMenu: 'Menú de usuario',
@@ -56,6 +66,7 @@ const MESSAGES: Record<StaffLocale, GlobalHeaderMessages> = {
   en: {
     landmark: 'Global bar',
     launcher: 'Applications',
+    apps: 'Applications',
     profile: 'Profile and preferences',
     signOut: 'Sign out',
     userMenu: 'User menu',
@@ -100,6 +111,10 @@ export function GlobalHeader({
   const shell = useStaffShell();
   const { locale } = shell.preferences;
   const messages = MESSAGES[locale];
+  const nav = useShellNavigation();
+  const unified = nav?.mode === 'unified' ? nav : null;
+  const navSub = unified ? (unified.appSub ?? currentSub) : currentSub;
+  const navApps = unified ? appNavApps(apps) : [];
   const profileItem: UserMenuItem = {
     label: messages.profile,
     href: shell.profileHref,
@@ -109,11 +124,36 @@ export function GlobalHeader({
   return (
     <header
       className={`pr-global-header${className ? ` ${className}` : ''}`}
+      data-navigation={unified ? unified.mode : undefined}
       aria-label={messages.landmark}
     >
-      <div className="pr-global-header__start">{start}</div>
+      {unified ? <SidebarTrigger /> : null}
+      {unified ? (
+        <WayBackSection
+          nav={unified}
+          currentSub={navSub}
+          headerSub={currentSub}
+          locale={locale}
+        />
+      ) : null}
+      {unified ? (
+        <HeaderOwnsSidebarTriggerContext.Provider value>
+          <div className="pr-global-header__start">{start}</div>
+        </HeaderOwnsSidebarTriggerContext.Provider>
+      ) : (
+        <div className="pr-global-header__start">{start}</div>
+      )}
       <div className="pr-global-header__spacer" />
       <div className="pr-global-header__controls">
+        {unified ? (
+          <GoToPalette
+            nav={unified}
+            apps={navApps}
+            currentSub={navSub}
+            locale={locale}
+            extraPages={shell.pages}
+          />
+        ) : null}
         {/* De vuelta a pedido de Sebastián (2026-10-29): sin él el tema sólo
             se cambiaba desde el perfil de Nexus, y Nexus lo tenía en su header
             propio mientras el resto de las apps no. */}

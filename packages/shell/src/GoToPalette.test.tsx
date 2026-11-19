@@ -1,0 +1,375 @@
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { configureAppRegistry } from '@partrunner-ai/app-registry';
+import { NAV_RECENT_COOKIE } from './navMemory';
+import { UnifiedShell, staffContext, useProductionRegistry } from './test/unified-fixtures';
+
+beforeEach(() => {
+  useProductionRegistry();
+  document.cookie = `${NAV_RECENT_COOKIE}=${encodeURIComponent(
+    JSON.stringify([
+      { s: 'sales', p: '/deals', l: 'Negocios' },
+      { s: 'liveops', p: '/routes', l: 'Rutas' },
+      { s: 'supply', p: '/units', l: 'Unidades' },
+    ]),
+  )}; path=/`;
+  // jsdom cannot navigate to another origin; swallow the anchor click.
+  document.addEventListener('click', swallow);
+});
+afterEach(() => {
+  document.removeEventListener('click', swallow);
+  configureAppRegistry({ hostPrefix: 'staging.', baseDomain: 'partrunner.ai' });
+});
+
+function swallow(event: Event) {
+  event.preventDefault();
+}
+
+function optionLabels(): string[] {
+  return screen.queryAllByRole('option').map((option) => option.textContent ?? '');
+}
+
+describe('«Ir a» palette', () => {
+  it('opens from the header button and with Ctrl+K, and closes with Escape', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    const trigger = screen.getByRole('button', { name: /Buscar o ir a…/ });
+    expect(trigger.textContent).toMatch(/Ctrl K|⌘K/);
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(document.activeElement).toBe(within(dialog).getByRole('combobox'));
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    // Off a Mac only Ctrl+K counts; Meta+K does nothing.
+    await user.keyboard('{Meta>}k{/Meta}');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('uses only ⌘K on a Mac and leaves Ctrl+K to text editing', async () => {
+    const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    try {
+      const user = userEvent.setup();
+      render(<UnifiedShell />);
+      expect(screen.getByRole('button', { name: /Buscar o ir a…/ }).textContent).toContain('⌘K');
+      await user.keyboard('{Control>}k{/Control}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      await user.keyboard('{Meta>}k{/Meta}');
+      expect(screen.getByRole('dialog')).toBeTruthy();
+    } finally {
+      platform.mockRestore();
+    }
+  });
+
+  it('stays closed when a page claims the shortcut first', async () => {
+    const user = userEvent.setup();
+    const claim = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') event.preventDefault();
+    };
+    window.addEventListener('keydown', claim, true);
+    try {
+      render(<UnifiedShell />);
+      await user.keyboard('{Control>}k{/Control}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      window.removeEventListener('keydown', claim, true);
+    }
+  });
+
+  it('ignores Shift and Alt variants of the shortcut', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    await user.keyboard('{Control>}{Shift>}k{/Shift}{/Control}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens with «/» and lists both shortcuts', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    expect(screen.getByRole('button', { name: /Buscar o ir a…/ }).getAttribute('aria-keyshortcuts')).toMatch(
+      /^(Meta|Control)\+K \/$/,
+    );
+    await user.keyboard('/');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    // The «/» is not typed into the search field.
+    expect((screen.getByRole('combobox') as HTMLInputElement).value).toBe('');
+  });
+
+  it('closes on a click outside and returns focus to the trigger', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    const trigger = screen.getByRole('button', { name: /Buscar o ir a…/ });
+    await user.click(trigger);
+    await user.click(document.body);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('shows recent pages first, without the current page, with the app name', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    expect(screen.getByText('Recientes')).toBeTruthy();
+    // The current page (Flotas, /fleets) is recorded by the shell and left out;
+    // Unidades (supply) stays.
+    expect(optionLabels().slice(0, 3)).toEqual([
+      'NegociosComercial',
+      'RutasLiveOps',
+      'UnidadesSupply',
+    ]);
+    // Then the apps, with the page each one opens.
+    expect(screen.getByText('Apps')).toBeTruthy();
+  });
+
+  it('says what to do when there is nothing recent', async () => {
+    document.cookie = `${NAV_RECENT_COOKIE}=; path=/; max-age=0`;
+    const user = userEvent.setup();
+    render(<UnifiedShell currentPath="/login" />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    expect(screen.queryByText('Recientes')).toBeNull();
+    expect(screen.getByText('Apps')).toBeTruthy();
+  });
+
+  it('searches without regard to accents or case, across pages, recents, and apps', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    const input = screen.getByRole('combobox');
+
+    await user.type(input, 'FACTURACION');
+    expect(optionLabels()).toEqual(['FacturaciónOperación · Supply']);
+
+    await user.clear(input);
+    await user.type(input, 'rutas');
+    expect(optionLabels()).toEqual(['RutasLiveOps']);
+
+    await user.clear(input);
+    await user.type(input, 'abrir sup');
+    expect(optionLabels()).toEqual(['Abrir Supply']);
+
+    await user.clear(input);
+    await user.type(input, 'zzzz');
+    expect(screen.getByText('Sin resultados para “zzzz”')).toBeTruthy();
+  });
+
+  it('lists this app pages before recents and apps, de-duplicated and capped at 10', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    await user.type(screen.getByRole('combobox'), 'u');
+    const labels = optionLabels();
+    expect(labels.length).toBeLessThanOrEqual(10);
+    // «Unidades» is both a page and a recent: it shows once, as a page.
+    expect(labels.filter((label) => label.startsWith('Unidades'))).toHaveLength(1);
+    expect(labels.indexOf('UnidadesOperación · Supply')).toBeLessThan(
+      labels.findIndex((label) => label.startsWith('Abrir')),
+    );
+  });
+
+  it('includes the host page index from the staff-shell context', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell
+        context={staffContext({
+          pages: [
+            {
+              app: 'sales',
+              label: 'Cotizaciones',
+              href: 'https://sales.partrunner.ai/quotes',
+              section: 'Ventas',
+            },
+          ],
+        })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    await user.type(screen.getByRole('combobox'), 'cotiz');
+    const option = screen.getByRole('option');
+    expect(option.textContent).toBe('CotizacionesVentas · Comercial');
+    expect(within(option).getByRole('link').getAttribute('href')).toBe(
+      'https://sales.partrunner.ai/quotes#pr-from=supply:%2Ffleets',
+    );
+  });
+
+  it('drops host index pages whose href is not http or https', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell
+        context={staffContext({
+          pages: [
+            { app: 'sales', label: 'Maligna', href: 'javascript:alert(1)' },
+            { app: 'sales', label: 'Maligna dos', href: '/relative' },
+            { app: 'sales', label: 'Buena', href: 'https://sales.partrunner.ai/ok' },
+          ],
+        })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    await user.type(screen.getByRole('combobox'), 'a');
+    const text = optionLabels().join('|');
+    expect(text).toContain('Buena');
+    expect(text).not.toContain('Maligna');
+  });
+
+  it('sets aria-controls only while the listbox is rendered', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    const input = screen.getByRole('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(input.getAttribute('aria-controls')).toBe(screen.getByRole('listbox').id);
+    await user.type(input, 'zzzz');
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(input.getAttribute('aria-controls')).toBeNull();
+  });
+
+  it('moves with the arrow keys and wraps', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    const input = screen.getByRole('combobox');
+    const options = () => screen.getAllByRole('option');
+    const activeId = () => input.getAttribute('aria-activedescendant');
+
+    expect(activeId()).toBe(options()[0]!.id);
+    expect(options()[0]!.getAttribute('aria-selected')).toBe('true');
+    await user.keyboard('{ArrowDown}');
+    expect(activeId()).toBe(options()[1]!.id);
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(activeId()).toBe(options()[options().length - 1]!.id);
+  });
+
+  it('opens the active row on Enter: another app by absolute URL', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(<UnifiedShell onNavigate={onNavigate} />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    expect(
+      within(screen.getAllByRole('option')[0]!).getByRole('link').getAttribute('href'),
+    ).toBe('https://sales.partrunner.ai/deals#pr-from=supply:%2Ffleets');
+    await user.keyboard('{Enter}');
+    expect(onNavigate).toHaveBeenCalledWith({
+      source: 'goto',
+      fromSub: 'supply',
+      toSub: 'sales',
+      href: 'https://sales.partrunner.ai/deals#pr-from=supply:%2Ffleets',
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens a page of this app through the host router link', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(<UnifiedShell onNavigate={onNavigate} />);
+    await user.click(screen.getByRole('button', { name: /Buscar o ir a…/ }));
+    await user.type(screen.getByRole('combobox'), 'factur{Enter}');
+    expect(onNavigate).toHaveBeenCalledWith({
+      source: 'goto',
+      fromSub: 'supply',
+      toSub: 'supply',
+      href: '/billing',
+    });
+  });
+
+  it('does not open with «/» typed in an input, a textarea, or a contenteditable', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell>
+        <input aria-label="campo" />
+        <textarea aria-label="nota" />
+        <div contentEditable suppressContentEditableWarning aria-label="editor" role="textbox" />
+      </UnifiedShell>,
+    );
+    for (const name of ['campo', 'nota', 'editor']) {
+      await user.click(screen.getByRole('textbox', { name }));
+      await user.keyboard('/');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    }
+  });
+
+  it('does not open with «/» when a page claims the key first or a modifier is held', async () => {
+    const user = userEvent.setup();
+    const claim = (event: KeyboardEvent) => {
+      if (event.key === '/' && !event.ctrlKey) event.preventDefault();
+    };
+    window.addEventListener('keydown', claim, true);
+    try {
+      render(<UnifiedShell />);
+      await user.keyboard('/');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      window.removeEventListener('keydown', claim, true);
+    }
+    await user.keyboard('{Control>}/{/Control}');
+    await user.keyboard('{Meta>}/{/Meta}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('closes with the shortcut through close(): query reset, focus back on the trigger', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell />);
+    const trigger = screen.getByRole('button', { name: /Buscar o ir a…/ });
+    await user.keyboard('/');
+    await user.type(screen.getByRole('combobox'), 'zzz');
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    await user.keyboard('/');
+    expect((screen.getByRole('combobox') as HTMLInputElement).value).toBe('');
+  });
+
+  it('does not open with «/» inside another dialog or while composing text', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell>
+        <div role="dialog" aria-label="Otro">
+          <button type="button">dentro</button>
+        </div>
+      </UnifiedShell>,
+    );
+    await user.click(screen.getByRole('button', { name: 'dentro' }));
+    await user.keyboard('/');
+    expect(screen.queryByRole('combobox')).toBeNull();
+    act(() => {
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: '/', isComposing: true, bubbles: true }),
+      );
+    });
+    expect(screen.queryByRole('combobox')).toBeNull();
+    // Outside the other dialog it still opens.
+    (document.activeElement as HTMLElement).blur();
+    await user.keyboard('/');
+    expect(screen.getByRole('combobox')).toBeTruthy();
+  });
+
+  it('does not listen for the shortcut in launcher mode', async () => {
+    const user = userEvent.setup();
+    render(<UnifiedShell navigation="launcher" globalHeader={<div>plain</div>} />);
+    await act(async () => {
+      await user.keyboard('{Control>}k{/Control}');
+      await user.keyboard('/');
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('speaks English when the locale is en', async () => {
+    const user = userEvent.setup();
+    render(
+      <UnifiedShell context={staffContext({ preferences: { locale: 'en', theme: 'system' } })} />,
+    );
+    await user.click(screen.getByRole('button', { name: /Search or go to…/ }));
+    expect(screen.getByText('Recent')).toBeTruthy();
+    await user.type(screen.getByRole('combobox'), 'zzzz');
+    expect(screen.getByText('No results for “zzzz”')).toBeTruthy();
+  });
+});

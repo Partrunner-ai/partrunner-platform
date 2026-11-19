@@ -1,0 +1,174 @@
+.nav-sim {
+  display: grid;
+  gap: 16px;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+  color: var(--pr-fg);
+}
+.nav-sim__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+}
+.nav-sim__lead,
+.nav-sim__hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--pr-fg-muted);
+}
+.nav-sim__tasks {
+  margin-top: 14px;
+}
+.nav-sim__tasks-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pr-fg-muted);
+}
+.nav-sim__task-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+}
+.nav-sim__task {
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pr-fg);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-sim__task:hover,
+.nav-sim__task[data-active='true'] {
+  background: var(--pr-surface);
+  box-shadow: 0 0 0 1px var(--pr-border);
+}
+.nav-sim__goal {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--pr-fg-muted);
+}
+.nav-sim__goal[data-reached='true'] {
+  font-weight: 700;
+  color: var(--pr-success, var(--pr-fg));
+}
+
+/* The fake browser: a bordered frame with a fixed height, so the shell's
+   100vh layout has a viewport of its own. */
+.nav-sim__frame {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--pr-surface);
+  box-shadow: 0 0 0 1px var(--pr-border), var(--pr-shadow-card);
+}
+.nav-sim__browser {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--pr-bg);
+  border-bottom: 1px solid var(--pr-border);
+  font-size: 12px;
+}
+.nav-sim__back,
+.nav-sim__reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--pr-surface);
+  box-shadow: 0 0 0 1px var(--pr-border);
+  color: var(--pr-fg);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nav-sim__back:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.nav-sim__address {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--pr-surface);
+  box-shadow: inset 0 0 0 1px var(--pr-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-sim__lock {
+  color: var(--pr-fg-muted);
+}
+.nav-sim__counters {
+  display: flex;
+  gap: 14px;
+  color: var(--pr-fg-muted);
+  white-space: nowrap;
+}
+.nav-sim__counters strong {
+  margin-left: 4px;
+  color: var(--pr-fg);
+  font-variant-numeric: tabular-nums;
+}
+.nav-sim__notice {
+  margin: 0;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--pr-warning, #d97706) 18%, var(--pr-surface));
+  font-size: 12px;
+}
+.nav-sim__viewport {
+  height: 680px;
+  overflow: hidden;
+  /* A containing block for anything the shell positions against the viewport. */
+  transform: translateZ(0);
+}
+.nav-sim__viewport .pr-shell {
+  height: 100%;
+  min-height: 0;
+}
+.nav-sim__viewport .pr-sidebar {
+  height: 100%;
+}
+.nav-sim__viewport .pr-main {
+  min-width: 0;
+  overflow: auto;
+}
+.nav-sim__page {
+  display: grid;
+  gap: 8px;
+  padding: 28px 32px;
+}
+.nav-sim__page-app {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--pr-fg-muted);
+}
+.nav-sim__page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 750;
+}
+.nav-sim__page-copy {
+  margin: 0;
+  font-size: 13px;
+  color: var(--pr-fg-muted);
+}
+

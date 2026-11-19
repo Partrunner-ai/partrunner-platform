@@ -1,5 +1,8 @@
 export {
   APPS,
+  APP_NAV_APPS,
+  APP_NAV_ORDER,
+  sortAppNavApps,
   appHref,
   findApp,
   type AppKpi,

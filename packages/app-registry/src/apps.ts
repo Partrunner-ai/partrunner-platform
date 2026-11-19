@@ -68,6 +68,12 @@ export interface AppLink {
   comingSoon?: boolean;
   /** Prototype KPIs for the Home card. */
   kpis?: AppKpi[];
+  /**
+   * Show the app in «Mis apps» and in the «Ir a» app list of the shell
+   * (`navigation="unified"`). Default: shown. Set `false` for an app that
+   * belongs in the launcher grid only.
+   */
+  appNav?: boolean;
 }
 
 /** URL of the app, or `null` if not yet available. */
@@ -167,8 +173,43 @@ export const APPS: AppLink[] = [
     icon: UsersRound,
     tone: 'rose',
     tile: 'bg-rose-500/15 text-rose-500',
+    appNav: false,
   },
 ];
+
+/**
+ * Order of the apps in the shell's staff navigation (the order of the work). `APPS`
+ * keeps its own order, which the launcher grid uses.
+ */
+export const APP_NAV_ORDER: readonly string[] = [
+  'nexus',
+  'sales',
+  'solicitudes',
+  'supply',
+  'liveops',
+  'sube-tu-factura',
+  'fds',
+];
+
+/** Sorts apps by `APP_NAV_ORDER`; unlisted apps go last in their own order. */
+export function sortAppNavApps<T extends { sub: string }>(apps: readonly T[]): T[] {
+  const rank = (app: T) => {
+    const index = APP_NAV_ORDER.indexOf(app.sub);
+    return index === -1 ? APP_NAV_ORDER.length : index;
+  };
+  return apps
+    .map((app, position) => ({ app, position }))
+    .sort((a, b) => rank(a.app) - rank(b.app) || a.position - b.position)
+    .map(({ app }) => app);
+}
+
+/**
+ * Apps «Mis apps» and the «Ir a» palette know, in `APP_NAV_ORDER`: without `appNav: false`
+ * and without `comingSoon` entries.
+ */
+export const APP_NAV_APPS: AppLink[] = sortAppNavApps(
+  APPS.filter((app) => app.appNav !== false && !app.comingSoon),
+);
 
 /** Look up an app by its subdomain (first match; some share a `sub`). */
 export function findApp(sub: string): AppLink | undefined {

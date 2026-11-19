@@ -1,7 +1,11 @@
 import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { APPS, appHref, type AppLink, type AppTone } from '@partrunner-ai/app-registry';
+import { originOf, useNavMemory } from './navShared';
+import { notifyNavigate, useShellNavigation } from './NavigationContext';
+import { isStorableNavPath } from './navMemory';
 import { useDismiss } from './useDismiss';
+import { withWayBack } from './wayBack';
 
 /** Inline tile colors driven by the theme's tone variables (no Tailwind dep). */
 function tileStyle(tone: AppTone): CSSProperties {
@@ -38,6 +42,14 @@ export function AppLauncher({
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   useDismiss(wrapperRef, open, close);
+
+  // In `'unified'` mode a tile opens the last page used in
+  // that app and carries the way back. Launcher mode and a bare launcher keep
+  // the start pages.
+  const nav = useShellNavigation();
+  const appNav = nav?.mode === 'unified' ? nav : null;
+  const memory = useNavMemory(appNav ? appNav.currentPath : '', appNav !== null);
+  const fromSub = appNav ? (appNav.appSub ?? currentSub) : currentSub;
 
   return (
     <div ref={wrapperRef} className={`pr-launcher${className ? ` ${className}` : ''}`}>
@@ -101,14 +113,30 @@ export function AppLauncher({
                   </div>
                 );
               }
+              let target = href;
+              if (appNav) {
+                const remembered = memory.last[app.sub];
+                const base = isStorableNavPath(remembered) ? `${originOf(href)}${remembered}` : href;
+                target = withWayBack(base, fromSub, appNav.currentPath);
+              }
               return (
                 <a
                   key={key}
-                  href={href}
+                  href={target}
                   className="pr-app"
                   title={app.description}
                   role="menuitem"
-                  onClick={close}
+                  onClick={() => {
+                    if (appNav) {
+                      notifyNavigate(appNav.onNavigate, {
+                        source: 'launcher',
+                        fromSub,
+                        toSub: app.sub,
+                        href: target,
+                      });
+                    }
+                    close();
+                  }}
                 >
                   {tile}
                 </a>

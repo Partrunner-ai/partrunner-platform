@@ -24,6 +24,11 @@ export interface StaffShellUser {
 export interface StaffShellPreferences {
   theme: StaffTheme;
   locale: StaffLocale;
+  /**
+   * The apps the person marked as «Mis apps» (registry `sub`s, in the person's
+   * order, at most 5). Read by the sidebar of `navigation="unified"`.
+   */
+  favoriteApps?: readonly string[];
 }
 
 export interface StaffNotification {
@@ -67,6 +72,20 @@ export interface StaffNotificationsState {
 }
 
 /**
+ * One page of the cross-app index that powers the «Ir a» palette in
+ * `navigation="unified"` mode. Hosts (Nexus, later) fill it; it is optional.
+ */
+export interface StaffShellPage {
+  /** Registry `sub` of the app that owns the page. */
+  app: string;
+  label: string;
+  /** Absolute URL. */
+  href: string;
+  /** Section heading shown next to the label. */
+  section?: string;
+}
+
+/**
  * The host-owned adapter consumed by the shared staff shell.
  *
  * Apps keep ownership of authentication, routing, fetching, and persistence.
@@ -100,6 +119,15 @@ export interface StaffShellContextValue {
    */
   refreshNotifications?: () => StaffShellMutation;
   signOut?: () => StaffShellMutation;
+  /** Optional cross-app page index for the «Ir a» palette (`navigation="unified"`). */
+  pages?: readonly StaffShellPage[];
+  /**
+   * Saves `preferences.favoriteApps`. The shell passes the subs in
+   * `APP_NAV_ORDER`, at most 5. Must be optimistic (like `setTheme`). Without it
+   * the list is read-only. When it throws or returns a promise that rejects, the
+   * shell puts the previous list back and shows «No se pudo guardar».
+   */
+  setFavoriteApps?: (subs: readonly string[]) => StaffShellMutation | Promise<unknown>;
 }
 
 const StaffShellContext = createContext<StaffShellContextValue | null>(null);
@@ -126,4 +154,12 @@ export function useStaffShell(): StaffShellContextValue {
     throw new Error('useStaffShell must be used within StaffShellProvider');
   }
   return value;
+}
+
+/**
+ * Like `useStaffShell`, but returns `null` outside a provider. For shell parts
+ * that work without a host adapter. Not part of the public API.
+ */
+export function useOptionalStaffShell(): StaffShellContextValue | null {
+  return useContext(StaffShellContext);
 }
