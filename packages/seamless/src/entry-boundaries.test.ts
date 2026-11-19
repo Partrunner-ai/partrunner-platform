@@ -36,6 +36,16 @@ describe('package entry boundaries', () => {
     expect(reactSource).not.toMatch(/https?:\/\//);
   });
 
+  it('keeps the timing entry framework-free and browser-safe', () => {
+    const timing = source('timing.ts');
+    expect(timing).not.toMatch(/from ['"]react['"]/);
+    expect(timing).not.toMatch(/from ['"]\.\/server['"]/);
+    expect(timing).not.toMatch(/from ['"]jose['"]/);
+    expect(timing).not.toContain('process.env');
+    // Only the framework-free URL entry of the registry, never the icon registry.
+    expect(timing).toContain("from '@partrunner-ai/app-registry/url'");
+  });
+
   it('publishes the server seam as an explicit subpath', () => {
     const manifest = JSON.parse(
       readFileSync(join(__dirname, '../package.json'), 'utf8'),
@@ -50,7 +60,7 @@ describe('package entry boundaries', () => {
     };
 
     expect(manifest.exports?.['./server']).toBeTruthy();
-    for (const entry of ['.', './react', './server', './next']) {
+    for (const entry of ['.', './react', './server', './next', './timing']) {
       expect(manifest.exports?.[entry]?.import?.types).toMatch(/\.d\.ts$/);
       expect(manifest.exports?.[entry]?.import?.default).toMatch(/\.js$/);
       expect(manifest.exports?.[entry]?.require?.types).toMatch(/\.d\.cts$/);

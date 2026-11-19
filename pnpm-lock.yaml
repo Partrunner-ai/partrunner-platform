@@ -136,18 +136,33 @@ importers:
         specifier: ^5.9.6
         version: 5.10.0
     devDependencies:
+      '@testing-library/dom':
+        specifier: ^10.4.1
+        version: 10.4.1
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.1
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.7
+        version: 18.3.7(@types/react@18.3.31)
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
       next:
         specifier: ^15.5.24
         version: 15.5.24(@types/node@22.20.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(jsdom@26.1.0)(tsx@4.23.1)(yaml@2.9.0)

@@ -29,27 +29,35 @@ function TransitionMark() {
 
 /**
  * Entry splash: covers the screen with the PartRunner brand while the app
- * hydrates, chaining Nexus's exit transition. Auto-hides on mount (or after
- * `minDurationMs`) and on bfcache return (`pageshow`). Place `<SeamlessSplash />`
- * as high as possible (root layout).
+ * hydrates, chaining Nexus's exit transition. Auto-hides once `minDurationMs`
+ * has passed since navigation start (at mount on a normal load) and re-shows
+ * briefly on bfcache return (`pageshow`). Place `<SeamlessSplash />` as high as
+ * possible (root layout).
  */
 export function SeamlessSplash({ minDurationMs = 360 }: { minDurationMs?: number }) {
   const [visible, setVisible] = React.useState(true);
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => setVisible(false), minDurationMs);
+    // The minimum counts from navigation start, so on a normal load the time the
+    // page already spent loading is not waited for a second time.
+    const remaining = Math.max(0, minDurationMs - performance.now());
+    const t = window.setTimeout(() => setVisible(false), remaining);
     return () => window.clearTimeout(t);
   }, [minDurationMs]);
 
   React.useEffect(() => {
+    let t: number | undefined;
     const onPageShow = (e: PageTransitionEvent) => {
       if (e.persisted) {
         setVisible(true);
-        window.setTimeout(() => setVisible(false), minDurationMs);
+        t = window.setTimeout(() => setVisible(false), minDurationMs);
       }
     };
     window.addEventListener('pageshow', onPageShow);
-    return () => window.removeEventListener('pageshow', onPageShow);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      if (t !== undefined) window.clearTimeout(t);
+    };
   }, [minDurationMs]);
 
   return (
@@ -68,7 +76,7 @@ export function SeamlessSplash({ minDurationMs = 360 }: { minDurationMs?: number
         opacity: visible ? 1 : 0,
         visibility: visible ? 'visible' : 'hidden',
         pointerEvents: visible ? 'all' : 'none',
-        transition: 'opacity .32s cubic-bezier(.22,1,.36,1), visibility .32s',
+        transition: 'opacity .2s cubic-bezier(.22,1,.36,1), visibility .2s',
       }}
     >
       <TransitionMark />
@@ -90,9 +98,6 @@ const ExitCtx = React.createContext<{ navigateTo: (url: string, label?: string) 
   null,
 );
 
-/** Exit-overlay duration before navigating (ms). */
-const EXIT_MS = 460;
-
 /**
  * Exit-transition provider. Wrap the app; any link can call
  * `useSeamlessExit().navigateTo(url, label)` to show the yellow overlay and
@@ -103,11 +108,24 @@ export function SeamlessExitProvider({ children }: { children: React.ReactNode }
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
+  // A page restored from the bfcache still has the overlay on: clear it.
+  React.useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setState({ active: false, label: null });
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
   const navigateTo = React.useCallback((url: string, label?: string) => {
     setState({ active: true, label: label ?? null });
-    window.setTimeout(() => {
-      window.location.href = url;
-    }, EXIT_MS);
+    // No fixed wait: navigate after the overlay has had one paint. The old page
+    // stays on screen until the next one commits, so the overlay stays visible.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.location.href = url;
+      });
+    });
   }, []);
 
   const value = React.useMemo(() => ({ navigateTo }), [navigateTo]);
@@ -130,7 +148,7 @@ export function SeamlessExitProvider({ children }: { children: React.ReactNode }
             opacity: state.active ? 1 : 0,
             visibility: state.active ? 'visible' : 'hidden',
             pointerEvents: state.active ? 'all' : 'none',
-            transition: 'opacity .32s cubic-bezier(.22,1,.36,1), visibility .32s',
+            transition: 'opacity .2s cubic-bezier(.22,1,.36,1), visibility .2s',
           }}
         >
           <TransitionMark />

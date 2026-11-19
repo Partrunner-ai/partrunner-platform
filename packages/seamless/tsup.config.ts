@@ -7,7 +7,7 @@ const CLIENT = '"use client";\n';
 const REACT_ENTRIES = ['dist/react.js', 'dist/react.cjs'];
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/react.tsx', 'src/server.ts', 'src/next.ts'],
+  entry: ['src/index.ts', 'src/react.tsx', 'src/server.ts', 'src/next.ts', 'src/timing.ts'],
   format: ['esm', 'cjs'],
   dts: true,
   clean: true,
