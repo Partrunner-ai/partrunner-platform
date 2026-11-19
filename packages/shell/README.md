@@ -159,6 +159,35 @@ or non-array value as absent (it never rejects the snapshot for it). A satellite
 passes the snapshot `preferences` through and wires `setFavoriteApps` to its
 `PATCH /api/staff-shell` BFF with the body `{ favoriteApps }`.
 
+### A still sidebar on first paint (shared cookie)
+
+With `collapseStorage="cookie"` and `cookieDomain=".partrunner.ai"` the shell keeps
+three small cookies on the parent domain: `<key>` (collapsed, `1`/`0`),
+`<key>:groups` (open groups) and `<key>:favs` («Mis apps»: the subs joined with
+`.`, `-` for an empty list; at most 5 subs, under 300 bytes in all). They hold no
+personal data. Nexus stays the source of truth: when the staff snapshot gives
+`preferences.favoriteApps`, the shell writes that list to the cookie.
+
+A server layout reads the cookie and passes the result, so the first paint already
+has the right rail and the right «Mis apps» rows:
+
+```tsx
+import { cookies } from 'next/headers';
+import { readAppShellInitialState } from '@partrunner-ai/shell/preferences';
+
+const initialState = readAppShellInitialState(await cookies());
+// <AppShell collapseStorage="cookie" cookieDomain=".partrunner.ai" initialState={initialState} … />
+```
+
+`readAppShellInitialState` also takes a raw `Cookie` header (`parseAppShellState`
+is the same parser) and a custom storage key as its second argument. Reading
+cookies makes a Next.js layout dynamic; check that before you adopt it on a
+static page. Before the snapshot arrives, the rows from the cookie are read-only
+(«Editar» is disabled); the snapshot list wins when it arrives. A person with no
+cookie yet (first visit) gets one shift when the snapshot lands. When the shell
+reads a stored collapsed state on the client (no `initialState`), the rail applies
+it without the width animation.
+
 ### Adoption steps
 
 1. Set `navigation="unified"` and `appSub` (the registry `sub`) on `AppShell`.

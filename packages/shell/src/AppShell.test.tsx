@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Boxes, Headphones, Map as MapIcon, Truck } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
@@ -213,6 +213,17 @@ describe('AppShell', () => {
     });
 
     expect(container.querySelector('.pr-sidebar')?.getAttribute('data-collapsed')).toBe('true');
+  });
+
+  it('applies a stored collapsed state on first mount without the width transition', async () => {
+    window.localStorage.setItem('pr-sidebar-collapsed', '1');
+    const { container } = renderShell();
+    const sidebar = container.querySelector('.pr-sidebar')!;
+
+    expect(sidebar.getAttribute('data-collapsed')).toBe('true');
+    expect(sidebar.getAttribute('data-instant')).toBe('true');
+    await waitFor(() => expect(sidebar.hasAttribute('data-instant')).toBe(false));
+    window.localStorage.removeItem('pr-sidebar-collapsed');
   });
 
   it('opens groups from server-derived state before hydration', () => {

@@ -58,6 +58,12 @@ function inBarOrder(subs: readonly string[]): string[] {
 export interface FavoriteAppsProps {
   nav: ShellNavigationValue;
   staff: StaffShellContextValue | null;
+  /**
+   * The list from the shared cookie. It draws the rows before the staff
+   * snapshot arrives (read-only: «Editar» is disabled). The snapshot list wins
+   * once it has `favoriteApps`. `undefined` means no cookie yet.
+   */
+  initialFavorites?: readonly string[];
   /** Called when a row opens, so the mobile drawer can close. */
   onOpen?: () => void;
 }
@@ -66,7 +72,7 @@ export interface FavoriteAppsProps {
  * «Mis apps» at the top of the sidebar: the apps the person marked, each with
  * the page it opens. Renders nothing without a list to show or to edit.
  */
-export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
+export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteAppsProps) {
   const locale: StaffLocale = staff?.preferences.locale ?? 'es';
   const messages = MESSAGES[locale];
   const memory = useNavMemory(nav.currentPath);
@@ -74,7 +80,12 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
   // The edit shows at once (optimistic). A failed save drops it, so the host list shows.
   const [local, setLocal] = useState<string[] | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
-  const hostList = staff?.preferences.favoriteApps ?? [];
+  // The cookie only stands in until the snapshot has its list; then the
+  // snapshot is the only source (a cookie of another person never outlives it).
+  // A host may mount the context before the snapshot arrives, with a fallback
+  // that has no `favoriteApps`: the cookie list still stands in then.
+  const snapshotList = staff?.preferences.favoriteApps;
+  const hostList = snapshotList ?? initialFavorites ?? [];
   const hostKey = hostList.join(',');
   // One id per save: only the latest save may act on a failure, and only while
   // the local edit is still there. `mounted` guards a result after unmount.
@@ -94,7 +105,10 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
   }, [hostKey]);
   const { LinkComponent, currentPath, onNavigate, appSub } = nav;
 
-  const setFavorites = staff?.setFavoriteApps;
+  // Before the snapshot list arrives, a cookie list, even an empty one, keeps
+  // the section in place and read-only: an edit saves only from the snapshot.
+  const pending = snapshotList === undefined && initialFavorites !== undefined;
+  const setFavorites = pending ? undefined : staff?.setFavoriteApps;
   const apps = appNavApps();
   const known = new Set(apps.map((app) => app.sub));
   // The list to edit and to save is the host list as it is. Subs unknown to the
@@ -103,7 +117,7 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
   const favorites = stored.filter((sub, index, list) => {
     return known.has(sub) && list.indexOf(sub) === index;
   });
-  if (favorites.length === 0 && !setFavorites) return null;
+  if (favorites.length === 0 && !setFavorites && !pending) return null;
 
   const rowsBySub = new Map(
     navAppRows(apps, appSub, currentPath, memory, locale).map((row) => [row.app.sub, row]),
@@ -175,6 +189,10 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
           >
             {editing ? messages.done : messages.edit}
           </button>
+        ) : pending ? (
+          <button type="button" className="pr-favs__edit" disabled aria-pressed={false}>
+            {messages.edit}
+          </button>
         ) : null}
       </div>
       {/* Always in the tree, so a screen reader announces the text when it arrives. */}
@@ -210,7 +228,12 @@ export function FavoriteApps({ nav, staff, onOpen }: FavoriteAppsProps) {
           })}
         </ul>
       ) : rows.length === 0 ? (
-        <button type="button" className="pr-favs__row pr-favs__empty" onClick={() => setEditing(true)}>
+        <button
+          type="button"
+          className="pr-favs__row pr-favs__empty"
+          disabled={pending}
+          onClick={() => setEditing(true)}
+        >
           <span className="pr-favs__name">{messages.choose}</span>
         </button>
       ) : (

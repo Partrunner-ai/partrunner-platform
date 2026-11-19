@@ -379,3 +379,150 @@ function deferred() {
   });
   return { promise, reject };
 }
+
+describe('«Mis apps» before the staff snapshot (shared cookie)', () => {
+  it('draws the cookie rows at once, read-only, with Editar disabled', () => {
+    render(
+      <AppShell
+        sections={SECTIONS}
+        currentPath="/fleets"
+        navigation="unified"
+        appSub="supply"
+        LinkComponent={TestLink}
+        can={() => false}
+        initialState={{ collapsed: false, groups: {}, favoriteApps: ['liveops', 'nexus'] }}
+      >
+        <p>content</p>
+      </AppShell>,
+    );
+    const names = within(favs())
+      .getAllByRole('link')
+      .map((link) => link.querySelector('.pr-favs__name')!.textContent);
+    expect(names).toEqual(['LiveOps', 'Nexus']);
+    expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it('keeps the section for an empty cookie list but not without a cookie', () => {
+    const shell = (initialState: { collapsed: boolean; groups: Record<string, boolean>; favoriteApps?: string[] }) => (
+      <AppShell
+        sections={SECTIONS}
+        currentPath="/fleets"
+        navigation="unified"
+        appSub="supply"
+        LinkComponent={TestLink}
+        can={() => false}
+        initialState={initialState}
+      >
+        <p>content</p>
+      </AppShell>
+    );
+    const { unmount } = render(shell({ collapsed: false, groups: {}, favoriteApps: [] }));
+    expect((within(favs()).getByRole('button', { name: 'Elige tus apps' }) as HTMLButtonElement).disabled).toBe(true);
+    unmount();
+    render(shell({ collapsed: false, groups: {} }));
+    expect(screen.queryByRole('region', { name: 'Mis apps' })).toBeNull();
+  });
+
+  it('lets the snapshot win and enables Editar when it arrives', () => {
+    const initialState = { collapsed: false, groups: {}, favoriteApps: ['liveops'] };
+    const { rerender } = render(
+      <AppShell
+        sections={SECTIONS}
+        currentPath="/fleets"
+        navigation="unified"
+        appSub="supply"
+        LinkComponent={TestLink}
+        can={() => false}
+        initialState={initialState}
+      >
+        <p>content</p>
+      </AppShell>,
+    );
+    const before = () =>
+      within(favs())
+        .getAllByRole('link')
+        .map((link) => link.querySelector('.pr-favs__name')!.textContent);
+    expect(before()).toEqual(['LiveOps']);
+
+    rerender(
+      <UnifiedShell
+        initialState={initialState}
+        context={staffContext({ favoriteApps: ['nexus', 'fds'], setFavoriteApps: vi.fn() })}
+      />,
+    );
+    expect(before()).toEqual(['Nexus', 'FDS']);
+    expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('keeps the cookie list, read-only, while the context has no snapshot list yet', () => {
+    // The LiveOps shape: the provider mounts at once with a fallback snapshot
+    // that has no `favoriteApps`, and the setter already exists.
+    const initialState = { collapsed: false, groups: {}, favoriteApps: ['liveops'] };
+    const setFavoriteApps = vi.fn();
+    const { rerender } = render(
+      <UnifiedShell initialState={initialState} context={staffContext({ setFavoriteApps })} />,
+    );
+    const names = () =>
+      within(favs())
+        .queryAllByRole('link')
+        .map((link) => link.querySelector('.pr-favs__name')!.textContent);
+    expect(names()).toEqual(['LiveOps']);
+    expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(true);
+
+    // The snapshot list arrives (empty here): it wins, and editing opens.
+    rerender(
+      <UnifiedShell
+        initialState={initialState}
+        context={staffContext({ favoriteApps: [], setFavoriteApps })}
+      />,
+    );
+    expect(names()).toEqual([]);
+    expect((within(favs()).getByRole('button', { name: 'Elige tus apps' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(setFavoriteApps).not.toHaveBeenCalled();
+  });
+
+  it('writes an empty snapshot list as «-»', () => {
+    try {
+      render(<UnifiedShell context={staffContext({ favoriteApps: [] })} collapseStorage="cookie" />);
+      expect(document.cookie).toContain('pr-sidebar-collapsed:favs=-');
+    } finally {
+      document.cookie = 'pr-sidebar-collapsed:favs=; path=/; max-age=0';
+    }
+  });
+
+  it('writes the snapshot list to the shared cookie, only with cookie storage', () => {
+    const context = staffContext({ favoriteApps: ['fds', 'nexus'] });
+    const { unmount } = render(<UnifiedShell context={context} collapseStorage="cookie" />);
+    expect(document.cookie).toContain('pr-sidebar-collapsed:favs=fds.nexus');
+    unmount();
+    document.cookie = 'pr-sidebar-collapsed:favs=; path=/; max-age=0';
+
+    render(<UnifiedShell context={context} />);
+    expect(document.cookie).not.toContain('pr-sidebar-collapsed:favs');
+  });
+
+  it('reads the cookie on the client when the app passes no initial state', () => {
+    document.cookie = 'pr-sidebar-collapsed:favs=liveops; path=/';
+    try {
+      render(
+        <AppShell
+          sections={SECTIONS}
+          currentPath="/fleets"
+          navigation="unified"
+          appSub="supply"
+          LinkComponent={TestLink}
+          can={() => false}
+          collapseStorage="cookie"
+        >
+          <p>content</p>
+        </AppShell>,
+      );
+      expect(within(favs()).getByRole('link', { name: /LiveOps/ })).toBeTruthy();
+    } finally {
+      document.cookie = 'pr-sidebar-collapsed:favs=; path=/; max-age=0';
+    }
+  });
+});

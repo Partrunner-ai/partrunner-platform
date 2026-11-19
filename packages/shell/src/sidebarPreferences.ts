@@ -1,6 +1,53 @@
 export interface AppShellInitialState {
   collapsed: boolean;
   groups: Record<string, boolean>;
+  /**
+   * «Mis apps» from the shared cookie (registry subs, in order). Absent when the
+   * cookie has no value yet; `[]` when the person chose no apps.
+   */
+  favoriteApps?: readonly string[];
+}
+
+/** The most apps a person can mark as favorite. */
+export const FAVORITE_APPS_MAX = 5;
+const FAVORITE_SUB = /^[a-z0-9-]{1,40}$/;
+
+/**
+ * Keeps the valid subs of a favorite-apps value: well-formed, first occurrence
+ * wins, at most 5, in order. Anything that is not an array reads as `undefined`.
+ */
+export function normalizeFavoriteApps(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: string[] = [];
+  for (const item of value) {
+    if (out.length >= FAVORITE_APPS_MAX) break;
+    if (typeof item !== 'string' || !FAVORITE_SUB.test(item) || out.includes(item)) continue;
+    out.push(item);
+  }
+  return out;
+}
+
+export function appShellFavoritesKey(storageKey: string): string {
+  return `${storageKey}:favs`;
+}
+
+/**
+ * Cookie value for «Mis apps»: valid subs joined with `.` (subs never contain
+ * a dot). At most 5 subs of 40 characters, so it stays under about 210 bytes.
+ * An empty list encodes as `-`, so «no favorites» differs from «no cookie».
+ */
+export function encodeAppShellFavorites(favorites: readonly string[]): string {
+  const subs = normalizeFavoriteApps(favorites) ?? [];
+  return subs.length === 0 ? '-' : subs.join('.');
+}
+
+/** Reads `encodeAppShellFavorites`. A missing or bad value reads as `undefined`. */
+export function decodeAppShellFavorites(
+  value: string | null | undefined,
+): readonly string[] | undefined {
+  if (!value) return undefined;
+  if (value === '-') return [];
+  return normalizeFavoriteApps(value.split('.'));
 }
 
 interface StoredGroupsV1 {
@@ -69,8 +116,41 @@ export function parseAppShellState(
   storageKey = 'pr-sidebar-collapsed',
 ): AppShellInitialState {
   const values = cookieValues(cookieHeader);
+  const favoriteApps = decodeAppShellFavorites(values.get(appShellFavoritesKey(storageKey)));
   return {
     collapsed: values.get(storageKey) === '1',
     groups: decodeAppShellGroups(values.get(appShellGroupsKey(storageKey))),
+    ...(favoriteApps === undefined ? {} : { favoriteApps }),
   };
+}
+
+/**
+ * Server helper: the first-render state of `AppShell` from a request. Pass the
+ * raw `Cookie` header (`headers().get('cookie')`) or a Next.js cookie store
+ * (`await cookies()`); a missing source reads as an empty cookie. Returns only
+ * the minimal state, so the page never serializes the raw header.
+ *
+ *     const initialState = readAppShellInitialState(await cookies());
+ *     <AppShell collapseStorage="cookie" cookieDomain=".partrunner.ai" initialState={initialState} />
+ */
+export function readAppShellInitialState(
+  source: string | null | undefined | CookieStoreLike,
+  storageKey = 'pr-sidebar-collapsed',
+): AppShellInitialState {
+  if (typeof source === 'string') return parseAppShellState(source, storageKey);
+  if (!source) return parseAppShellState('', storageKey);
+  const names = [storageKey, appShellGroupsKey(storageKey), appShellFavoritesKey(storageKey)];
+  const header = names
+    .flatMap((name) => {
+      const value = source.get(name)?.value;
+      // The store gives decoded values; the header form is encoded once.
+      return value === undefined ? [] : [`${name}=${encodeURIComponent(value)}`];
+    })
+    .join('; ');
+  return parseAppShellState(header, storageKey);
+}
+
+/** The part of a Next.js cookie store that `readAppShellInitialState` reads. */
+export interface CookieStoreLike {
+  get(name: string): { value: string } | undefined;
 }
