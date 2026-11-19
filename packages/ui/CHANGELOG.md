@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.4.1
+
+### Patch Changes
+
+- Pin the new `@partrunner-ai/shell` minor (stable sidebar on first paint). No change to the ui components.
+
 ## 2.4.0
 
 ### Minor Changes
