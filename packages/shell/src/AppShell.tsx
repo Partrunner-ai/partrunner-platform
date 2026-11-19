@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -346,6 +347,9 @@ export function SidebarTrigger({ label = 'Abrir menú' }: { label?: string }) {
   );
 }
 
+// Reads the stored preference before the first client paint; a no-op on the server.
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
 function readCollapsed(
   storage: 'local' | 'cookie',
   key: string,
@@ -474,7 +478,7 @@ export function AppShell({
   // the first render applies without the width transition (no animated jump).
   const [instant, setInstant] = useState(true);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!hasInitialState) {
       setCollapsed(readCollapsed(collapseStorage, collapseStorageKey));
       setToggled(readGroups(collapseStorage, collapseStorageKey));

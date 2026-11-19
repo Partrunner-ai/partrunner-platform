@@ -80,7 +80,9 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
   // The edit shows at once (optimistic). A failed save drops it, so the host list shows.
   const [local, setLocal] = useState<string[] | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
-  const hostList = staff?.preferences.favoriteApps ?? initialFavorites ?? [];
+  // The cookie only stands in until a staff context exists; then the snapshot
+  // is the only source (a cookie of another person never outlives it).
+  const hostList = staff ? (staff.preferences.favoriteApps ?? []) : (initialFavorites ?? []);
   const hostKey = hostList.join(',');
   // One id per save: only the latest save may act on a failure, and only while
   // the local edit is still there. `mounted` guards a result after unmount.

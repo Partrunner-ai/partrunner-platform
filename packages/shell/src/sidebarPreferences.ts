@@ -143,7 +143,8 @@ export function readAppShellInitialState(
   const header = names
     .flatMap((name) => {
       const value = source.get(name)?.value;
-      return value === undefined ? [] : [`${name}=${value}`];
+      // The store gives decoded values; the header form is encoded once.
+      return value === undefined ? [] : [`${name}=${encodeURIComponent(value)}`];
     })
     .join('; ');
   return parseAppShellState(header, storageKey);

@@ -427,7 +427,19 @@ describe('«Mis apps» before the staff snapshot (shared cookie)', () => {
 
   it('lets the snapshot win and enables Editar when it arrives', () => {
     const initialState = { collapsed: false, groups: {}, favoriteApps: ['liveops'] };
-    const { rerender } = render(<UnifiedShell initialState={initialState} />);
+    const { rerender } = render(
+      <AppShell
+        sections={SECTIONS}
+        currentPath="/fleets"
+        navigation="unified"
+        appSub="supply"
+        LinkComponent={TestLink}
+        can={() => false}
+        initialState={initialState}
+      >
+        <p>content</p>
+      </AppShell>,
+    );
     const before = () =>
       within(favs())
         .getAllByRole('link')
@@ -442,6 +454,27 @@ describe('«Mis apps» before the staff snapshot (shared cookie)', () => {
     );
     expect(before()).toEqual(['Nexus', 'FDS']);
     expect((within(favs()).getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('ignores the cookie once a snapshot exists without a list', () => {
+    const initialState = { collapsed: false, groups: {}, favoriteApps: ['liveops'] };
+    render(
+      <UnifiedShell
+        initialState={initialState}
+        context={staffContext({ setFavoriteApps: vi.fn() })}
+      />,
+    );
+    expect(within(favs()).queryByRole('link')).toBeNull();
+    expect(within(favs()).getByRole('button', { name: 'Elige tus apps' })).toBeTruthy();
+  });
+
+  it('writes an empty snapshot list as «-»', () => {
+    try {
+      render(<UnifiedShell context={staffContext({ favoriteApps: [] })} collapseStorage="cookie" />);
+      expect(document.cookie).toContain('pr-sidebar-collapsed:favs=-');
+    } finally {
+      document.cookie = 'pr-sidebar-collapsed:favs=; path=/; max-age=0';
+    }
   });
 
   it('writes the snapshot list to the shared cookie, only with cookie storage', () => {

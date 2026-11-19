@@ -94,6 +94,17 @@ describe('readAppShellInitialState (server helper)', () => {
     });
   });
 
+  it('reads groups the same from a header and from a decoded cookie store', () => {
+    const groups = encodeAppShellGroups({ 'a%b': true });
+    const fromHeader = readAppShellInitialState(`pr-sidebar-collapsed:groups=${groups}`);
+    const fromStore = readAppShellInitialState({
+      get: (name) =>
+        name === 'pr-sidebar-collapsed:groups' ? { value: decodeURIComponent(groups) } : undefined,
+    });
+    expect(fromHeader.groups).toEqual({ 'a%b': true });
+    expect(fromStore.groups).toEqual({ 'a%b': true });
+  });
+
   it('reads a missing source as an empty cookie', () => {
     expect(readAppShellInitialState(null)).toEqual({ collapsed: false, groups: {} });
     expect(readAppShellInitialState(undefined)).toEqual({ collapsed: false, groups: {} });
