@@ -5,6 +5,7 @@ import type {
   StaffShellUser,
   StaffTheme,
 } from './StaffShellContext';
+import { FAVORITE_APPS_MAX, normalizeFavoriteApps } from './sidebarPreferences';
 import { isStaffBellSound, type StaffBellSound } from './bellSound';
 
 export const STAFF_SHELL_SNAPSHOT_VERSION = 1 as const;
@@ -151,23 +152,7 @@ export function isStaffShellSnapshot(
   );
 }
 
-export const FAVORITE_APPS_MAX = 5;
-const FAVORITE_SUB = /^[a-z0-9-]{1,40}$/;
-
-/**
- * Keeps the valid subs of a favorite-apps value: well-formed, first occurrence
- * wins, at most 5, in order. Anything that is not an array reads as `undefined`.
- */
-export function normalizeFavoriteApps(value: unknown): readonly string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const out: string[] = [];
-  for (const item of value) {
-    if (out.length >= FAVORITE_APPS_MAX) break;
-    if (typeof item !== 'string' || !FAVORITE_SUB.test(item) || out.includes(item)) continue;
-    out.push(item);
-  }
-  return out;
-}
+export { FAVORITE_APPS_MAX, normalizeFavoriteApps };
 
 export function parseStaffShellSnapshot(value: unknown): StaffShellSnapshot {
   if (!isStaffShellSnapshot(value)) {

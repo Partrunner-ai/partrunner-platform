@@ -117,3 +117,9 @@ describe('the brand mark contract', () => {
     );
   });
 });
+
+describe('the first-mount sidebar contract', () => {
+  it('drops the width transition while data-instant is set', () => {
+    expect(css).toMatch(/\.pr-sidebar\[data-instant='true'\]\s*\{[^}]*transition:\s*none;/);
+  });
+});

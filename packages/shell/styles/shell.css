@@ -45,6 +45,10 @@
   padding-left: 8px;
   padding-right: 8px;
 }
+/* First mount: a stored collapsed state applies at once, with no width animation. */
+.pr-sidebar[data-instant='true'] {
+  transition: none;
+}
 
 .pr-sidebar__brand {
   display: flex;
@@ -1410,7 +1414,12 @@ a.pr-sidebar__brand:focus-visible {
   color: var(--pr-sidebar-fg-muted);
   cursor: pointer;
 }
-.pr-favs__edit:hover {
+.pr-favs__edit:disabled,
+.pr-favs__empty:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pr-favs__edit:hover:not(:disabled) {
   background: var(--pr-sidebar-hover-bg);
   color: var(--pr-sidebar-fg);
 }

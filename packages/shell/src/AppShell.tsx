@@ -36,8 +36,10 @@ import { readNavMemory, rememberNavVisit } from './navMemory';
 import { useOptionalStaffShell } from './StaffShellContext';
 import { captureWayBack, type WayBackTarget } from './wayBack';
 import {
+  appShellFavoritesKey,
   appShellGroupsKey,
   decodeAppShellGroups,
+  encodeAppShellFavorites,
   encodeAppShellGroups,
   parseAppShellState,
   type AppShellInitialState,
@@ -225,7 +227,10 @@ export interface AppShellProps {
    * Server-derived cookie state for the first render. Parse the request cookie
    * with `parseAppShellState` from `@partrunner-ai/shell/preferences`; passing
    * only this minimal state avoids serializing the raw cookie header and keeps
-   * the rail stable before hydration.
+   * the rail stable before hydration. Server code can use
+   * `readAppShellInitialState(await cookies())` from the same entry. With
+   * `collapseStorage="cookie"` the state also carries `favoriteApps`, so «Mis
+   * apps» paints with its rows before the staff-shell snapshot arrives.
    */
   initialState?: AppShellInitialState;
   children: ReactNode;
@@ -363,6 +368,14 @@ function readGroups(storage: 'local' | 'cookie', key: string): Record<string, bo
   }
 }
 
+function readFavorites(key: string): readonly string[] | undefined {
+  try {
+    return parseAppShellState(document.cookie, key).favoriteApps;
+  } catch {
+    return undefined;
+  }
+}
+
 function writeCookie(key: string, value: string, cookieDomain?: string): void {
   const domain = cookieDomain ? `; domain=${cookieDomain}` : '';
   document.cookie = `${key}=${value}; path=/; max-age=31536000; samesite=lax${domain}`;
@@ -453,11 +466,34 @@ export function AppShell({
   /** Explicit user toggles only. Absent key = fall back to "is it active?". */
   const [toggled, setToggled] = useState<Record<string, boolean>>(initialState?.groups ?? {});
 
+  /** «Mis apps» from the shared cookie, shown until the staff snapshot gives the list. */
+  const [cookieFavorites, setCookieFavorites] = useState<readonly string[] | undefined>(
+    initialState?.favoriteApps,
+  );
+  // True until two frames after mount: a stored preference that differs from
+  // the first render applies without the width transition (no animated jump).
+  const [instant, setInstant] = useState(true);
+
   useEffect(() => {
-    if (hasInitialState) return;
-    setCollapsed(readCollapsed(collapseStorage, collapseStorageKey));
-    setToggled(readGroups(collapseStorage, collapseStorageKey));
+    if (!hasInitialState) {
+      setCollapsed(readCollapsed(collapseStorage, collapseStorageKey));
+      setToggled(readGroups(collapseStorage, collapseStorageKey));
+    }
+    if (collapseStorage === 'cookie') {
+      setCookieFavorites((current) => current ?? readFavorites(collapseStorageKey));
+    }
   }, [collapseStorage, collapseStorageKey, hasInitialState]);
+
+  useEffect(() => {
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => setInstant(false));
+    });
+    return () => {
+      window.cancelAnimationFrame(first);
+      window.cancelAnimationFrame(second);
+    };
+  }, []);
 
   useEffect(() => {
     setDrillId(null);
@@ -584,6 +620,21 @@ export function AppShell({
   const unified = navigation === 'unified';
   // Read without throwing: «Mis apps» also renders (empty) with no provider.
   const staffShell = useOptionalStaffShell();
+  const snapshotFavorites = staffShell?.preferences.favoriteApps;
+  const snapshotFavoritesKey = snapshotFavorites?.join('.');
+  // The snapshot wins: its list goes to the shared cookie, so the next first
+  // paint (here or in another app) already has the rows.
+  useEffect(() => {
+    if (collapseStorage !== 'cookie' || snapshotFavoritesKey === undefined) return;
+    try {
+      const encoded = encodeAppShellFavorites(snapshotFavoritesKey ? snapshotFavoritesKey.split('.') : []);
+      const current = parseAppShellState(document.cookie, collapseStorageKey).favoriteApps;
+      if (current !== undefined && encodeAppShellFavorites(current) === encoded) return;
+      writeCookie(appShellFavoritesKey(collapseStorageKey), encoded, cookieDomain);
+    } catch {
+      /* preference is a nicety, never a failure */
+    }
+  }, [collapseStorage, collapseStorageKey, cookieDomain, snapshotFavoritesKey]);
   const resolvedBrandHref = useMemo(() => {
     if (brandHref !== undefined) return brandHref;
     // The grid owns the way to Nexus, so the brand stays in the current app.
@@ -940,6 +991,7 @@ export function AppShell({
         <aside
           className="pr-sidebar"
           data-collapsed={collapsed ? 'true' : 'false'}
+          data-instant={instant ? 'true' : undefined}
           data-mobile-open={mobileOpen ? 'true' : 'false'}
         >
           {/* Rendered unconditionally: CSS is the single authority on what the
@@ -1038,7 +1090,12 @@ export function AppShell({
             )}
 
             {unified ? (
-              <FavoriteApps nav={navigationValue} staff={staffShell} onOpen={closeDrawer} />
+              <FavoriteApps
+                nav={navigationValue}
+                staff={staffShell}
+                initialFavorites={cookieFavorites}
+                onOpen={closeDrawer}
+              />
             ) : null}
 
             {variant === 'drill' ? renderDrillNavigation() : renderStandardNavigation()}
