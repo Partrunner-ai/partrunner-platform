@@ -5,6 +5,8 @@ import { navAppName, originOf, useNavMemory } from './navShared';
 import { notifyNavigate, useShellNavigation } from './NavigationContext';
 import { isStorableNavPath } from './navMemory';
 import { preloadOnIntent } from './preloadApp';
+import { appPendingCount, formatPendingCount, pendingNameSuffix } from './pendientes';
+import { useOptionalStaffShell } from './StaffShellContext';
 import { useDismiss } from './useDismiss';
 import { withWayBack } from './wayBack';
 
@@ -51,6 +53,10 @@ export function AppLauncher({
   const appNav = nav?.mode === 'unified' ? nav : null;
   const memory = useNavMemory(appNav ? appNav.currentPath : '', appNav !== null);
   const fromSub = appNav ? (appNav.appSub ?? currentSub) : currentSub;
+  // Without a provider (a bare launcher) there are no counts and no error.
+  const shell = useOptionalStaffShell();
+  const pendientes = shell?.pendientes;
+  const locale = shell?.preferences.locale ?? 'es';
 
   return (
     <div ref={wrapperRef} className={`pr-launcher${className ? ` ${className}` : ''}`}>
@@ -74,12 +80,24 @@ export function AppLauncher({
               const isCurrent = currentSub !== undefined && app.sub === currentSub;
               const Icon = app.icon;
               const key = `${app.sub}:${app.path ?? i}`;
+              const name = appNav ? navAppName(app) : app.label;
+              const pending = appPendingCount(pendientes, app.sub);
+              // Visually hidden text, not `aria-label`: a role-less div ignores it.
+              const pendingText = pending
+                ? pendingNameSuffix(pending.total, locale)
+                : undefined;
               const tile = (
                 <>
                   <span className="pr-app__tile" style={tileStyle(app.tone)}>
                     <Icon size={20} aria-hidden />
+                    {pending && (
+                      <span className="pr-app__count" data-tone={pending.tone} aria-hidden>
+                        {formatPendingCount(pending.total)}
+                      </span>
+                    )}
                   </span>
-                  <span className="pr-app__label">{appNav ? navAppName(app) : app.label}</span>
+                  <span className="pr-app__label">{name}</span>
+                  {pendingText && <span className="pr-sr-only">{pendingText}</span>}
                 </>
               );
 

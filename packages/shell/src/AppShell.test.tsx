@@ -259,6 +259,79 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: /All items/ }).textContent).toContain('4');
   });
 
+  it('paints a team badge with the gray class and keeps mine as it was', () => {
+    renderShell({
+      currentPath: '/',
+      sections: [
+        {
+          id: 'x',
+          items: [
+            { href: '/a', label: 'Alfa', badge: 2, badgeTone: 'team' },
+            { href: '/b', label: 'Beta', badge: 3 },
+            { href: '/c', label: 'Gamma', badge: 4, badgeTone: 'mine' },
+          ],
+        },
+      ],
+    });
+    const classOf = (name: RegExp) =>
+      screen.getByRole('link', { name }).querySelector('.pr-nav__badge')!.className;
+    expect(classOf(/Alfa/)).toBe('pr-nav__badge pr-nav__badge--team');
+    expect(classOf(/Beta/)).toBe('pr-nav__badge');
+    expect(classOf(/Gamma/)).toBe('pr-nav__badge');
+  });
+
+  it('rolls the tone up: mine if any counted child is mine, else team', () => {
+    const group = (label: string, children: { badge?: number; badgeTone?: 'mine' | 'team' }[]) => ({
+      label,
+      children: children.map((child, index) => ({
+        href: `/${label}/${index}`,
+        label: `${label}-${index}`,
+        ...child,
+      })),
+    });
+    renderShell({
+      currentPath: '/',
+      sections: [
+        {
+          id: 'g',
+          items: [
+            group('onlyteam', [{ badge: 1, badgeTone: 'team' }, { badge: 2, badgeTone: 'team' }]),
+            group('mixed', [{ badge: 1, badgeTone: 'team' }, { badge: 2 }]),
+            group('zeromine', [{ badge: 0, badgeTone: 'mine' }, { badge: 2, badgeTone: 'team' }]),
+          ],
+        },
+      ],
+    });
+    const badge = (name: string) =>
+      screen.getByRole('button', { name: new RegExp(name) }).querySelector('.pr-nav__badge')!;
+    expect(badge('onlyteam').className).toContain('pr-nav__badge--team');
+    expect(badge('onlyteam').textContent).toBe('3');
+    expect(badge('mixed').className).not.toContain('--team');
+    expect(badge('zeromine').className).toContain('pr-nav__badge--team');
+  });
+
+  it('keeps the explicit badge tone on a group', () => {
+    renderShell({
+      currentPath: '/',
+      sections: [
+        {
+          id: 'g',
+          items: [
+            {
+              label: 'Explicit',
+              badge: 9,
+              badgeTone: 'team',
+              children: [{ href: '/e', label: 'child', badge: 1 }],
+            },
+          ],
+        },
+      ],
+    });
+    const badge = screen.getByRole('button', { name: /Explicit/ }).querySelector('.pr-nav__badge')!;
+    expect(badge.className).toContain('pr-nav__badge--team');
+    expect(badge.textContent).toBe('9');
+  });
+
   it('hides an item the permission gate denies', () => {
     renderShell({ currentPath: '/items', can: () => false });
     expect(screen.queryByRole('link', { name: /Reconcile/ })).toBeNull();

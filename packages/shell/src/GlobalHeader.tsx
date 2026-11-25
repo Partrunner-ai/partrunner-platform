@@ -19,6 +19,7 @@ import {
   type StaffTheme,
   useStaffShell,
 } from './StaffShellContext';
+import { PendientesTray } from './PendientesTray';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu, type UserMenuItem } from './UserMenu';
 
@@ -102,7 +103,7 @@ export interface GlobalHeaderProps {
 
 /**
  * Fixed staff control order:
- * page context → notifications → launcher → avatar.
+ * page context → pendientes (only with `pendientes`) → notifications → launcher → avatar.
  *
  * Durable theme and locale preferences belong on the canonical profile page.
  */
@@ -173,6 +174,13 @@ export function GlobalHeader({
               shell.preferences.theme,
               nextTheme(shell.preferences.theme),
             )}
+          />
+        ) : null}
+        {shell.pendientes ? (
+          <PendientesTray
+            pendientes={shell.pendientes}
+            locale={locale}
+            onOpen={shell.refreshPendientes ?? shell.refreshNotifications}
           />
         ) : null}
         <NotificationCenter

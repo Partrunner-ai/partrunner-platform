@@ -5,6 +5,7 @@ import { preloadOnIntent } from './preloadApp';
 import { appNavApps, navAppRows, useNavMemory, type NavAppRow } from './navShared';
 import { notifyNavigate, type ShellNavigationValue } from './NavigationContext';
 import type { StaffLocale, StaffShellContextValue } from './StaffShellContext';
+import { appPendingCount, formatPendingCount, pendingNameSuffix } from './pendientes';
 
 /** The most apps a person can mark. */
 export const FAVORITE_APPS_LIMIT = 5;
@@ -171,8 +172,20 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
         <span className="pr-favs__name">{row.name}</span>
         <span className="pr-favs__page">{row.pageLabel}</span>
       </span>
+      {pendingOf(row) && (
+        <span className="pr-favs__count" data-tone={pendingOf(row)!.tone} aria-hidden>
+          {formatPendingCount(pendingOf(row)!.total)}
+        </span>
+      )}
+      {pendingOf(row) && (
+        <span className="pr-sr-only">{pendingNameSuffix(pendingOf(row)!.total, locale)}</span>
+      )}
     </>
   );
+  // Sin proveedor o sin `byApp` no hay conteo: la fila queda como siempre.
+  function pendingOf(row: NavAppRow) {
+    return appPendingCount(staff?.pendientes, row.app.sub);
+  }
 
   return (
     <section className="pr-favs" aria-label={messages.title}>

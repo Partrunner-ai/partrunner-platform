@@ -7,6 +7,7 @@ import type {
 } from './StaffShellContext';
 import { FAVORITE_APPS_MAX, normalizeFavoriteApps } from './sidebarPreferences';
 import { isStaffBellSound, type StaffBellSound } from './bellSound';
+import { normalizePendientes, type StaffPendientesSnapshot } from './pendientes';
 
 export const STAFF_SHELL_SNAPSHOT_VERSION = 1 as const;
 
@@ -58,6 +59,13 @@ export interface StaffShellSnapshotV1 {
     sound?: StaffBellSound;
     href: string;
   };
+  /**
+   * Lo que la persona debe hacer o aprobar. Opcional por la misma razón que
+   * `unseenCount`: la versión sigue en 1 y un consumidor viejo ignora la
+   * llave. `isStaffShellSnapshot` no la mira (un bloque malo nunca debe matar
+   * la campana); `parseStaffShellSnapshot` la normaliza.
+   */
+  pendientes?: StaffPendientesSnapshot;
 }
 
 export type StaffShellSnapshot = StaffShellSnapshotV1;
@@ -158,13 +166,20 @@ export function parseStaffShellSnapshot(value: unknown): StaffShellSnapshot {
   if (!isStaffShellSnapshot(value)) {
     throw new TypeError('Invalid or unsupported staff shell snapshot');
   }
+  let result: StaffShellSnapshot = value;
+  // A bad pendientes block never rejects the snapshot: the key is dropped.
+  if ('pendientes' in result) {
+    const { pendientes: raw, ...rest } = result;
+    const pendientes = normalizePendientes(raw);
+    result = pendientes === undefined ? rest : { ...rest, pendientes };
+  }
   // An older producer has no key: return the snapshot as it is.
-  if (!('favoriteApps' in value.preferences)) return value;
+  if (!('favoriteApps' in result.preferences)) return result;
   // A bad favorites value never rejects the snapshot: it reads as absent.
-  const { favoriteApps: raw, ...preferences } = value.preferences;
+  const { favoriteApps: raw, ...preferences } = result.preferences;
   const favoriteApps = normalizeFavoriteApps(raw);
   return {
-    ...value,
+    ...result,
     preferences: favoriteApps === undefined ? preferences : { ...preferences, favoriteApps },
   };
 }

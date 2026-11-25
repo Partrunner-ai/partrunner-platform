@@ -71,6 +71,47 @@ export interface StaffNotificationsState {
   loading?: boolean;
 }
 
+/** `mine` = asignado a mí; `team` = de mi equipo y nadie lo tomó. */
+export type StaffPendingBucket = 'mine' | 'team';
+
+export interface StaffPendingItem {
+  id: string;
+  bucket: StaffPendingBucket;
+  /** Lo que se espera de la persona: «Aprobar», «Decidir». */
+  verb: string;
+  /** La cola de origen: «Tarifas pactadas». */
+  queue: string;
+  title: string;
+  subtitle?: string;
+  /** URL absoluta https o ruta del mismo origen. Cualquier otra cosa no es un enlace. */
+  href?: string;
+  /** «hace 3 h», ya localizado por el anfitrión. */
+  ageLabel?: string;
+}
+
+export interface StaffPendingAppCount {
+  mine: number;
+  team: number;
+}
+
+/**
+ * Lo que la persona debe hacer o aprobar. A diferencia de la campana, que sólo
+ * informa, esto es trabajo: el shell sólo lo dibuja y el anfitrión lo trae.
+ */
+export interface StaffPendientesState {
+  /** Total asignado a mí (puede ser mayor que los `items` mostrados). */
+  mine: number;
+  /** Total del equipo que nadie tomó. */
+  team: number;
+  /** Lo que lista la bandeja (el anfitrión manda ~10 como máximo, primero los míos). */
+  items: readonly StaffPendingItem[];
+  /** Conteo por app; la llave es el `sub` del registro de apps. */
+  byApp?: Readonly<Record<string, StaffPendingAppCount>>;
+  /** «Ver todo»: Nexus Inicio #pendientes. */
+  href: string;
+  loading?: boolean;
+}
+
 /**
  * One page of the cross-app index that powers the «Ir a» palette in
  * `navigation="unified"` mode. Hosts (Nexus, later) fill it; it is optional.
@@ -118,6 +159,16 @@ export interface StaffShellContextValue {
    * Opcional; sin él la campana sólo cambia al recargar, como antes.
    */
   refreshNotifications?: () => StaffShellMutation;
+  /**
+   * Pendientes de la persona (bandeja junto a la campana y conteos en el menú
+   * y en los mosaicos de apps). Ausente = no se dibuja nada, como antes.
+   */
+  pendientes?: StaffPendientesState;
+  /**
+   * Vuelve a pedir los pendientes. Se llama una vez cada vez que se abre la
+   * bandeja. Sin él, la bandeja usa `refreshNotifications` (el mismo snapshot).
+   */
+  refreshPendientes?: () => StaffShellMutation;
   signOut?: () => StaffShellMutation;
   /** Optional cross-app page index for the «Ir a» palette (`navigation="unified"`). */
   pages?: readonly StaffShellPage[];

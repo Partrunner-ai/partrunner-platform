@@ -75,6 +75,12 @@ export interface NavItem {
   icon?: NavIcon;
   /** Count/label badge (e.g. unread). Numeric badges roll up to a closed group. */
   badge?: number | string;
+  /**
+   * Tone of the badge. `mine` (default) = something is assigned to you; `team` =
+   * only team items nobody took (gray). A closed group rolls up the strongest
+   * tone of its children.
+   */
+  badgeTone?: 'mine' | 'team';
   /** Hidden unless `can(permission)` returns true. */
   permission?: string;
   /** Absolute URL — rendered as a plain anchor, since routers can't handle it. */
@@ -291,13 +297,24 @@ function itemKey(item: NavItem, sectionId: string): string {
 }
 
 /** Numeric badges of hidden children surface on the group that hides them. */
-function rollUpBadge(item: NavItem): number | string | undefined {
-  if (item.badge !== undefined) return item.badge;
-  const total = (item.children ?? []).reduce(
-    (sum, child) => sum + (typeof child.badge === 'number' ? child.badge : 0),
-    0,
+function rollUpBadge(
+  item: NavItem,
+): { value: number | string; tone: 'mine' | 'team' } | undefined {
+  if (item.badge !== undefined) {
+    return { value: item.badge, tone: item.badgeTone ?? 'mine' };
+  }
+  const counted = (item.children ?? []).filter(
+    (child) => typeof child.badge === 'number' && child.badge > 0,
   );
-  return total > 0 ? total : undefined;
+  const total = counted.reduce((sum, child) => sum + (child.badge as number), 0);
+  if (total <= 0) return undefined;
+  // The group is `mine` if any counted child is (an unset tone reads as mine).
+  const mine = counted.some((child) => (child.badgeTone ?? 'mine') === 'mine');
+  return { value: total, tone: mine ? 'mine' : 'team' };
+}
+
+function navBadgeClass(tone: 'mine' | 'team' | undefined): string {
+  return tone === 'team' ? 'pr-nav__badge pr-nav__badge--team' : 'pr-nav__badge';
 }
 
 function toneStyle(tone: AppTone = 'blue'): CSSProperties {
@@ -757,7 +774,7 @@ export function AppShell({
         {Icon ? <Icon size={17} aria-hidden /> : null}
         <span className="pr-nav__item-label">{item.label}</span>
         {badge !== undefined && (
-          <span className="pr-nav__badge">{badge}</span>
+          <span className={navBadgeClass(item.badgeTone)}>{badge}</span>
         )}
       </>
     );
@@ -825,7 +842,11 @@ export function AppShell({
     // The group holding the current page is open unless the user closed it.
     const open = toggled[key] ?? hasActiveChild;
     const Icon = resolveIcon(item.icon);
-    const badge = open ? item.badge : rollUpBadge(item);
+    const badge = open
+      ? item.badge !== undefined
+        ? { value: item.badge, tone: item.badgeTone ?? 'mine' }
+        : undefined
+      : rollUpBadge(item);
     const panelId = `pr-nav-group-${key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
     return (
@@ -841,7 +862,9 @@ export function AppShell({
         >
           {Icon ? <Icon size={17} aria-hidden /> : null}
           <span className="pr-nav__item-label">{item.label}</span>
-          {badge !== undefined && <span className="pr-nav__badge">{badge}</span>}
+          {badge !== undefined && (
+            <span className={navBadgeClass(badge.tone)}>{badge.value}</span>
+          )}
           <ChevronRight className="pr-nav__chevron" size={13} aria-hidden />
         </button>
         <div id={panelId} className="pr-nav__children" hidden={!open}>
