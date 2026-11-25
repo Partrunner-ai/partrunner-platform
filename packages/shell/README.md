@@ -251,5 +251,6 @@ Licensed under MIT. Included PartRunner artwork is also MIT-licensed; see
 
 The staff-shell snapshot may carry an optional `pendientes` block (what the
 person must do or approve). `isStaffShellSnapshot` does not validate it: use
-`parseStaffShellSnapshot`, which drops a malformed block (or one with an unsafe
-`href`) without rejecting the snapshot.
+`parseStaffShellSnapshot`, which drops a malformed block (or one whose «see all»
+`href` is unsafe) without rejecting the snapshot. An unsafe item `href` removes
+only that item's link.

@@ -84,7 +84,7 @@ export function AppLauncher({
               const pending = appPendingCount(pendientes, app.sub);
               // Visually hidden text, not `aria-label`: a role-less div ignores it.
               const pendingText = pending
-                ? pendingNameSuffix(pending.total, locale).replace(/^, /, ', ')
+                ? pendingNameSuffix(pending.total, locale)
                 : undefined;
               const tile = (
                 <>

@@ -138,7 +138,6 @@ export function PendientesTray({
       <section
         className="pr-pendientes__section"
         data-bucket={bucket}
-        aria-label={labels[bucket]}
       >
         <h3 className="pr-pendientes__heading">
           <span>{labels[bucket]}</span>

@@ -22,7 +22,7 @@ export function isSafePendienteHref(value: unknown): value is string {
     return false;
   }
   if (/^https:\/\/\S/i.test(value)) return true;
-  if (/^http:\/\/localhost(?=[:/?#]|$)/i.test(value)) return true;
+  if (/^http:\/\/localhost(?::\d+)?(?=[/?#]|$)/i.test(value)) return true;
   return value.startsWith('/') && !value.startsWith('//');
 }
 

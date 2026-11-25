@@ -47,6 +47,8 @@ describe('isSafePendienteHref', () => {
       '//evil.example',
       'http://example.com',
       'http://localhost.evil.com',
+      'http://localhost:80@evil.com',
+      'http://localhost@evil.com',
       'https://',
       '/\\evil.com',
       '/\\/evil.com',

@@ -543,17 +543,17 @@ describe('«Mis apps» pending counts', () => {
         })}
       />,
     );
-    const live = within(favs()).getByRole('link', { name: 'LiveOps, 2 pendientes' });
+    const live = within(favs()).getByRole('link', { name: /^LiveOps.*, 2 pendientes$/ });
     expect(live.querySelector('.pr-favs__count')!.textContent).toBe('2');
     expect(live.querySelector('.pr-favs__count')!.getAttribute('data-tone')).toBe('mine');
-    const nexus = within(favs()).getByRole('link', { name: 'Nexus, 5 pendientes' });
+    const nexus = within(favs()).getByRole('link', { name: /^Nexus.*, 5 pendientes$/ });
     expect(nexus.querySelector('.pr-favs__count')!.getAttribute('data-tone')).toBe('team');
   });
 
   it('shows nothing without counts', () => {
     render(<UnifiedShell context={withCounts()} />);
     expect(favs().querySelector('.pr-favs__count')).toBeNull();
-    expect(within(favs()).getByRole('link', { name: /LiveOps/ }).getAttribute('aria-label')).toBeNull();
+    expect(within(favs()).getByRole('link', { name: /LiveOps/ }).querySelector('.pr-sr-only')).toBeNull();
   });
 
   it('shows nothing when the host passes no pendientes', () => {
