@@ -72,7 +72,8 @@ function normalizeByApp(
   if (!isRecord(value)) return undefined;
   const byApp: Record<string, StaffPendingAppCount> = Object.create(null);
   for (const [sub, count] of Object.entries(value)) {
-    if (sub === '__proto__' || sub === 'constructor' || sub === 'prototype') continue;
+    // Own keys only (null prototype); `__proto__` would still read as a real app key, so skip it.
+    if (sub === '__proto__') continue;
     if (isRecord(count) && isCount(count.mine) && isCount(count.team)) {
       byApp[sub] = { mine: count.mine, team: count.team };
     }
