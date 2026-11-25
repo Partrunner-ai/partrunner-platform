@@ -17,6 +17,10 @@ const PENDIENTES_ITEMS_MAX = 20;
  */
 export function isSafePendienteHref(value: unknown): value is string {
   if (typeof value !== 'string') return false;
+  // A backslash reads as `/` in a browser (`/\evil.com`); controls and spaces are never part of a link.
+  if (/[\\\s]/.test(value) || [...value].some((char) => char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f)) {
+    return false;
+  }
   if (/^https:\/\/\S/i.test(value)) return true;
   if (/^http:\/\/localhost(?=[:/?#]|$)/i.test(value)) return true;
   return value.startsWith('/') && !value.startsWith('//');
@@ -66,8 +70,9 @@ function normalizeByApp(
   value: unknown,
 ): Record<string, StaffPendingAppCount> | undefined {
   if (!isRecord(value)) return undefined;
-  const byApp: Record<string, StaffPendingAppCount> = {};
+  const byApp: Record<string, StaffPendingAppCount> = Object.create(null);
   for (const [sub, count] of Object.entries(value)) {
+    if (sub === '__proto__' || sub === 'constructor' || sub === 'prototype') continue;
     if (isRecord(count) && isCount(count.mine) && isCount(count.team)) {
       byApp[sub] = { mine: count.mine, team: count.team };
     }
@@ -88,7 +93,7 @@ export function normalizePendientes(
     !isRecord(value) ||
     !isCount(value.mine) ||
     !isCount(value.team) ||
-    !isNonEmptyString(value.href) ||
+    !isSafePendienteHref(value.href) ||
     !Array.isArray(value.items)
   ) {
     return undefined;
@@ -130,7 +135,9 @@ export function appPendingCount(
   pendientes: StaffPendientesState | undefined,
   sub: string,
 ): { total: number; tone: PendingTone } | null {
-  const count = pendientes?.byApp?.[sub];
+  const byApp = pendientes?.byApp;
+  if (!byApp || !Object.prototype.hasOwnProperty.call(byApp, sub)) return null;
+  const count = byApp[sub];
   if (!count) return null;
   const total = count.mine + count.team;
   return total > 0 ? { total, tone: pendingTone(count) } : null;

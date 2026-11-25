@@ -246,3 +246,10 @@ React 18 and 19 are supported. Import one token/theme foundation from
 
 Licensed under MIT. Included PartRunner artwork is also MIT-licensed; see
 `TRADEMARKS.md` for trademark terms.
+
+## Pendientes in the snapshot
+
+The staff-shell snapshot may carry an optional `pendientes` block (what the
+person must do or approve). `isStaffShellSnapshot` does not validate it: use
+`parseStaffShellSnapshot`, which drops a malformed block (or one with an unsafe
+`href`) without rejecting the snapshot.

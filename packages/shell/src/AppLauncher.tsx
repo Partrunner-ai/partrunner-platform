@@ -82,8 +82,9 @@ export function AppLauncher({
               const key = `${app.sub}:${app.path ?? i}`;
               const name = appNav ? navAppName(app) : app.label;
               const pending = appPendingCount(pendientes, app.sub);
-              const pendingName = pending
-                ? `${name}${pendingNameSuffix(pending.total, locale)}`
+              // Visually hidden text, not `aria-label`: a role-less div ignores it.
+              const pendingText = pending
+                ? pendingNameSuffix(pending.total, locale).replace(/^, /, ', ')
                 : undefined;
               const tile = (
                 <>
@@ -96,6 +97,7 @@ export function AppLauncher({
                     )}
                   </span>
                   <span className="pr-app__label">{name}</span>
+                  {pendingText && <span className="pr-sr-only">{pendingText}</span>}
                 </>
               );
 
@@ -112,7 +114,6 @@ export function AppLauncher({
                     data-current="true"
                     title={`${app.description} (aplicación actual)`}
                     aria-current="page"
-                    aria-label={pendingName}
                   >
                     {tile}
                   </div>
@@ -126,7 +127,6 @@ export function AppLauncher({
                     data-disabled="true"
                     title="Próximamente"
                     aria-disabled="true"
-                    aria-label={pendingName}
                   >
                     {tile}
                   </div>
@@ -145,7 +145,6 @@ export function AppLauncher({
                   className="pr-app"
                   title={app.description}
                   role="menuitem"
-                  aria-label={pendingName}
                   {...preloadOnIntent(target)}
                   onClick={() => {
                     if (appNav) {

@@ -148,6 +148,15 @@ describe('PendientesTray', () => {
     expect(row.getAttribute('href')).toBeNull();
   });
 
+  it('renders the footer and «y N más» links only for a safe href', async () => {
+    const user = userEvent.setup();
+    renderHeader(context({ pendientes: { ...pendientes, href: 'javascript:alert(1)' } }));
+    await user.click(trigger());
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('.pr-notifications__footer')).toBeNull();
+    expect(dialog.querySelector('.pr-pendientes__more')).toBeNull();
+  });
+
   it('calls refreshPendientes once on open, else refreshNotifications', async () => {
     const user = userEvent.setup();
     const refreshPendientes = vi.fn();

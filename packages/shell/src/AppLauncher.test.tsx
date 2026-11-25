@@ -97,7 +97,8 @@ describe('AppLauncher', () => {
       const count = tile.querySelector('.pr-app__count')!;
       expect(count.textContent).toBe('3');
       expect(count.getAttribute('data-tone')).toBe('mine');
-      expect(tile.getAttribute('aria-label')).toBe('Supply, 3 pendientes');
+      expect(tile.querySelector('.pr-sr-only')!.textContent).toBe(', 3 pendientes');
+      expect(tile.getAttribute('aria-label')).toBeNull();
     });
 
     it('uses the team tone when only team items are waiting', async () => {
@@ -109,7 +110,7 @@ describe('AppLauncher', () => {
     it('shows nothing for a zero count or an app that is not listed', async () => {
       await openWith(staff({ supply: { mine: 0, team: 0 }, other: { mine: 1, team: 0 } }));
       expect(document.querySelector('.pr-app__count')).toBeNull();
-      expect(screen.getByText('Supply').closest('.pr-app')!.getAttribute('aria-label')).toBeNull();
+      expect(document.querySelector('.pr-sr-only')).toBeNull();
     });
 
     it('shows nothing without a provider', async () => {

@@ -68,6 +68,7 @@ export function PendientesTray({
   const labels = { ...MESSAGES[locale], ...labelOverrides };
   const { mine, team, items, href, loading } = pendientes;
   const total = mine + team;
+  const safeHref = isSafePendienteHref(href) ? href : undefined;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLElement>(null);
@@ -144,8 +145,8 @@ export function PendientesTray({
           <span className="pr-pendientes__count">{count}</span>
         </h3>
         {listed.map(renderItem)}
-        {rest > 0 && (
-          <a className="pr-pendientes__more" href={href} onClick={close}>
+        {rest > 0 && safeHref && (
+          <a className="pr-pendientes__more" href={safeHref} onClick={close}>
             {labels.more(rest)}
           </a>
         )}
@@ -204,9 +205,11 @@ export function PendientesTray({
             )}
           </div>
 
-          <a className="pr-notifications__footer" href={href} onClick={close}>
-            {labels.viewAll}
-          </a>
+          {safeHref && (
+            <a className="pr-notifications__footer" href={safeHref} onClick={close}>
+              {labels.viewAll}
+            </a>
+          )}
         </section>
       )}
     </div>

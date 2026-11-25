@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSafePendienteHref, normalizePendientes } from './pendientes';
+import { appPendingCount, isSafePendienteHref, normalizePendientes } from './pendientes';
 import { parseStaffShellSnapshot } from './StaffShellSnapshot';
 
 const snapshot = {
@@ -48,6 +48,12 @@ describe('isSafePendienteHref', () => {
       'http://example.com',
       'http://localhost.evil.com',
       'https://',
+      '/\\evil.com',
+      '/\\/evil.com',
+      ' /x',
+      '/x\n',
+      '/x\ty',
+      '/a b',
       '',
       undefined,
       42,
@@ -148,6 +154,26 @@ describe('pendientes in the snapshot', () => {
 
     const bad = parseStaffShellSnapshot({ ...snapshot, pendientes: { ...block, byApp: [] } });
     expect(bad.pendientes && 'byApp' in bad.pendientes).toBe(false);
+  });
+
+  it('drops the whole block when href is unsafe, and the snapshot still parses', () => {
+    for (const href of ['javascript:alert(1)', '//evil.example', '/\\evil.com']) {
+      const parsed = parseStaffShellSnapshot({ ...snapshot, pendientes: { ...block, href } });
+      expect('pendientes' in parsed).toBe(false);
+    }
+  });
+
+  it('accepts an encoded backslash', () => {
+    expect(isSafePendienteHref('/%5Cevil')).toBe(true);
+  });
+
+  it('ignores a __proto__ key in byApp', () => {
+    const byApp = JSON.parse('{"__proto__":{"mine":1,"team":1},"nexus":{"mine":1,"team":0}}');
+    const parsed = normalizePendientes({ ...block, byApp });
+    expect(Object.keys(parsed!.byApp!)).toEqual(['nexus']);
+    expect(appPendingCount(parsed, '__proto__')).toBeNull();
+    expect(appPendingCount(parsed, 'constructor')).toBeNull();
+    expect(appPendingCount(parsed, 'nexus')).toEqual({ total: 1, tone: 'mine' });
   });
 
   it('normalizePendientes is usable on its own', () => {
