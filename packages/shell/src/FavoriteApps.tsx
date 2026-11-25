@@ -5,6 +5,7 @@ import { preloadOnIntent } from './preloadApp';
 import { appNavApps, navAppRows, useNavMemory, type NavAppRow } from './navShared';
 import { notifyNavigate, type ShellNavigationValue } from './NavigationContext';
 import type { StaffLocale, StaffShellContextValue } from './StaffShellContext';
+import { appPendingCount, formatPendingCount, pendingNameSuffix } from './pendientes';
 
 /** The most apps a person can mark. */
 export const FAVORITE_APPS_LIMIT = 5;
@@ -171,8 +172,21 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
         <span className="pr-favs__name">{row.name}</span>
         <span className="pr-favs__page">{row.pageLabel}</span>
       </span>
+      {pendingOf(row) && (
+        <span className="pr-favs__count" data-tone={pendingOf(row)!.tone} aria-hidden>
+          {formatPendingCount(pendingOf(row)!.total)}
+        </span>
+      )}
     </>
   );
+  // Sin proveedor o sin `byApp` no hay conteo: la fila queda como siempre.
+  function pendingOf(row: NavAppRow) {
+    return appPendingCount(staff?.pendientes, row.app.sub);
+  }
+  const rowName = (row: NavAppRow) => {
+    const pending = pendingOf(row);
+    return pending ? `${row.name}${pendingNameSuffix(pending.total, locale)}` : undefined;
+  };
 
   return (
     <section className="pr-favs" aria-label={messages.title}>
@@ -246,6 +260,7 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
                   className="pr-favs__row pr-favs__row--current"
                   href={row.href}
                   title={row.name}
+                  aria-label={rowName(row)}
                   data-active="true"
                   aria-current={row.atStart ? 'page' : undefined}
                   onClick={() => open(row)}
@@ -257,6 +272,7 @@ export function FavoriteApps({ nav, staff, initialFavorites, onOpen }: FavoriteA
                   className="pr-favs__row"
                   href={row.href}
                   title={row.name}
+                  aria-label={rowName(row)}
                   onClick={() => open(row)}
                   {...preloadOnIntent(row.href)}
                 >

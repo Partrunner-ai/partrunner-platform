@@ -4,6 +4,7 @@ import { Boxes, UsersRound } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import type { AppLink } from '@partrunner-ai/app-registry';
 import { AppLauncher } from './AppLauncher';
+import { StaffShellProvider, type StaffShellContextValue } from './StaffShellContext';
 
 const APPS: AppLink[] = [
   {
@@ -67,5 +68,53 @@ describe('AppLauncher', () => {
 
     const supply = screen.getByText('Supply').closest('.pr-app');
     expect(supply?.tagName).toBe('A');
+  });
+
+  describe('pending counts', () => {
+    const staff = (byApp?: Record<string, { mine: number; team: number }>): StaffShellContextValue => ({
+      user: { id: 'u1', name: 'Ada' },
+      profileHref: 'https://nexus.partrunner.ai/profile',
+      preferences: { locale: 'es', theme: 'system' },
+      notifications: { unreadCount: 0, href: 'https://nexus.partrunner.ai/n', items: [] },
+      setLocale: () => {},
+      setTheme: () => {},
+      pendientes: { mine: 0, team: 0, items: [], href: 'https://nexus.partrunner.ai/', byApp },
+    });
+
+    async function openWith(value: StaffShellContextValue) {
+      const user = userEvent.setup();
+      render(
+        <StaffShellProvider value={value}>
+          <AppLauncher apps={APPS} currentSub="comunidad" />
+        </StaffShellProvider>,
+      );
+      await user.click(screen.getByRole('button', { name: 'Aplicaciones' }));
+    }
+
+    it('shows the count with its tone and adds it to the accessible name', async () => {
+      await openWith(staff({ supply: { mine: 2, team: 1 } }));
+      const tile = screen.getByText('Supply').closest('.pr-app')!;
+      const count = tile.querySelector('.pr-app__count')!;
+      expect(count.textContent).toBe('3');
+      expect(count.getAttribute('data-tone')).toBe('mine');
+      expect(tile.getAttribute('aria-label')).toBe('Supply, 3 pendientes');
+    });
+
+    it('uses the team tone when only team items are waiting', async () => {
+      await openWith(staff({ supply: { mine: 0, team: 4 } }));
+      const count = document.querySelector('.pr-app__count')!;
+      expect(count.getAttribute('data-tone')).toBe('team');
+    });
+
+    it('shows nothing for a zero count or an app that is not listed', async () => {
+      await openWith(staff({ supply: { mine: 0, team: 0 }, other: { mine: 1, team: 0 } }));
+      expect(document.querySelector('.pr-app__count')).toBeNull();
+      expect(screen.getByText('Supply').closest('.pr-app')!.getAttribute('aria-label')).toBeNull();
+    });
+
+    it('shows nothing without a provider', async () => {
+      await openLauncher('comunidad');
+      expect(document.querySelector('.pr-app__count')).toBeNull();
+    });
   });
 });

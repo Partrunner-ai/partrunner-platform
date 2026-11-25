@@ -40,11 +40,25 @@ export {
   type NotificationCenterProps,
 } from './NotificationCenter';
 export {
+  PendientesTray,
+  type PendientesTrayLabels,
+  type PendientesTrayProps,
+} from './PendientesTray';
+export {
+  isSafePendienteHref,
+  normalizePendientes,
+  type StaffPendientesSnapshot,
+} from './pendientes';
+export {
   StaffShellProvider,
   useStaffShell,
   type StaffLocale,
   type StaffNotification,
   type StaffNotificationsState,
+  type StaffPendientesState,
+  type StaffPendingAppCount,
+  type StaffPendingBucket,
+  type StaffPendingItem,
   type StaffShellContextValue,
   type StaffShellMutation,
   type StaffShellPage,

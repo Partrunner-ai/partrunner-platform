@@ -1112,6 +1112,100 @@ a.pr-sidebar__brand:focus-visible {
   }
 }
 
+/* ---- Pendientes (bandeja junto a la campana y conteos por app) ---- */
+/* El conteo del equipo sin tomar es gris: informa, no reclama. */
+.pr-badge-dot[data-tone='team'] {
+  background: var(--pr-fg-muted);
+  color: var(--pr-elevated);
+}
+.pr-pendientes__section + .pr-pendientes__section {
+  border-top: 1px solid var(--pr-border);
+}
+.pr-pendientes__heading {
+  margin: 0;
+  padding: 10px 14px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--pr-fg-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pr-pendientes__count {
+  font-variant-numeric: tabular-nums;
+}
+.pr-pendientes__kicker {
+  color: var(--pr-fg-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.pr-pendientes__row {
+  cursor: default;
+}
+.pr-pendientes__more {
+  display: block;
+  padding: 10px 14px;
+  color: var(--pr-info);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.pr-pendientes__more:hover {
+  background: var(--pr-bg);
+}
+.pr-nav__badge--team {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
+  opacity: 0.75;
+}
+.pr-nav__item[data-active='true'] .pr-nav__badge--team {
+  background: transparent;
+}
+.pr-app__tile,
+.pr-favs__tile {
+  position: relative;
+}
+.pr-app__count,
+.pr-favs__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pr-danger) 75%, black);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pr-app__count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+}
+.pr-favs__count {
+  flex-shrink: 0;
+}
+.pr-app__count[data-tone='team'],
+.pr-favs__count[data-tone='team'] {
+  background: var(--pr-fg-muted);
+  color: var(--pr-elevated);
+}
+.pr-sidebar[data-collapsed='true'] .pr-favs__count {
+  display: none;
+}
+@media (max-width: 720px) {
+  .pr-sidebar[data-collapsed='true'] .pr-favs__count {
+    display: inline-flex;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pr-launcher__popover,
   .pr-usermenu__popover,

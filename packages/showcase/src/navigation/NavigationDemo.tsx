@@ -6,6 +6,7 @@ import {
   StaffShellProvider,
   type LinkComponent,
   type ShellNavigateEvent,
+  type StaffPendientesState,
   type StaffShellContextValue,
   type StaffShellPage,
 } from '@partrunner-ai/shell';
@@ -36,6 +37,31 @@ function readFavorites(): string[] {
   }
   return [...DEFAULT_FAVORITES];
 }
+
+/** Fixture: «Te toca» (mine) and «De tu equipo» (team), and counts per app. */
+const PENDIENTES: StaffPendientesState = {
+  mine: 2,
+  team: 3,
+  href: '#pendientes',
+  byApp: {
+    nexus: { mine: 2, team: 1 },
+    liveops: { mine: 0, team: 2 },
+  },
+  items: [
+    {
+      id: 'p1',
+      bucket: 'mine',
+      verb: 'Aprobar',
+      queue: 'Tarifas pactadas',
+      title: 'Tarifa de Flota Norte',
+      subtitle: 'Ruta CDMX - Toluca',
+      ageLabel: 'hace 3 h',
+      href: '#tarifas',
+    },
+    { id: 'p2', bucket: 'mine', verb: 'Decidir', queue: 'Altas de unidad', title: 'Alta de camioneta 3.5 t' },
+    { id: 'p3', bucket: 'team', verb: 'Revisar', queue: 'Documentos', title: 'Póliza vencida de Flota Sur', ageLabel: 'hace 1 d' },
+  ],
+};
 
 const PAGES: StaffShellPage[] = SIM_APPS.flatMap((app) =>
   simPages(app).map((page) => ({
@@ -193,6 +219,7 @@ export function NavigationDemo() {
       setTheme: () => {},
       setLocale: () => {},
       pages: PAGES,
+      pendientes: PENDIENTES,
       setFavoriteApps: setFavorites,
     }),
     [favorites, setFavorites],
