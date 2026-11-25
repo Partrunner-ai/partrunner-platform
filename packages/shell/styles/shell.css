@@ -1113,7 +1113,13 @@ a.pr-sidebar__brand:focus-visible {
 }
 
 /* ---- Pendientes (bandeja junto a la campana y conteos por app) ---- */
-/* El conteo del equipo sin tomar es gris: informa, no reclama. */
+/* Pendientes use the brand pair (yellow pill, black text), so they never read
+   as the red bell: the bell informs, a pendiente asks you to act. The count
+   of team items nobody took is gray: it informs, it does not claim you. */
+.pr-badge-dot[data-tone='mine'] {
+  background: var(--pr-accent);
+  color: var(--pr-accent-ink);
+}
 .pr-badge-dot[data-tone='team'] {
   background: var(--pr-fg-muted);
   color: var(--pr-elevated);
@@ -1177,8 +1183,8 @@ a.pr-sidebar__brand:focus-visible {
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--pr-danger) 75%, black);
-  color: #fff;
+  background: var(--pr-accent);
+  color: var(--pr-accent-ink);
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
