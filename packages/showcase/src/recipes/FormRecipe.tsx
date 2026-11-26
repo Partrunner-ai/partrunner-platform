@@ -16,6 +16,7 @@ import {
   PageSkeleton,
   SectionHeading,
   Select,
+  Stack,
   Textarea,
   ValidationSummary,
 } from '@partrunner-ai/ui';
@@ -211,7 +212,7 @@ export function FormRecipe({ state, onRetry }: RecipeProps) {
             submit();
           }}
         >
-          <div className="recipes-stack">
+          <Stack>
           {summary.length > 0 ? <ValidationSummary errors={summary} /> : null}
           <FormField label="Flota" required error={errors.fleet} controlId={CONTROL_ID.fleet} fullWidth>
             <Select
@@ -250,7 +251,7 @@ export function FormRecipe({ state, onRetry }: RecipeProps) {
           <FormField label="Nota interna" hint="Opcional. No la ve la flota." controlId="plan-nota" fullWidth>
             <Textarea rows={3} value={values.note} onChange={(event) => set('note', event.target.value)} />
           </FormField>
-          </div>
+          </Stack>
         </form>
       </Dialog>
 

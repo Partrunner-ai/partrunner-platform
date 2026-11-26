@@ -17,6 +17,7 @@ import {
   SectionHeading,
   SegmentedControl,
   Separator,
+  Stack,
   SplitView,
   Tabs,
   TabsContent,
@@ -35,7 +36,7 @@ function isWide(): boolean {
 function Conversation({ fleet }: { fleet: InboxFleet }) {
   const [draft, setDraft] = useState('');
   return (
-    <div className="recipes-stack">
+    <Stack>
       <div className="chat" role="log" aria-label={`Conversación con ${fleet.name}`}>
         {fleet.messages.map((message) => (
           <div
@@ -69,7 +70,7 @@ function Conversation({ fleet }: { fleet: InboxFleet }) {
           }
         />
       </form>
-    </div>
+    </Stack>
   );
 }
 
@@ -83,7 +84,7 @@ function Clarifications({ fleet }: { fleet: InboxFleet }) {
     );
   }
   return (
-    <div className="recipes-stack">
+    <Stack>
       {fleet.cases.map((item, index) => (
         <div key={item.id} className="recipes-stack">
           {index > 0 ? <Separator /> : null}
@@ -108,7 +109,7 @@ function Clarifications({ fleet }: { fleet: InboxFleet }) {
           </DetailList>
         </div>
       ))}
-    </div>
+    </Stack>
   );
 }
 
@@ -134,7 +135,7 @@ function Profile({ fleet }: { fleet: InboxFleet }) {
 
 function FleetDetail({ fleet }: { fleet: InboxFleet }) {
   return (
-    <div className="recipes-stack">
+    <Stack>
       <SectionHeading
         title={fleet.name}
         description={`${fleet.rfc} · ${fleet.city}`}
@@ -165,7 +166,7 @@ function FleetDetail({ fleet }: { fleet: InboxFleet }) {
           <Profile fleet={fleet} />
         </TabsContent>
       </Tabs>
-    </div>
+    </Stack>
   );
 }
 

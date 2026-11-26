@@ -28,6 +28,7 @@ import {
   Button,
   Calendar,
   DateRangeFilter,
+  Disclosure,
   FilterChip,
   FilterChipRow,
   IconTile,
@@ -128,6 +129,7 @@ import {
   ItemRow,
   Notice,
   SplitView,
+  Stack,
   type BadgeTone,
   type ButtonVariant,
   type DateRange,
@@ -1136,6 +1138,7 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
               <TableRow>
                 <TableHead>Team</TableHead>
                 <TableHead>Access</TableHead>
+                <TableHead numeric>Users</TableHead>
                 <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -1147,17 +1150,19 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
               >
                 <TableCell>Dispatcher</TableCell>
                 <TableCell><Badge tone="green">Editor</Badge></TableCell>
+                <TableCell numeric>1,240</TableCell>
                 <TableCell><Button size="xs" variant="ghost">Review</Button></TableCell>
               </TableRow>
               <TableRow>
                 <TableCell>Operations</TableCell>
                 <TableCell><Badge tone="neutral">Read only</Badge></TableCell>
+                <TableCell numeric>86</TableCell>
                 <TableCell>Managed centrally</TableCell>
               </TableRow>
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={3}>2 team profiles</TableCell>
+                <TableCell colSpan={4}>2 team profiles</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -1400,7 +1405,7 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
 
       <CatalogSection
         title="Patterns"
-        description="Notice, DetailList, ItemList and SplitView: the inbox, record panel and banner patterns apps used to build with local CSS."
+        description="Notice, DetailList, ItemList, SplitView, Stack and Disclosure: the inbox, record panel, banner, spacing and collapsible patterns apps used to build with local CSS."
       >
         <PatternsDemo />
       </CatalogSection>
@@ -1424,7 +1429,7 @@ function PatternsDemo() {
   ];
   const current = rows.find((row) => row.id === openId) ?? null;
   return (
-    <div data-testid="patterns-demo" style={{ display: 'grid', gap: 16 }}>
+    <Stack data-testid="patterns-demo">
       <Notice tone="warning" title="Semana cerrada" actions={<Button size="sm" variant="secondary">Reabrir</Button>} onDismiss={() => {}}>
         Los cambios se aplican en la próxima semana.
       </Notice>
@@ -1444,6 +1449,23 @@ function PatternsDemo() {
           <DetailItem label="Saldo" numeric>$12,400.00</DetailItem>
           <DetailItem label="Correo" />
         </DetailList>
+      </div>
+      <Stack direction="row" gap="sm" align="center" wrap data-testid="stack-row-demo">
+        <Badge tone="green">Activa</Badge>
+        <Badge tone="neutral">Sin incidencias</Badge>
+        <Button size="sm" variant="secondary">Acción</Button>
+      </Stack>
+      <div data-testid="disclosure-demo">
+        <Disclosure title="Historial de pagos" description="Últimas cuatro semanas" trailing={<Badge tone="neutral" size="sm">4</Badge>} defaultOpen>
+          <Stack gap="sm">
+            <span>Semana 46: $12,400.00</span>
+            <span>Semana 45: $9,870.00</span>
+          </Stack>
+        </Disclosure>
+        <Disclosure title="Notas internas">Sin notas.</Disclosure>
+        <Disclosure variant="card" title="Datos fiscales" trailing={<Badge tone="warning" size="sm">Pendiente</Badge>}>
+          Falta la constancia de situación fiscal.
+        </Disclosure>
       </div>
       <SplitView
         style={{ height: 320 }}
@@ -1471,19 +1493,19 @@ function PatternsDemo() {
         }
         detail={
           current ? (
-            <div style={{ display: 'grid', gap: 16 }}>
+            <Stack>
               <SectionHeading title={current.title} />
               <DetailList>
                 <DetailItem label="Última actividad">{current.meta}</DetailItem>
                 <DetailItem label="Mensaje" span="full">{current.description}</DetailItem>
               </DetailList>
-            </div>
+            </Stack>
           ) : (
             <EmptyState icon={Mail} title="Elige una conversación" description="El detalle aparece aquí." />
           )
         }
       />
-    </div>
+    </Stack>
   );
 }
 

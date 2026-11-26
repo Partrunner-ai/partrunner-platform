@@ -1530,7 +1530,7 @@
 /* ─────────────────── Validation summary ─────────────────── */
 
 .pr-validation-summary {
-  padding: 16px;
+  padding: 12px 16px;
   border: 1px solid var(--pr-danger);
   border-radius: var(--pr-radius-md, 0.75rem);
   background: var(--pr-tone-rose-bg);
@@ -1539,12 +1539,17 @@
 }
 .pr-validation-summary:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
 .pr-validation-summary__title { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.35; }
-.pr-validation-summary__list { margin: 8px 0 0; padding: 0; list-style: none; }
+.pr-validation-summary__list { margin: 6px 0 0; padding: 0; list-style: none; }
 .pr-validation-summary__item { margin: 0; }
+/* Each link used to be a 40px-tall row that also took 40px of layout, so four
+   errors stood 160px tall before the title. The link keeps its 40px target, but a
+   negative block margin of 8px gives back the space: each line takes about 24px
+   (the text plus 4px) and the target boxes overlap their neighbours. */
 .pr-validation-summary__link {
   display: flex;
   align-items: center;
   min-height: 40px;
+  margin-block: -8px;
   color: var(--pr-danger);
   font-size: 14px;
   line-height: 1.4;
@@ -3946,8 +3951,14 @@ button.pr-stepper__dot:focus-visible {
   background: color-mix(in srgb, var(--pr-fg) 6%, transparent);
   color: var(--pr-fg);
   font-family: var(--pr-font-body, inherit);
+  /* Hugs its options. In a flex column or a grid the default would stretch the
+     track across the container, leaving small segments at one end; `fullWidth`
+     (`--block`) is the opt-in for the stretched case. */
+  align-self: flex-start;
+  justify-self: start;
+  max-width: 100%;
 }
-.pr-segmented--block { display: flex; width: 100%; }
+.pr-segmented--block { display: flex; width: 100%; align-self: stretch; justify-self: stretch; }
 .pr-segmented__option {
   position: relative;
   display: inline-flex;
@@ -5240,4 +5251,80 @@ button.pr-stepper__dot:focus-visible {
     border-inline-end: 1px solid var(--pr-border);
   }
   .pr-split-view__back { display: none; }
+}
+
+/* ───────────────────────── Stack ───────────────────────── */
+
+/* Layout only. The scale is 4 / 8 / 12 / 16 / 24 px; the tokens package has no
+   spacing scale to map to. */
+.pr-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.pr-stack--row { flex-direction: row; }
+.pr-stack--wrap { flex-wrap: wrap; }
+.pr-stack--gap-xs { gap: 4px; }
+.pr-stack--gap-sm { gap: 8px; }
+.pr-stack--gap-md { gap: 12px; }
+.pr-stack--gap-lg { gap: 16px; }
+.pr-stack--gap-xl { gap: 24px; }
+.pr-stack--align-start { align-items: flex-start; }
+.pr-stack--align-center { align-items: center; }
+.pr-stack--align-end { align-items: flex-end; }
+.pr-stack--align-stretch { align-items: stretch; }
+.pr-stack--align-baseline { align-items: baseline; }
+.pr-stack--justify-start { justify-content: flex-start; }
+.pr-stack--justify-center { justify-content: center; }
+.pr-stack--justify-end { justify-content: flex-end; }
+.pr-stack--justify-between { justify-content: space-between; }
+
+/* ───────────────────────── Disclosure ───────────────────────── */
+
+.pr-disclosure {
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+/* Stacked plain disclosures are divided by a hairline. */
+.pr-disclosure--plain + .pr-disclosure--plain { border-top: 1px solid var(--pr-border); }
+.pr-disclosure--card {
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-card, 0.75rem);
+}
+.pr-disclosure__heading { margin: 0; font: inherit; }
+.pr-disclosure__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.pr-disclosure--card .pr-disclosure__trigger { padding: 8px 16px; }
+.pr-disclosure__trigger:hover .pr-disclosure__chevron { color: var(--pr-fg); }
+.pr-disclosure__trigger:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+.pr-disclosure__chevron {
+  flex: none;
+  color: var(--pr-fg-muted);
+  transition: transform 160ms var(--pr-ease, ease);
+}
+.pr-disclosure[data-state='open'] .pr-disclosure__chevron { transform: rotate(90deg); }
+.pr-disclosure__text { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
+.pr-disclosure__title { font-size: 15px; font-weight: 650; line-height: 1.35; }
+.pr-disclosure__description { color: var(--pr-fg-muted); font-size: 13px; line-height: 1.4; }
+.pr-disclosure__trailing { display: inline-flex; flex: none; align-items: center; gap: 8px; }
+.pr-disclosure__panel { padding: 4px 4px 16px 30px; }
+.pr-disclosure--card .pr-disclosure__panel { padding: 4px 16px 16px 42px; }
+.pr-disclosure__panel[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-disclosure__chevron { transition: none; }
 }

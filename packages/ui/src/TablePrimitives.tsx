@@ -199,10 +199,32 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(function 
   );
 });
 
-export type TableHeadProps = ThHTMLAttributes<HTMLTableCellElement>;
+export interface TableCellAlignProps {
+  /** Horizontal alignment of the cell text. Defaults to the start edge. */
+  align?: 'start' | 'center' | 'end' | 'left' | 'right';
+  /** A number column: end-aligned with tabular figures. Wins over `align`. */
+  numeric?: boolean;
+}
+
+const CELL_ALIGN = {
+  start: 'pr-table__cell--start',
+  left: 'pr-table__cell--start',
+  center: 'pr-table__cell--center',
+  end: 'pr-table__cell--end',
+  right: 'pr-table__cell--end',
+} as const;
+
+function alignClass({ align, numeric }: TableCellAlignProps): string | null {
+  if (numeric) return CELL_ALIGN.end;
+  return align ? CELL_ALIGN[align] : null;
+}
+
+export interface TableHeadProps
+  extends Omit<ThHTMLAttributes<HTMLTableCellElement>, 'align'>,
+    TableCellAlignProps {}
 
 export const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(function TableHead(
-  { className, scope = 'col', ...props },
+  { className, scope = 'col', align, numeric, ...props },
   ref,
 ) {
   return (
@@ -211,15 +233,17 @@ export const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(functi
       ref={ref}
       scope={scope}
       data-slot="table-head"
-      className={classes('pr-table__th', className)}
+      className={classes('pr-table__th', alignClass({ align, numeric }), className)}
     />
   );
 });
 
-export type TableCellProps = TdHTMLAttributes<HTMLTableCellElement>;
+export interface TableCellProps
+  extends Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'>,
+    TableCellAlignProps {}
 
 export const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(function TableCell(
-  { className, ...props },
+  { className, align, numeric, ...props },
   ref,
 ) {
   return (
@@ -227,7 +251,7 @@ export const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(functi
       {...props}
       ref={ref}
       data-slot="table-cell"
-      className={classes('pr-table__td', className)}
+      className={classes('pr-table__td', alignClass({ align, numeric }), className)}
     />
   );
 });

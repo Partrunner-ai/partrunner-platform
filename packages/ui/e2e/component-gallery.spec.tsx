@@ -56,6 +56,11 @@ const PUBLIC_VISUAL_SELECTORS = [
   '.pr-detail-list',
   '.pr-item-list',
   '.pr-split-view',
+  '.pr-stack',
+  '.pr-stack--row',
+  '.pr-disclosure',
+  '.pr-disclosure--card',
+  '.pr-disclosure__trigger',
 ] as const;
 
 const readTypography = (node: HTMLElement) => {
@@ -580,7 +585,7 @@ test('compound tables preserve native structure and own interactive-row behavior
   for (const header of await table.getByRole('columnheader').all()) {
     await expect(header).toHaveAttribute('scope', 'col');
   }
-  await expect(table.locator('tfoot td')).toHaveAttribute('colspan', '3');
+  await expect(table.locator('tfoot td')).toHaveAttribute('colspan', '4');
 
   const interactiveRow = table.getByRole('row', { name: 'Open Dispatcher permissions' });
   const staticRow = table.locator('tbody tr').nth(1);

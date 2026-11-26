@@ -50,12 +50,3 @@
 @media (max-width: 640px) {
   .chat__bubble { max-width: 92%; }
 }
-
-/* FINDING: @partrunner-ai/ui has no vertical-stack primitive. Page spaces its
-   children, but a Dialog body, a form and a detail pane do not. This class is
-   layout only (no color, no type) and stands in for a future `Stack`. */
-.recipes-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
