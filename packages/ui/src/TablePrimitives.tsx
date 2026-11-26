@@ -200,8 +200,11 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(function 
 });
 
 export interface TableCellAlignProps {
-  /** Horizontal alignment of the cell text. Defaults to the start edge. */
-  align?: 'start' | 'center' | 'end' | 'left' | 'right';
+  /**
+   * Horizontal alignment of the cell text. Defaults to the start edge. `justify` and
+   * `char` are the native HTML `align` values: they pass through as the attribute, no class.
+   */
+  align?: 'start' | 'center' | 'end' | 'left' | 'right' | 'justify' | 'char';
   /** A number column: end-aligned with tabular figures. Wins over `align`. */
   numeric?: boolean;
 }
@@ -216,7 +219,14 @@ const CELL_ALIGN = {
 
 function alignClass({ align, numeric }: TableCellAlignProps): string | null {
   if (numeric) return CELL_ALIGN.end;
-  return align ? CELL_ALIGN[align] : null;
+  if (align === undefined || align === 'justify' || align === 'char') return null;
+  return CELL_ALIGN[align];
+}
+
+/** `justify` and `char` stay the native attribute, as before the class API. */
+function nativeAlign({ align, numeric }: TableCellAlignProps): 'justify' | 'char' | undefined {
+  if (numeric) return undefined;
+  return align === 'justify' || align === 'char' ? align : undefined;
 }
 
 export interface TableHeadProps
@@ -232,6 +242,7 @@ export const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(functi
       {...props}
       ref={ref}
       scope={scope}
+      align={nativeAlign({ align, numeric })}
       data-slot="table-head"
       className={classes('pr-table__th', alignClass({ align, numeric }), className)}
     />
@@ -250,6 +261,7 @@ export const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(functi
     <td
       {...props}
       ref={ref}
+      align={nativeAlign({ align, numeric })}
       data-slot="table-cell"
       className={classes('pr-table__td', alignClass({ align, numeric }), className)}
     />

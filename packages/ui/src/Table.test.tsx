@@ -517,4 +517,34 @@ describe('getRowClassName', () => {
     expect(container.querySelectorAll('td')[1]!.className).toContain('pr-table__cell--end');
     expect(container.querySelectorAll('td')[0]!.className).toContain('pr-table__cell--start');
   });
+
+  it('passes the native justify and char values through as the align attribute', () => {
+    const { container } = render(
+      <Table aria-label="n">
+        <TableHeader>
+          <TableRow>
+            <TableHead align="justify">A</TableHead>
+            <TableHead align="char">B</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell align="justify">1</TableCell>
+            <TableCell align="char">2</TableCell>
+            <TableCell align="end">3</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+    const ths = container.querySelectorAll('th');
+    const tds = container.querySelectorAll('td');
+    expect(ths[0]!.getAttribute('align')).toBe('justify');
+    expect(ths[1]!.getAttribute('align')).toBe('char');
+    expect(ths[0]!.className).not.toContain('pr-table__cell--');
+    expect(tds[0]!.getAttribute('align')).toBe('justify');
+    expect(tds[1]!.getAttribute('align')).toBe('char');
+    expect(tds[1]!.className).not.toContain('pr-table__cell--');
+    expect(tds[2]!.hasAttribute('align')).toBe(false);
+    expect(tds[2]!.className).toContain('pr-table__cell--end');
+  });
 })
