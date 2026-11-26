@@ -89,7 +89,7 @@ person reads one record.
 
 ```tsx
 <Page width="wide">
-  <PageHeader title="Bandeja" />
+  <PageHeader title="Bandeja de flotas" />
   <Toolbar>
     <FilterChipRow aria-label="Vista">
       <FilterChip active={view === 'reply'} count={counts.reply} onClick={() => setView('reply')}>
@@ -151,7 +151,7 @@ person reads one record.
   Use `onClick` only when the selection is local state.
 - An inbox for work is a ticket desk. Each row answers four questions: who (the `Avatar` and the
   title), what was said last and by whom (the description starts with the speaker: «Flota:»,
-  «FDS:», «Dalia:»), how long it waits (a `Badge` at the start of the `footer`), and what is open
+  «Soporte:», «Asistente:»), how long it waits (a `Badge` at the start of the `footer`), and what is open
   and who has it (the text of the `footer`). The time of the last message is the `meta`. Do not
   use `trailing` in a ticket desk: a badge there pushes the time and cuts the title.
 - Give each record one next step: ours to reply, ours to work, or theirs. Sort in that order.
@@ -337,6 +337,11 @@ Do not store class names in a map.
 - `ItemRow tone` marks urgency with an accent bar on the start edge; pair it with a `Badge`, so
   colour is never the only signal. `ItemRow footer` is the third line; it takes text and a
   `Badge` at the start, not buttons or links.
+- `ItemRow unread` adds a hidden text, «No leído», before the title for a screen reader. Pass
+  `unreadLabel` to change it.
+- `DateRangeFilter` presets come from the app (`mexicoCityDaysAgo(7)`). The package owns no date
+  logic.
+- `DataTable` is an old alias of `Table`. It is not a second choice: use `Table`.
 - Numbers: `numeric` on a table column, on `TableCell` / `TableHead`, and on `DetailItem`
   aligns to the end edge with tabular figures.
 
