@@ -73,11 +73,15 @@ export interface ItemRowProps extends Omit<LiHTMLAttributes<HTMLLIElement>, 'tit
   tone?: ItemRowTone;
   /**
    * A third line under the description, in the meta text style. One line with an
-   * ellipsis. It sits inside the row's one interactive element, so it must not
-   * hold links, buttons or other interactive children.
+   * ellipsis. It takes text and non-interactive marks, such as a `Badge` at the
+   * start; the badge keeps its size and the text truncates. It sits inside the
+   * row's one interactive element, so it must not hold links or buttons.
    */
   footer?: ReactNode;
-  /** Bolder title and a small dot. */
+  /**
+   * Bolder title and a small dot. With `leading`, the dot sits on the top-end corner of the
+   * leading element and the title does not move. Without `leading`, it sits before the title.
+   */
   unread?: boolean;
   disabled?: boolean;
   /** Renders the row as a link. Without it the row is a button. */
@@ -120,10 +124,15 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
 ) {
   const content = (
     <>
-      {leading != null ? <span className="pr-item-row__leading">{leading}</span> : null}
+      {leading != null ? (
+        <span className="pr-item-row__leading">
+          {leading}
+          {unread ? <span className="pr-item-row__dot pr-item-row__dot--overlay" aria-hidden /> : null}
+        </span>
+      ) : null}
       <span className="pr-item-row__body">
         <span className="pr-item-row__top">
-          {unread ? <span className="pr-item-row__dot" aria-hidden /> : null}
+          {unread && leading == null ? <span className="pr-item-row__dot" aria-hidden /> : null}
           <span className="pr-item-row__title">{title}</span>
           {meta != null ? <span className="pr-item-row__meta">{meta}</span> : null}
         </span>

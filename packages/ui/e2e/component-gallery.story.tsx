@@ -1475,10 +1475,9 @@ function PatternsDemo() {
             unread
             leading={<Avatar name="Transportes Ruiz" tone={toneFromString('ruiz')} decorative />}
             title="Transportes Ruiz"
-            trailing={<Badge tone="danger" size="sm">Antigüedad &gt;24 h</Badge>}
             description={<><strong>Flota:</strong> ¿Cuándo pagan la semana 46?</>}
             meta="hace 3 h"
-            footer="2 aclaraciones · 1 chat · Sin asignar"
+            footer={<><Badge tone="danger" size="sm">Antigüedad &gt;24 h</Badge>2 aclaraciones · 1 chat · Sin asignar</>}
             onClick={() => {}}
           />
           <ItemRow
@@ -1487,10 +1486,9 @@ function PatternsDemo() {
             selected
             leading={<Avatar name="Logística del Norte" tone={toneFromString('norte')} decorative />}
             title="Logística del Norte"
-            trailing={<Badge tone="warning" size="sm">Responder en 12 min</Badge>}
             description={<><strong>Flota:</strong> Adjunto la factura corregida.</>}
             meta="hace 20 min"
-            footer="1 aclaración · Atiende Ana Ruiz"
+            footer={<><Badge tone="warning" size="sm">Responder en 12 min</Badge>1 aclaración · Atiende Ana Ruiz</>}
             onClick={() => {}}
           />
           <ItemRow

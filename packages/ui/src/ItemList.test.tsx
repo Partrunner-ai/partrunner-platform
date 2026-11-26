@@ -97,6 +97,20 @@ describe('ItemRow', () => {
     expect(container.querySelector('li[data-unread]')).not.toBeNull();
   });
 
+  it('puts the unread dot on the leading element when there is one', () => {
+    const { container } = render(
+      <ItemList aria-label="x">
+        <ItemRow title="A" leading={<i data-testid="lead" />} unread />
+        <ItemRow title="B" unread />
+      </ItemList>,
+    );
+    const [withLeading, withoutLeading] = Array.from(container.querySelectorAll('li'));
+    expect(withLeading?.querySelector('.pr-item-row__leading .pr-item-row__dot--overlay')).not.toBeNull();
+    expect(withLeading?.querySelector('.pr-item-row__top .pr-item-row__dot')).toBeNull();
+    expect(withoutLeading?.querySelector('.pr-item-row__top .pr-item-row__dot')).not.toBeNull();
+    expect(withoutLeading?.querySelector('.pr-item-row__dot--overlay')).toBeNull();
+  });
+
   it('does not fire onClick when disabled and marks a disabled link', () => {
     const onClick = vi.fn();
     const { getByRole } = render(

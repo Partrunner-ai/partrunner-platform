@@ -5326,6 +5326,8 @@ button.pr-stepper__dot:focus-visible {
   border: 0;
   border-radius: 0;
   background: transparent;
+  /* The row's own background: the unread dot ring uses it to blend in. */
+  --pr-item-bg: var(--pr-surface);
   color: var(--pr-fg);
   font: inherit;
   text-align: start;
@@ -5339,6 +5341,7 @@ button.pr-stepper__dot:focus-visible {
   padding: 6px 12px;
 }
 .pr-item-row__main:hover:not(:disabled):not([aria-disabled='true']) {
+  --pr-item-bg: var(--pr-elevated);
   background: var(--pr-elevated);
 }
 .pr-item-row__main:focus-visible {
@@ -5346,7 +5349,8 @@ button.pr-stepper__dot:focus-visible {
   box-shadow: inset 0 0 0 2px var(--pr-accent);
 }
 .pr-item-row[data-selected] .pr-item-row__main {
-  background: color-mix(in srgb, var(--pr-surface) 70%, var(--pr-tone-yellow-bg));
+  --pr-item-bg: color-mix(in srgb, var(--pr-surface) 70%, var(--pr-tone-yellow-bg));
+  background: var(--pr-item-bg);
   box-shadow: inset 3px 0 0 var(--pr-accent);
 }
 .pr-item-row[data-selected] .pr-item-row__main:focus-visible {
@@ -5383,6 +5387,7 @@ button.pr-stepper__dot:focus-visible {
   flex: none;
   align-items: center;
 }
+.pr-item-row__leading { position: relative; }
 .pr-item-row__body {
   display: flex;
   flex: 1 1 0;
@@ -5416,6 +5421,12 @@ button.pr-stepper__dot:focus-visible {
   background: var(--pr-accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--pr-fg) 25%, transparent);
 }
+.pr-item-row__dot--overlay {
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-end: -2px;
+  box-shadow: 0 0 0 2px var(--pr-item-bg);
+}
 .pr-item-row__meta {
   flex: none;
   font-size: 12px;
@@ -5443,6 +5454,12 @@ button.pr-stepper__dot:focus-visible {
   color: var(--pr-fg-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+/* A badge at the start of the footer keeps its size and sits on the text's middle. */
+.pr-item-row__footer .pr-badge {
+  margin-block: -2px;
+  margin-inline-end: 6px;
+  vertical-align: middle;
 }
 .pr-item-row__description--2 {
   display: -webkit-box;
