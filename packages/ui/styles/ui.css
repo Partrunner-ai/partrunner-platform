@@ -1530,7 +1530,7 @@
 /* ─────────────────── Validation summary ─────────────────── */
 
 .pr-validation-summary {
-  padding: 16px;
+  padding: 12px 16px;
   border: 1px solid var(--pr-danger);
   border-radius: var(--pr-radius-md, 0.75rem);
   background: var(--pr-tone-rose-bg);
@@ -1539,12 +1539,17 @@
 }
 .pr-validation-summary:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
 .pr-validation-summary__title { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.35; }
-.pr-validation-summary__list { margin: 8px 0 0; padding: 0; list-style: none; }
+.pr-validation-summary__list { margin: 6px 0 0; padding: 0; list-style: none; }
 .pr-validation-summary__item { margin: 0; }
+/* Each link used to be a 40px-tall row that also took 40px of layout, so four
+   errors stood 160px tall before the title. The link keeps its 40px target, but a
+   negative block margin of 8px gives back the space: each line takes about 24px
+   (the text plus 4px) and the target boxes overlap their neighbours. */
 .pr-validation-summary__link {
   display: flex;
   align-items: center;
   min-height: 40px;
+  margin-block: -8px;
   color: var(--pr-danger);
   font-size: 14px;
   line-height: 1.4;
@@ -3767,6 +3772,8 @@ button.pr-stepper__dot:focus-visible {
   font-family: var(--pr-font-body, inherit);
 }
 .pr-section-heading__text { min-width: 0; }
+/* A heading above a list of facts needs air; Card has no flow gap of its own. */
+.pr-section-heading + .pr-detail-list { margin-block-start: 16px; }
 .pr-section-heading__eyebrow {
   margin: 0 0 6px;
   font-size: 11px;
@@ -3944,8 +3951,14 @@ button.pr-stepper__dot:focus-visible {
   background: color-mix(in srgb, var(--pr-fg) 6%, transparent);
   color: var(--pr-fg);
   font-family: var(--pr-font-body, inherit);
+  /* Hugs its options. In a flex column or a grid the default would stretch the
+     track across the container, leaving small segments at one end; `fullWidth`
+     (`--block`) is the opt-in for the stretched case. */
+  align-self: flex-start;
+  justify-self: start;
+  max-width: 100%;
 }
-.pr-segmented--block { display: flex; width: 100%; }
+.pr-segmented--block { display: flex; width: 100%; align-self: stretch; justify-self: stretch; }
 .pr-segmented__option {
   position: relative;
   display: inline-flex;
@@ -4901,4 +4914,464 @@ button.pr-stepper__dot:focus-visible {
   font-size: 12px;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* ───────────────────────── Notice ───────────────────────── */
+
+/* A calm inline message: soft tone tint, 1px tone border, no shadow. The tint
+   and the icon colour come from the same semantic variables as Badge. */
+.pr-notice {
+  --pr-notice-tone: var(--pr-info);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--pr-notice-tone) 32%, transparent);
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: color-mix(in srgb, var(--pr-notice-tone) 10%, var(--pr-surface));
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.pr-notice--neutral {
+  --pr-notice-tone: var(--pr-fg-muted);
+  background: var(--pr-bg);
+  border-color: var(--pr-border);
+}
+.pr-notice--info { --pr-notice-tone: var(--pr-info); }
+.pr-notice--success { --pr-notice-tone: var(--pr-success); }
+.pr-notice--warning { --pr-notice-tone: var(--pr-warning); }
+.pr-notice--danger { --pr-notice-tone: var(--pr-danger); }
+.pr-notice--sm { padding: 8px 12px; gap: 4px 8px; }
+
+.pr-notice__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 1.45em;
+  color: var(--pr-notice-tone);
+}
+.pr-notice__body {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.pr-notice__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.45;
+  color: var(--pr-fg);
+}
+.pr-notice__text {
+  color: var(--pr-fg);
+  overflow-wrap: anywhere;
+}
+.pr-notice__title + .pr-notice__text { margin-top: 2px; }
+/* Wraps under the text on a narrow width; sits at the end edge on a wide one. */
+.pr-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+.pr-notice__dismiss { flex: none; margin-block: -6px; margin-inline: 0 -8px; }
+@media (max-width: 639px) {
+  .pr-notice__body { flex-basis: 10rem; }
+  .pr-notice__dismiss { order: 2; }
+  .pr-notice__actions { order: 3; flex-basis: 100%; margin-inline-start: 0; padding-inline-start: 30px; }
+}
+
+/* ───────────────────────── DetailList ───────────────────────── */
+
+/* The facts of one record. Stacked: label above value, in a grid that never
+   drops below 12rem per column and never exceeds the requested count. */
+.pr-detail-list {
+  --pr-detail-cols: 2;
+  --pr-detail-gap-y: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(12rem, calc((100% - (var(--pr-detail-cols) - 1) * 24px) / var(--pr-detail-cols))), 1fr));
+  gap: var(--pr-detail-gap-y) 24px;
+  margin: 0;
+  padding: 0;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-detail-list--cols-1 { --pr-detail-cols: 1; }
+.pr-detail-list--cols-2 { --pr-detail-cols: 2; }
+.pr-detail-list--cols-3 { --pr-detail-cols: 3; }
+.pr-detail-list--cols-4 { --pr-detail-cols: 4; }
+.pr-detail-list--compact { --pr-detail-gap-y: 8px; }
+
+.pr-detail-item { min-width: 0; margin: 0; }
+.pr-detail-item--span-2 { grid-column: span 2; }
+.pr-detail-item--span-full { grid-column: 1 / -1; }
+@media (max-width: 479px) {
+  .pr-detail-item--span-2 { grid-column: 1 / -1; }
+}
+.pr-detail-item__label {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pr-fg-muted);
+}
+.pr-detail-item__value {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--pr-fg);
+  overflow-wrap: anywhere;
+}
+.pr-detail-item__value--empty {
+  font-weight: 400;
+  color: var(--pr-fg-muted);
+}
+.pr-detail-item--numeric .pr-detail-item__value { font-variant-numeric: tabular-nums; }
+
+/* Inline: one row per fact, hairline between rows, for narrow side panels. */
+.pr-detail-list--inline {
+  display: block;
+}
+.pr-detail-list--inline .pr-detail-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--pr-border);
+}
+.pr-detail-list--inline .pr-detail-item:first-child { border-top: 0; padding-top: 0; }
+.pr-detail-list--inline .pr-detail-item:last-child { padding-bottom: 0; }
+.pr-detail-list--inline.pr-detail-list--compact .pr-detail-item { padding: 8px 0; }
+.pr-detail-list--inline .pr-detail-item__label { flex: none; max-width: 45%; margin: 0; }
+.pr-detail-list--inline .pr-detail-item__value { min-width: 0; text-align: end; }
+.pr-detail-list--inline .pr-detail-item--numeric .pr-detail-item__value { text-align: end; }
+
+/* ───────────────────────── ItemList ───────────────────────── */
+
+.pr-item-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-item-list--divided > .pr-item-row + .pr-item-row {
+  border-top: 1px solid var(--pr-border);
+}
+
+.pr-item-row {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pr-item-row__main {
+  --pr-item-min: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--pr-item-min);
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  /* The row's own background: the unread dot ring uses it to blend in. */
+  --pr-item-bg: var(--pr-surface);
+  color: var(--pr-fg);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms var(--pr-ease, ease);
+}
+.pr-item-list--compact .pr-item-row__main {
+  --pr-item-min: 36px;
+  gap: 8px;
+  padding: 6px 12px;
+}
+.pr-item-row__main:hover:not(:disabled):not([aria-disabled='true']) {
+  --pr-item-bg: var(--pr-elevated);
+  background: var(--pr-elevated);
+}
+.pr-item-row__main:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--pr-accent);
+}
+.pr-item-row[data-selected] .pr-item-row__main {
+  --pr-item-bg: color-mix(in srgb, var(--pr-surface) 70%, var(--pr-tone-yellow-bg));
+  background: var(--pr-item-bg);
+  box-shadow: inset 3px 0 0 var(--pr-accent);
+}
+.pr-item-row[data-selected] .pr-item-row__main:focus-visible {
+  box-shadow: inset 3px 0 0 var(--pr-accent), inset 0 0 0 2px var(--pr-accent);
+}
+/* Tone bar. A selected row keeps its tint and swaps the accent edge for the tone bar. */
+.pr-item-row[data-tone]::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--pr-item-tone);
+  pointer-events: none;
+  z-index: 1;
+}
+.pr-item-row[data-tone='neutral'] { --pr-item-tone: var(--pr-fg-muted); }
+.pr-item-row[data-tone='info'] { --pr-item-tone: var(--pr-info); }
+.pr-item-row[data-tone='success'] { --pr-item-tone: var(--pr-success); }
+.pr-item-row[data-tone='warning'] { --pr-item-tone: var(--pr-warning); }
+.pr-item-row[data-tone='danger'] { --pr-item-tone: var(--pr-danger); }
+.pr-item-row[data-selected][data-tone] .pr-item-row__main { box-shadow: none; }
+.pr-item-row[data-selected][data-tone] .pr-item-row__main:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--pr-accent);
+}
+.pr-item-row__main:disabled,
+.pr-item-row__main[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pr-item-row__leading,
+.pr-item-row__trailing {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+.pr-item-row__leading { position: relative; }
+.pr-item-row__body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pr-item-row__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.pr-item-row__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pr-item-row[data-unread] .pr-item-row__title { font-weight: 650; }
+.pr-item-row__dot {
+  align-self: center;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pr-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pr-fg) 25%, transparent);
+}
+.pr-item-row__dot--overlay {
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-end: -2px;
+  box-shadow: 0 0 0 2px var(--pr-item-bg);
+}
+.pr-item-row__meta {
+  flex: none;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--pr-fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pr-item-row__description {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--pr-fg-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pr-item-row__footer {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--pr-fg-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* A badge at the start of the footer keeps its size and sits on the text's middle. */
+.pr-item-row__footer .pr-badge {
+  margin-block: -2px;
+  margin-inline-end: 6px;
+  vertical-align: middle;
+}
+.pr-item-row__description--2 {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pr-item-row__main { transition: none; }
+}
+
+/* ───────────────────────── SplitView ───────────────────────── */
+
+/* Master-detail inside one card-like frame. CSS only: from 900px both panes
+   show side by side; below, `data-detail-open` picks the one that shows.
+   `fill` gives the frame a height (override with style or a class) and lets
+   each pane scroll; `auto` lets the page scroll. */
+.pr-split-view {
+  --pr-split-list: 360px;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-card, 0.75rem);
+  background: var(--pr-surface);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-split-view--list-sm { --pr-split-list: 280px; }
+.pr-split-view--list-md { --pr-split-list: 360px; }
+.pr-split-view--list-lg { --pr-split-list: 440px; }
+.pr-split-view--fill {
+  flex: 1 1 auto;
+  height: min(72vh, 900px);
+}
+.pr-split-view__list,
+.pr-split-view__detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+.pr-split-view__list { border-inline-end: 0; }
+.pr-split-view__list-header {
+  flex: none;
+  padding: 12px;
+  border-bottom: 1px solid var(--pr-border);
+}
+.pr-split-view__list-scroll,
+.pr-split-view__detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+.pr-split-view--fill .pr-split-view__list-scroll,
+.pr-split-view--fill .pr-split-view__detail-scroll {
+  overflow: auto;
+}
+/* The detail pane owns its inset, like a Card body. Without it every consumer
+   re-adds the same padding with a style prop. */
+.pr-split-view__detail-scroll { padding: 24px; }
+@media (max-width: 640px) {
+  .pr-split-view__detail-scroll { padding: 16px; }
+}
+.pr-split-view__back {
+  flex: none;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--pr-border);
+}
+
+/* Narrow: one pane at a time. */
+@media (max-width: 899px) {
+  .pr-split-view:not([data-detail-open]) .pr-split-view__detail { display: none; }
+  .pr-split-view[data-detail-open] .pr-split-view__list { display: none; }
+}
+@media (min-width: 900px) {
+  .pr-split-view__list {
+    flex: 0 0 var(--pr-split-list);
+    border-inline-end: 1px solid var(--pr-border);
+  }
+  .pr-split-view__back { display: none; }
+}
+
+/* ───────────────────────── Stack ───────────────────────── */
+
+/* Layout only. The scale is 4 / 8 / 12 / 16 / 24 px; the tokens package has no
+   spacing scale to map to. */
+.pr-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.pr-stack--row { flex-direction: row; }
+.pr-stack--wrap { flex-wrap: wrap; }
+.pr-stack--gap-xs { gap: 4px; }
+.pr-stack--gap-sm { gap: 8px; }
+.pr-stack--gap-md { gap: 12px; }
+.pr-stack--gap-lg { gap: 16px; }
+.pr-stack--gap-xl { gap: 24px; }
+.pr-stack--align-start { align-items: flex-start; }
+.pr-stack--align-center { align-items: center; }
+.pr-stack--align-end { align-items: flex-end; }
+.pr-stack--align-stretch { align-items: stretch; }
+.pr-stack--align-baseline { align-items: baseline; }
+.pr-stack--justify-start { justify-content: flex-start; }
+.pr-stack--justify-center { justify-content: center; }
+.pr-stack--justify-end { justify-content: flex-end; }
+.pr-stack--justify-between { justify-content: space-between; }
+
+/* ───────────────────────── Disclosure ───────────────────────── */
+
+.pr-disclosure {
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+}
+/* Stacked plain disclosures are divided by a hairline. */
+.pr-disclosure--plain + .pr-disclosure--plain { border-top: 1px solid var(--pr-border); }
+.pr-disclosure--card {
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-card, 0.75rem);
+}
+.pr-disclosure__heading { margin: 0; font: inherit; }
+.pr-disclosure__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: var(--pr-radius-md, 0.75rem);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.pr-disclosure--card .pr-disclosure__trigger { padding: 8px 16px; }
+.pr-disclosure__trigger:hover .pr-disclosure__chevron { color: var(--pr-fg); }
+.pr-disclosure__trigger:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
+.pr-disclosure__chevron {
+  flex: none;
+  color: var(--pr-fg-muted);
+  transition: transform 160ms var(--pr-ease, ease);
+}
+.pr-disclosure[data-state='open'] .pr-disclosure__chevron { transform: rotate(90deg); }
+.pr-disclosure__text { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
+.pr-disclosure__title { font-size: 15px; font-weight: 650; line-height: 1.35; }
+.pr-disclosure__description { color: var(--pr-fg-muted); font-size: 13px; line-height: 1.4; }
+.pr-disclosure__trailing { display: inline-flex; flex: none; align-items: center; gap: 8px; }
+.pr-disclosure__panel { padding-block: 4px 16px; padding-inline: 30px 4px; }
+.pr-disclosure--card .pr-disclosure__panel { padding-block: 4px 16px; padding-inline: 42px 16px; }
+.pr-disclosure__panel[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-disclosure__chevron { transition: none; }
 }
