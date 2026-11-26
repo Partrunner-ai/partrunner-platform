@@ -230,6 +230,7 @@ export {
   type TableAlign,
   type TableBodyProps,
   type TableCaptionProps,
+  type TableCellAlignProps,
   type TableCellProps,
   type TableColumn,
   type TableDensity,
@@ -419,3 +420,50 @@ export {
   type CommentSegment,
 } from './commentText';
 export { prepareCommentFile, type PreparedCommentFile } from './commentImage';
+export {
+  Notice,
+  type NoticeProps,
+  type NoticeSize,
+  type NoticeTone,
+} from './Notice';
+export {
+  DetailItem,
+  DetailList,
+  type DetailItemProps,
+  type DetailListColumns,
+  type DetailListDensity,
+  type DetailListLayout,
+  type DetailListProps,
+} from './DetailList';
+export {
+  ItemList,
+  ItemRow,
+  type ItemListDensity,
+  type ItemListProps,
+  type ItemRowLinkComponent,
+  type ItemRowLinkProps,
+  type ItemRowProps,
+  type ItemRowTone,
+} from './ItemList';
+export {
+  SplitView,
+  type SplitViewHeight,
+  type SplitViewListWidth,
+  type SplitViewProps,
+} from './SplitView';
+
+export {
+  Stack,
+  type StackAlign,
+  type StackDirection,
+  type StackGap,
+  type StackJustify,
+  type StackProps,
+} from './Stack';
+
+export {
+  Disclosure,
+  type DisclosureHeadingLevel,
+  type DisclosureProps,
+  type DisclosureVariant,
+} from './Disclosure';

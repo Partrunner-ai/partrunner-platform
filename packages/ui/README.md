@@ -30,34 +30,27 @@ import {
 The package works with React 18 and 19 and does not require a Tailwind runtime.
 Styles use semantic `--pr-*` tokens.
 
-## One job, one component
+## Build a screen
 
-Do not choose between two components for one job. The short form of the table
-in [`docs/crystal-guide.md` § 5b](../../docs/crystal-guide.md) — the guide has the
-full table, the ordered tie-breaks and the list page recipe:
+Read [`DESIGN.md`](./DESIGN.md) before you write or change a screen. It ships in this package
+(`node_modules/@partrunner-ai/ui/DESIGN.md`) and holds:
 
-| Job | Component |
-| --- | --- |
-| Page container | `Page` |
-| Page title block | `PageHeader` |
-| Section title inside a page | `SectionHeading` |
-| KPI row | `StatTile` in `StatTileGrid` |
-| Routes | `NavigationTabs` |
-| Panels with their own content | `Tabs` |
-| Same data, other subset or view | `SegmentedControl` |
-| Filter on one field, ≤7 values, with counts | `FilterChip` in `FilterChipRow` |
-| Any other filter | `MultiSelect variant="filter"` |
-| Date window of a list | `DateRangeFilter` |
-| Date field in a form | `DatePicker` |
-| Row of list controls | `Toolbar` + `SearchField`, `ToolbarGroup`, `ToolbarSpacer` |
-| Table on a page | `TableFrame` around `Table` (+ `Pagination` in `footer`) |
-| Loading compound table | `TableSkeleton` |
-| Nothing to show | `EmptyState` |
-| Status label | `Badge tone` |
-| Tone dot beside text | `StatusDot` |
-| Person by initials | `Avatar` |
-| Icon in a tinted chip | `IconTile` |
-| Stable entity colour | `toneFromString(seed)` |
+- the work method: job sentence → recipe → components → states → screenshot and checklist;
+- five page recipes: list, inbox, record, form, work queue. Each one has a full example with
+  all four states in [`recipes/`](./recipes) (`node_modules/@partrunner-ai/ui/recipes/*.md`);
+- the job → component table and the ordered tie-breaks — one job, one component;
+- limits for hierarchy and density, the four states of a data region, and text rules;
+- the list of things an app must not hand-build.
+
+The recipe examples are generated from the recipe screens of the component catalogue
+(`pnpm preview:components`, view «Recetas»). After a change to a recipe screen, run
+`pnpm --filter @partrunner-ai/ui recipes`. `pnpm test` fails when the files are out of date.
+
+To make an app's agents read it, add this line to the app's `AGENTS.md`:
+
+```md
+- Before you write or change a screen, read `node_modules/@partrunner-ai/ui/DESIGN.md` and follow it.
+```
 
 Package code is licensed under MIT. Bundled Barlow and Bebas Neue font files
 are licensed under the SIL Open Font License 1.1 included in `styles/fonts`.

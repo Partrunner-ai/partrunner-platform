@@ -28,6 +28,7 @@ import {
   Button,
   Calendar,
   DateRangeFilter,
+  Disclosure,
   FilterChip,
   FilterChipRow,
   IconTile,
@@ -122,6 +123,14 @@ import {
   Textarea,
   Toolbar,
   ValidationSummary,
+  DetailItem,
+  DetailList,
+  ItemList,
+  ItemRow,
+  Notice,
+  toneFromString,
+  SplitView,
+  Stack,
   type BadgeTone,
   type ButtonVariant,
   type DateRange,
@@ -1130,6 +1139,7 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
               <TableRow>
                 <TableHead>Team</TableHead>
                 <TableHead>Access</TableHead>
+                <TableHead numeric>Users</TableHead>
                 <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -1141,17 +1151,19 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
               >
                 <TableCell>Dispatcher</TableCell>
                 <TableCell><Badge tone="green">Editor</Badge></TableCell>
+                <TableCell numeric>1,240</TableCell>
                 <TableCell><Button size="xs" variant="ghost">Review</Button></TableCell>
               </TableRow>
               <TableRow>
                 <TableCell>Operations</TableCell>
                 <TableCell><Badge tone="neutral">Read only</Badge></TableCell>
+                <TableCell numeric>86</TableCell>
                 <TableCell>Managed centrally</TableCell>
               </TableRow>
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={3}>2 team profiles</TableCell>
+                <TableCell colSpan={4}>2 team profiles</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -1393,12 +1405,149 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
       </CatalogSection>
 
       <CatalogSection
+        title="Patterns"
+        description="Notice, DetailList, ItemList, SplitView, Stack and Disclosure: the inbox, record panel, banner, spacing and collapsible patterns apps used to build with local CSS."
+      >
+        <PatternsDemo />
+      </CatalogSection>
+
+      <CatalogSection
         title="Comments"
         description="CommentThread: internal comments about one record — mentions with suggestions, quoted replies, reactions, files and an AI agent writing. Controlled; the app owns fetching."
       >
         <CommentThreadDemo />
       </CatalogSection>
     </main>
+  );
+}
+
+function PatternsDemo() {
+  const [openId, setOpenId] = useState<string | null>('ruiz');
+  const rows = [
+    { id: 'ruiz', title: 'Transportes Ruiz', description: '¿Cuándo pagan la semana 46? Necesito la fecha exacta para mis conductores.', meta: 'hace 3 h', unread: true, count: '2' },
+    { id: 'lopez', title: 'Fletes López y Asociados con un nombre muy largo que no cabe', description: 'Gracias, ya recibí el pago.', meta: 'ayer', unread: false, count: null },
+    { id: 'norte', title: 'Logística del Norte', description: 'Adjunto la factura corregida.', meta: 'lun', unread: false, count: null },
+  ];
+  const current = rows.find((row) => row.id === openId) ?? null;
+  return (
+    <Stack data-testid="patterns-demo">
+      <Notice tone="warning" title="Semana cerrada" actions={<Button size="sm" variant="secondary">Reabrir</Button>} onDismiss={() => {}}>
+        Los cambios se aplican en la próxima semana.
+      </Notice>
+      <Notice tone="info">Los datos se actualizan cada hora.</Notice>
+      <Notice tone="success" title="Pago enviado" size="sm">La flota recibirá el depósito mañana.</Notice>
+      <Notice tone="danger" title="No se pudo guardar">Revisa la conexión e inténtalo de nuevo.</Notice>
+      <Notice tone="neutral" icon={false}>Sin cambios desde la última revisión.</Notice>
+      <DetailList columns={3}>
+        <DetailItem label="RFC">ABC010203XY1</DetailItem>
+        <DetailItem label="Saldo" numeric>$12,400.00</DetailItem>
+        <DetailItem label="Correo" />
+        <DetailItem label="Notas" span="full">Prefiere recibir el estado de cuenta por correo los lunes antes de las diez de la mañana.</DetailItem>
+      </DetailList>
+      <div style={{ maxWidth: 320 }}>
+        <DetailList layout="inline" density="compact">
+          <DetailItem label="RFC">ABC010203XY1</DetailItem>
+          <DetailItem label="Saldo" numeric>$12,400.00</DetailItem>
+          <DetailItem label="Correo" />
+        </DetailList>
+      </div>
+      <Stack direction="row" gap="sm" align="center" wrap data-testid="stack-row-demo">
+        <Badge tone="green">Activa</Badge>
+        <Badge tone="neutral">Sin incidencias</Badge>
+        <Button size="sm" variant="secondary">Acción</Button>
+      </Stack>
+      <div data-testid="disclosure-demo">
+        <Disclosure title="Historial de pagos" description="Últimas cuatro semanas" trailing={<Badge tone="neutral" size="sm">4</Badge>} defaultOpen>
+          <Stack gap="sm">
+            <span>Semana 46: $12,400.00</span>
+            <span>Semana 45: $9,870.00</span>
+          </Stack>
+        </Disclosure>
+        <Disclosure title="Notas internas">Sin notas.</Disclosure>
+        <Disclosure variant="card" title="Datos fiscales" trailing={<Badge tone="warning" size="sm">Pendiente</Badge>}>
+          Falta la constancia de situación fiscal.
+        </Disclosure>
+      </div>
+      <div data-testid="ticket-desk-demo" style={{ maxWidth: 420, border: '1px solid var(--pr-border)' }}>
+        <ItemList aria-label="Ejemplo de bandeja de tickets">
+          <ItemRow
+            tone="danger"
+            unread
+            leading={<Avatar name="Transportes Ruiz" tone={toneFromString('ruiz')} decorative />}
+            title="Transportes Ruiz"
+            description={<><strong>Flota:</strong> ¿Cuándo pagan la semana 46?</>}
+            meta="hace 3 h"
+            footer={<><Badge tone="danger" size="sm">Antigüedad &gt;24 h</Badge>2 aclaraciones · 1 chat · Sin asignar</>}
+            onClick={() => {}}
+          />
+          <ItemRow
+            tone="warning"
+            unread
+            selected
+            leading={<Avatar name="Logística del Norte" tone={toneFromString('norte')} decorative />}
+            title="Logística del Norte"
+            description={<><strong>Flota:</strong> Adjunto la factura corregida.</>}
+            meta="hace 20 min"
+            footer={<><Badge tone="warning" size="sm">Responder en 12 min</Badge>1 aclaración · Atiende Ana Ruiz</>}
+            onClick={() => {}}
+          />
+          <ItemRow
+            leading={<Avatar name="Fletes López" tone={toneFromString('lopez')} decorative />}
+            title="Fletes López"
+            description={<><strong>Soporte:</strong> Ya revisamos el cargo.</>}
+            meta="ayer"
+            footer="En proceso · 1 aclaración · Atiende Ana Ruiz"
+            onClick={() => {}}
+          />
+          <ItemRow
+            leading={<Avatar name="Ruta Dorada" tone={toneFromString('dorada')} decorative />}
+            title="Ruta Dorada"
+            description={<><strong>Asistente:</strong> Te avisamos cuando Finanzas responda.</>}
+            meta="lun"
+            footer="Espera a la flota · 1 chat · Sin asignar"
+            onClick={() => {}}
+          />
+        </ItemList>
+      </div>
+      <SplitView
+        style={{ height: 320 }}
+        listLabel="Conversaciones"
+        detailLabel="Detalle"
+        detailOpen={current != null}
+        onBack={() => setOpenId(null)}
+        listHeader={<SearchField fullWidth aria-label="Buscar conversación" placeholder="Buscar" />}
+        list={
+          <ItemList aria-label="Flotas">
+            {rows.map((row) => (
+              <ItemRow
+                key={row.id}
+                selected={row.id === openId}
+                unread={row.unread}
+                title={row.title}
+                description={row.description}
+                meta={row.meta}
+                leading={<Avatar name={row.title} size="sm" decorative />}
+                trailing={row.count ? <Badge tone="warning" size="sm">{row.count}</Badge> : undefined}
+                onClick={() => setOpenId(row.id)}
+              />
+            ))}
+          </ItemList>
+        }
+        detail={
+          current ? (
+            <Stack>
+              <SectionHeading title={current.title} />
+              <DetailList>
+                <DetailItem label="Última actividad">{current.meta}</DetailItem>
+                <DetailItem label="Mensaje" span="full">{current.description}</DetailItem>
+              </DetailList>
+            </Stack>
+          ) : (
+            <EmptyState icon={Mail} title="Elige una conversación" description="El detalle aparece aquí." />
+          )
+        }
+      />
+    </Stack>
   );
 }
 

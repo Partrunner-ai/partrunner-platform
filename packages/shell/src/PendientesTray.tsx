@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ListTodo } from 'lucide-react';
 import type {
   StaffLocale,
@@ -16,7 +16,17 @@ export interface PendientesTrayLabels {
   team: string;
   empty: string;
   loading: string;
+  /** Enlace del encabezado. */
   viewAll: string;
+  /** Enlace del pie. */
+  openHome: string;
+  /** Botón de una fila. */
+  open: string;
+  claim: string;
+  claiming: string;
+  claimError: string;
+  /** «De Finanzas, sin tomar». */
+  teamNamed: (team: string) => string;
   /** «y 3 más». */
   more: (count: number) => string;
 }
@@ -26,6 +36,10 @@ export interface PendientesTrayProps {
   locale?: StaffLocale;
   /** Se llama una vez cada vez que se abre la bandeja. */
   onOpen?: () => StaffShellMutation;
+  /** «Lo tomo»: toma un pendiente del equipo. Sin él, las filas del equipo sólo tienen «Abrir». */
+  onClaim?: (id: string) => Promise<void>;
+  /** Se llama tras tomar bien un pendiente, para pedir los datos otra vez. */
+  onClaimed?: () => StaffShellMutation;
   labels?: Partial<PendientesTrayLabels>;
   className?: string;
 }
@@ -38,7 +52,13 @@ const MESSAGES: Record<StaffLocale, PendientesTrayLabels> = {
     team: 'De tu equipo, sin tomar',
     empty: 'No tienes pendientes.',
     loading: 'Cargando pendientes…',
-    viewAll: 'Ver todo en Inicio',
+    viewAll: 'Ver todos en Inicio',
+    openHome: 'Abrir Inicio',
+    open: 'Abrir',
+    claim: 'Lo tomo',
+    claiming: 'Tomando…',
+    claimError: 'No se pudo tomar. Intenta otra vez.',
+    teamNamed: (name) => `De ${name}, sin tomar`,
     more: (count) => `y ${count} más`,
   },
   en: {
@@ -49,6 +69,12 @@ const MESSAGES: Record<StaffLocale, PendientesTrayLabels> = {
     empty: 'Nothing to do.',
     loading: 'Loading to-dos…',
     viewAll: 'See all on Home',
+    openHome: 'Open Home',
+    open: 'Open',
+    claim: 'Take it',
+    claiming: 'Taking…',
+    claimError: 'Could not take it. Try again.',
+    teamNamed: (name) => `${name}, not taken`,
     more: (count) => `and ${count} more`,
   },
 };
@@ -62,11 +88,13 @@ export function PendientesTray({
   pendientes,
   locale = 'es',
   onOpen,
+  onClaim,
+  onClaimed,
   labels: labelOverrides,
   className,
 }: PendientesTrayProps) {
   const labels = { ...MESSAGES[locale], ...labelOverrides };
-  const { mine, team, items, href, loading } = pendientes;
+  const { mine, team, items, href, loading, teamLabel } = pendientes;
   const total = mine + team;
   const safeHref = isSafePendienteHref(href) ? href : undefined;
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -91,41 +119,88 @@ export function PendientesTray({
   const tone = pendingTone({ mine, team });
   const triggerLabel = `${labels.trigger}: ${total}`;
 
+  const [claims, setClaims] = useState<Record<string, 'pending' | 'error'>>({});
+  const claiming = useRef(new Set<string>());
+  const claim = async (id: string) => {
+    if (!onClaim || claiming.current.has(id)) return;
+    claiming.current.add(id);
+    setClaims((prev) => ({ ...prev, [id]: 'pending' }));
+    let ok = false;
+    try {
+      await onClaim(id);
+      ok = true;
+    } catch {
+      setClaims((prev) => ({ ...prev, [id]: 'error' }));
+    } finally {
+      claiming.current.delete(id);
+    }
+    if (ok) {
+      setClaims((prev) => {
+        const rest = { ...prev };
+        delete rest[id];
+        return rest;
+      });
+      void onClaimed?.();
+    }
+  };
+
+  // The first row with a button gets the primary one; the rest are outlined.
+  const hasButton = (item: StaffPendingItem) =>
+    (item.bucket === 'team' && onClaim !== undefined) || isSafePendienteHref(item.href);
+  const listedByBucket = (bucket: 'mine' | 'team') =>
+    mine + team > 0 ? items.filter((item) => item.bucket === bucket) : [];
+  const primaryId = [
+    ...(mine > 0 ? listedByBucket('mine') : []),
+    ...(team > 0 ? listedByBucket('team') : []),
+  ].find(hasButton)?.id;
+
   const renderItem = (item: StaffPendingItem) => {
-    const content = (
-      <span className="pr-notifications__item-copy">
-        <span className="pr-pendientes__kicker">
-          {item.verb} · {item.queue}
-        </span>
-        <span className="pr-notifications__item-title">{item.title}</span>
-        {(item.subtitle || item.ageLabel) && (
-          <span className="pr-notifications__item-meta">
-            {item.subtitle && <span>{item.subtitle}</span>}
-            {item.ageLabel && <span>{item.ageLabel}</span>}
-          </span>
-        )}
-      </span>
-    );
-    if (isSafePendienteHref(item.href)) {
-      return (
+    const meta = [item.queue, item.subtitle, item.ageLabel]
+      .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+      .join(' · ');
+    const state = claims[item.id];
+    const variant = item.id === primaryId ? 'primary' : 'outline';
+    let action: ReactNode = null;
+    if (item.bucket === 'team' && onClaim) {
+      action = (
+        <button
+          type="button"
+          className="pr-pendientes__action"
+          data-variant={variant}
+          disabled={state === 'pending'}
+          aria-label={`${state === 'pending' ? labels.claiming : labels.claim}: ${item.title}`}
+          onClick={() => void claim(item.id)}
+        >
+          {state === 'pending' ? labels.claiming : labels.claim}
+        </button>
+      );
+    } else if (isSafePendienteHref(item.href)) {
+      action = (
         <a
-          key={item.id}
+          className="pr-pendientes__action"
+          data-variant={variant}
           href={item.href}
-          className="pr-notifications__item"
-          data-bucket={item.bucket}
+          aria-label={`${labels.open}: ${item.title}`}
           onClick={close}
         >
-          {content}
+          {labels.open}
         </a>
       );
     }
     return (
-      <div
-        key={item.id}
-        className="pr-notifications__item pr-pendientes__row"
-        data-bucket={item.bucket}
-      >
-        {content}
+      <div key={item.id} className="pr-pendientes__row" data-bucket={item.bucket}>
+        <span className="pr-pendientes__copy">
+          <span className="pr-pendientes__title">
+            {item.verb} · {item.title}
+          </span>
+          {meta && <span className="pr-pendientes__meta">{meta}</span>}
+          {state === 'error' && (
+            <span className="pr-pendientes__error" role="alert">
+              {labels.claimError}
+            </span>
+          )}
+        </span>
+        {action}
       </div>
     );
   };
@@ -134,14 +209,19 @@ export function PendientesTray({
     if (count <= 0) return null;
     const listed = items.filter((item) => item.bucket === bucket);
     const rest = count - listed.length;
+    const heading =
+      bucket === 'mine'
+        ? labels.mine
+        : teamLabel
+          ? labels.teamNamed(teamLabel)
+          : labels.team;
     return (
       <section
         className="pr-pendientes__section"
         data-bucket={bucket}
       >
         <h3 className="pr-pendientes__heading">
-          <span>{labels[bucket]}</span>
-          <span className="pr-pendientes__count">{count}</span>
+          {heading} · {count}
         </h3>
         {listed.map(renderItem)}
         {rest > 0 && safeHref && (
@@ -187,6 +267,11 @@ export function PendientesTray({
         >
           <div className="pr-notifications__header">
             <h2>{labels.title}</h2>
+            {safeHref && (
+              <a className="pr-pendientes__viewall" href={safeHref} onClick={close}>
+                {labels.viewAll}
+              </a>
+            )}
           </div>
 
           <div className="pr-notifications__list">
@@ -206,7 +291,7 @@ export function PendientesTray({
 
           {safeHref && (
             <a className="pr-notifications__footer" href={safeHref} onClick={close}>
-              {labels.viewAll}
+              {labels.openHome}
             </a>
           )}
         </section>

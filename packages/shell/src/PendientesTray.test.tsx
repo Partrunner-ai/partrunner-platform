@@ -94,20 +94,130 @@ describe('PendientesTray', () => {
     const headings = Array.from(dialog.querySelectorAll('.pr-pendientes__heading')).map(
       (node) => node.textContent,
     );
-    expect(headings).toEqual(['Te toca2', 'De tu equipo, sin tomar3']);
-    const row = dialog.querySelector('a[data-bucket="mine"]')!;
-    expect(row.getAttribute('href')).toBe('https://nexus.partrunner.ai/tarifas/1');
-    expect(row.textContent).toContain('Aprobar · Tarifas pactadas');
-    expect(row.textContent).toContain('Tarifa de Flota Norte');
-    expect(row.textContent).toContain('Ruta CDMX');
-    expect(row.textContent).toContain('hace 3 h');
+    expect(headings).toEqual(['Te toca · 2', 'De tu equipo, sin tomar · 3']);
+    const row = dialog.querySelector('.pr-pendientes__row[data-bucket="mine"]')!;
+    expect(row.querySelector('.pr-pendientes__title')!.textContent).toBe(
+      'Aprobar · Tarifa de Flota Norte',
+    );
+    expect(row.querySelector('.pr-pendientes__meta')!.textContent).toBe(
+      'Tarifas pactadas · Ruta CDMX · hace 3 h',
+    );
+    expect(row.querySelector('a')!.getAttribute('href')).toBe('https://nexus.partrunner.ai/tarifas/1');
     const more = Array.from(dialog.querySelectorAll('.pr-pendientes__more')).map(
       (node) => node.textContent,
     );
     expect(more).toEqual(['y 1 más', 'y 2 más']);
+    const header = dialog.querySelector('.pr-pendientes__viewall')!;
+    expect(header.textContent).toBe('Ver todos en Inicio');
+    expect(header.getAttribute('href')).toBe(pendientes.href);
     const footer = dialog.querySelector('.pr-notifications__footer')!;
-    expect(footer.textContent).toBe('Ver todo en Inicio');
+    expect(footer.textContent).toBe('Abrir Inicio');
     expect(footer.getAttribute('href')).toBe(pendientes.href);
+  });
+
+  it('skips empty parts of the second line', async () => {
+    const user = userEvent.setup();
+    renderHeader(
+      context({
+        pendientes: {
+          ...pendientes,
+          mine: 0,
+          items: [{ id: 'z', bucket: 'team', verb: 'Revisar', queue: 'Altas', title: 'X', subtitle: '  ' }],
+        },
+      }),
+    );
+    await user.click(trigger());
+    expect(screen.getByRole('dialog').querySelector('.pr-pendientes__meta')!.textContent).toBe('Altas');
+  });
+
+  it('names the team in the heading when teamLabel is set', async () => {
+    const user = userEvent.setup();
+    renderHeader(context({ pendientes: { ...pendientes, teamLabel: 'Finanzas' } }));
+    await user.click(trigger());
+    expect(screen.getByRole('dialog').textContent).toContain('De Finanzas, sin tomar · 3');
+  });
+
+  it('gives the first button the primary look and the rest outlined', async () => {
+    const user = userEvent.setup();
+    const claimPendiente = vi.fn().mockResolvedValue(undefined);
+    renderHeader(context({ pendientes, claimPendiente }));
+    await user.click(trigger());
+    const actions = Array.from(
+      screen.getByRole('dialog').querySelectorAll('.pr-pendientes__action'),
+    );
+    expect(actions.map((node) => node.textContent)).toEqual(['Abrir', 'Lo tomo']);
+    expect(actions.map((node) => node.getAttribute('data-variant'))).toEqual(['primary', 'outline']);
+  });
+
+  it('team rows say «Abrir» without claimPendiente, and need a safe href', async () => {
+    const user = userEvent.setup();
+    renderHeader(
+      context({
+        pendientes: {
+          ...pendientes,
+          items: [
+            pendientes.items[0]!,
+            { ...pendientes.items[1]!, href: '/altas/1' },
+            { id: 'c', bucket: 'team', verb: 'V', queue: 'Q', title: 'Sin enlace' },
+          ],
+        },
+      }),
+    );
+    await user.click(trigger());
+    const dialog = screen.getByRole('dialog');
+    expect(screen.getAllByRole('link', { name: /^Abrir: / })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /^Lo tomo/ })).toBeNull();
+    expect(dialog.querySelectorAll('.pr-pendientes__action')).toHaveLength(2);
+  });
+
+  it('claims a team row: busy label, refresh, stays open', async () => {
+    const user = userEvent.setup();
+    let resolve!: () => void;
+    const claimPendiente = vi.fn(
+      () => new Promise<void>((done) => { resolve = done; }),
+    );
+    const refreshPendientes = vi.fn();
+    renderHeader(context({ pendientes, claimPendiente, refreshPendientes }));
+    await user.click(trigger());
+    refreshPendientes.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Lo tomo: Alta de unidad' }));
+    expect(claimPendiente).toHaveBeenCalledWith('b');
+    const busy = screen.getByRole('button', { name: 'Tomando…: Alta de unidad' }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.textContent).toBe('Tomando…');
+    await user.click(busy);
+    expect(claimPendiente).toHaveBeenCalledTimes(1);
+    resolve();
+    await screen.findByRole('button', { name: 'Lo tomo: Alta de unidad' });
+    expect(refreshPendientes).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('shows an inline error when the claim fails and lets the person retry', async () => {
+    const user = userEvent.setup();
+    const claimPendiente = vi.fn().mockRejectedValueOnce(new Error('x')).mockResolvedValue(undefined);
+    const refreshPendientes = vi.fn();
+    renderHeader(context({ pendientes, claimPendiente, refreshPendientes }));
+    await user.click(trigger());
+    refreshPendientes.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Lo tomo: Alta de unidad' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('No se pudo tomar. Intenta otra vez.');
+    expect(refreshPendientes).not.toHaveBeenCalled();
+    const button = screen.getByRole('button', { name: 'Lo tomo: Alta de unidad' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    await user.click(button);
+    expect(claimPendiente).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('keeps working with a 2.10.0-style state (no teamLabel, no claimPendiente)', async () => {
+    const user = userEvent.setup();
+    renderHeader(context({ pendientes }));
+    await user.click(trigger());
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('De tu equipo, sin tomar');
+    expect(dialog.querySelector('button.pr-pendientes__action')).toBeNull();
   });
 
   it('hides a section whose count is 0', async () => {
@@ -143,9 +253,9 @@ describe('PendientesTray', () => {
     };
     renderHeader(context({ pendientes: bad }));
     await user.click(trigger());
-    const row = screen.getByRole('dialog').querySelector('[data-bucket="mine"].pr-notifications__item')!;
+    const row = screen.getByRole('dialog').querySelector('.pr-pendientes__row[data-bucket="mine"]')!;
     expect(row.tagName).toBe('DIV');
-    expect(row.getAttribute('href')).toBeNull();
+    expect(row.querySelector('a, button')).toBeNull();
   });
 
   it('renders the footer and «y N más» links only for a safe href', async () => {
@@ -196,5 +306,6 @@ describe('PendientesTray', () => {
     expect(dialog.textContent).toContain('Your team, not taken');
     expect(dialog.textContent).toContain('and 1 more');
     expect(dialog.textContent).toContain('See all on Home');
+    expect(dialog.textContent).toContain('Open Home');
   });
 });

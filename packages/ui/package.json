@@ -1,6 +1,6 @@
 {
   "name": "@partrunner-ai/ui",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "L1 primitives built on the PartRunner token scale. Plain CSS over --pr-* so it works in Tailwind v3, v4, or no Tailwind at all.",
   "license": "(MIT AND OFL-1.1)",
   "type": "module",
@@ -11,6 +11,8 @@
     "dist",
     "styles",
     "README.md",
+    "DESIGN.md",
+    "recipes",
     "LICENSE",
     "TRADEMARKS.md"
   ],
@@ -34,6 +36,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup && node scripts/build-css-bundles.mjs",
+    "recipes": "node scripts/build-recipes.mjs",
     "dev": "tsup --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

@@ -470,4 +470,81 @@ describe('getRowClassName', () => {
     // still a table row, not a replacement for the base class
     expect(trs[1]!.className).toContain('pr-table__row');
   });
+
+  it('aligns compound cells and heads with align and numeric', () => {
+    const { container } = render(
+      <Table aria-label="n">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead align="center">Estado</TableHead>
+            <TableHead numeric>Monto</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>A</TableCell>
+            <TableCell align="end">B</TableCell>
+            <TableCell numeric align="start">
+              1,200
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+    const ths = container.querySelectorAll('th');
+    const tds = container.querySelectorAll('td');
+    expect(ths[0]!.className).not.toContain('pr-table__cell--');
+    expect(ths[1]!.className).toContain('pr-table__cell--center');
+    expect(ths[2]!.className).toContain('pr-table__cell--end');
+    expect(tds[0]!.className).not.toContain('pr-table__cell--');
+    expect(tds[1]!.className).toContain('pr-table__cell--end');
+    expect(tds[2]!.className).toContain('pr-table__cell--end');
+    expect(tds[2]!.className).not.toContain('pr-table__cell--start');
+  });
+
+  it('numeric on a data-driven column end-aligns head and cells', () => {
+    const { container } = render(
+      <DataTable
+        columns={[
+          { key: 'n', header: 'N' },
+          { key: 'amt', header: 'Monto', numeric: true },
+        ]}
+        rows={[{ n: 'a', amt: 5 }]}
+      />,
+    );
+    expect(container.querySelectorAll('th')[1]!.className).toContain('pr-table__cell--end');
+    expect(container.querySelectorAll('td')[1]!.className).toContain('pr-table__cell--end');
+    expect(container.querySelectorAll('td')[0]!.className).toContain('pr-table__cell--start');
+  });
+
+  it('passes the native justify and char values through as the align attribute', () => {
+    const { container } = render(
+      <Table aria-label="n">
+        <TableHeader>
+          <TableRow>
+            <TableHead align="justify">A</TableHead>
+            <TableHead align="char">B</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell align="justify">1</TableCell>
+            <TableCell align="char">2</TableCell>
+            <TableCell align="end">3</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+    const ths = container.querySelectorAll('th');
+    const tds = container.querySelectorAll('td');
+    expect(ths[0]!.getAttribute('align')).toBe('justify');
+    expect(ths[1]!.getAttribute('align')).toBe('char');
+    expect(ths[0]!.className).not.toContain('pr-table__cell--');
+    expect(tds[0]!.getAttribute('align')).toBe('justify');
+    expect(tds[1]!.getAttribute('align')).toBe('char');
+    expect(tds[1]!.className).not.toContain('pr-table__cell--');
+    expect(tds[2]!.hasAttribute('align')).toBe(false);
+    expect(tds[2]!.className).toContain('pr-table__cell--end');
+  });
 })

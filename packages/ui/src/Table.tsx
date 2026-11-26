@@ -17,6 +17,7 @@ export {
   TableRow,
   type TableBodyProps,
   type TableCaptionProps,
+  type TableCellAlignProps,
   type TableCellProps,
   type TableFooterProps,
   type TableHeadProps,
@@ -44,6 +45,8 @@ export interface TableColumn<T> {
   /** Without this the cell renders `row[key]` as text. */
   render?: (row: T, index: number) => ReactNode;
   align?: TableAlign;
+  /** A number column: end-aligned with tabular figures. Wins over `align`. */
+  numeric?: boolean;
   className?: string;
   headerClassName?: string;
   /**
@@ -231,7 +234,7 @@ export function DataTable<T>({
                   scope="col"
                   className={[
                     'pr-table__th',
-                    ALIGN[col.align ?? 'start'],
+                    ALIGN[col.numeric ? 'end' : (col.align ?? 'start')],
                     col.hideOnMobile ? 'pr-table__cell--desktop' : null,
                     col.headerClassName,
                   ]
@@ -285,7 +288,7 @@ export function DataTable<T>({
                     key={col.key}
                     className={[
                       'pr-table__td',
-                      ALIGN[col.align ?? 'start'],
+                      ALIGN[col.numeric ? 'end' : (col.align ?? 'start')],
                       col.hideOnMobile ? 'pr-table__cell--desktop' : null,
                       col.className,
                     ]
