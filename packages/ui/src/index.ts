@@ -419,3 +419,33 @@ export {
   type CommentSegment,
 } from './commentText';
 export { prepareCommentFile, type PreparedCommentFile } from './commentImage';
+export {
+  Notice,
+  type NoticeProps,
+  type NoticeSize,
+  type NoticeTone,
+} from './Notice';
+export {
+  DetailItem,
+  DetailList,
+  type DetailItemProps,
+  type DetailListColumns,
+  type DetailListDensity,
+  type DetailListLayout,
+  type DetailListProps,
+} from './DetailList';
+export {
+  ItemList,
+  ItemRow,
+  type ItemListDensity,
+  type ItemListProps,
+  type ItemRowLinkComponent,
+  type ItemRowLinkProps,
+  type ItemRowProps,
+} from './ItemList';
+export {
+  SplitView,
+  type SplitViewHeight,
+  type SplitViewListWidth,
+  type SplitViewProps,
+} from './SplitView';

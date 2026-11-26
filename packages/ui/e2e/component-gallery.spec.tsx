@@ -52,6 +52,10 @@ const PUBLIC_VISUAL_SELECTORS = [
   '.pr-table-skeleton',
   '.pr-date-range',
   '.pr-date-range__trigger',
+  '.pr-notice',
+  '.pr-detail-list',
+  '.pr-item-list',
+  '.pr-split-view',
 ] as const;
 
 const readTypography = (node: HTMLElement) => {

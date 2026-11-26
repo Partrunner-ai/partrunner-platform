@@ -122,6 +122,12 @@ import {
   Textarea,
   Toolbar,
   ValidationSummary,
+  DetailItem,
+  DetailList,
+  ItemList,
+  ItemRow,
+  Notice,
+  SplitView,
   type BadgeTone,
   type ButtonVariant,
   type DateRange,
@@ -1393,12 +1399,91 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
       </CatalogSection>
 
       <CatalogSection
+        title="Patterns"
+        description="Notice, DetailList, ItemList and SplitView: the inbox, record panel and banner patterns apps used to build with local CSS."
+      >
+        <PatternsDemo />
+      </CatalogSection>
+
+      <CatalogSection
         title="Comments"
         description="CommentThread: internal comments about one record — mentions with suggestions, quoted replies, reactions, files and an AI agent writing. Controlled; the app owns fetching."
       >
         <CommentThreadDemo />
       </CatalogSection>
     </main>
+  );
+}
+
+function PatternsDemo() {
+  const [openId, setOpenId] = useState<string | null>('ruiz');
+  const rows = [
+    { id: 'ruiz', title: 'Transportes Ruiz', description: '¿Cuándo pagan la semana 46? Necesito la fecha exacta para mis conductores.', meta: 'hace 3 h', unread: true, count: '2' },
+    { id: 'lopez', title: 'Fletes López y Asociados con un nombre muy largo que no cabe', description: 'Gracias, ya recibí el pago.', meta: 'ayer', unread: false, count: null },
+    { id: 'norte', title: 'Logística del Norte', description: 'Adjunto la factura corregida.', meta: 'lun', unread: false, count: null },
+  ];
+  const current = rows.find((row) => row.id === openId) ?? null;
+  return (
+    <div data-testid="patterns-demo" style={{ display: 'grid', gap: 16 }}>
+      <Notice tone="warning" title="Semana cerrada" actions={<Button size="sm" variant="secondary">Reabrir</Button>} onDismiss={() => {}}>
+        Los cambios se aplican en la próxima semana.
+      </Notice>
+      <Notice tone="info">Los datos se actualizan cada hora.</Notice>
+      <Notice tone="success" title="Pago enviado" size="sm">La flota recibirá el depósito mañana.</Notice>
+      <Notice tone="danger" title="No se pudo guardar">Revisa la conexión e inténtalo de nuevo.</Notice>
+      <Notice tone="neutral" icon={false}>Sin cambios desde la última revisión.</Notice>
+      <DetailList columns={3}>
+        <DetailItem label="RFC">ABC010203XY1</DetailItem>
+        <DetailItem label="Saldo" numeric>$12,400.00</DetailItem>
+        <DetailItem label="Correo" />
+        <DetailItem label="Notas" span="full">Prefiere recibir el estado de cuenta por correo los lunes antes de las diez de la mañana.</DetailItem>
+      </DetailList>
+      <div style={{ maxWidth: 320 }}>
+        <DetailList layout="inline" density="compact">
+          <DetailItem label="RFC">ABC010203XY1</DetailItem>
+          <DetailItem label="Saldo" numeric>$12,400.00</DetailItem>
+          <DetailItem label="Correo" />
+        </DetailList>
+      </div>
+      <SplitView
+        style={{ height: 320 }}
+        listLabel="Conversaciones"
+        detailLabel="Detalle"
+        detailOpen={current != null}
+        onBack={() => setOpenId(null)}
+        listHeader={<SearchField fullWidth aria-label="Buscar conversación" placeholder="Buscar" />}
+        list={
+          <ItemList aria-label="Flotas">
+            {rows.map((row) => (
+              <ItemRow
+                key={row.id}
+                selected={row.id === openId}
+                unread={row.unread}
+                title={row.title}
+                description={row.description}
+                meta={row.meta}
+                leading={<Avatar name={row.title} size="sm" decorative />}
+                trailing={row.count ? <Badge tone="warning" size="sm">{row.count}</Badge> : undefined}
+                onClick={() => setOpenId(row.id)}
+              />
+            ))}
+          </ItemList>
+        }
+        detail={
+          current ? (
+            <div style={{ display: 'grid', gap: 16, padding: 24 }}>
+              <SectionHeading title={current.title} />
+              <DetailList>
+                <DetailItem label="Última actividad">{current.meta}</DetailItem>
+                <DetailItem label="Mensaje" span="full">{current.description}</DetailItem>
+              </DetailList>
+            </div>
+          ) : (
+            <EmptyState icon={Mail} title="Elige una conversación" description="El detalle aparece aquí." />
+          )
+        }
+      />
+    </div>
   );
 }
 
