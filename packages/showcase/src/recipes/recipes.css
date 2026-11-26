@@ -1,0 +1,61 @@
+/* Layout of the recipes bar and the chat bubbles. Tokens only. Nothing else. */
+.recipes-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--pr-border);
+  background: var(--pr-surface);
+}
+.recipes-bar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.recipes-bar__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+@media (max-width: 640px) {
+  .recipes-bar { padding: 12px 16px; }
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+.chat__bubble {
+  align-self: flex-start;
+  max-width: 78%;
+  padding: 8px 12px;
+  border: 1px solid var(--pr-border);
+  border-radius: var(--pr-radius-lg);
+  background: var(--pr-elevated);
+  color: var(--pr-fg);
+}
+.chat__bubble--team {
+  align-self: flex-end;
+  border-color: transparent;
+  background: var(--pr-tone-yellow-bg);
+}
+.chat__meta {
+  display: block;
+  margin-top: 4px;
+  color: var(--pr-fg-muted);
+}
+@media (max-width: 640px) {
+  .chat__bubble { max-width: 92%; }
+}
+
+/* FINDING: @partrunner-ai/ui has no vertical-stack primitive. Page spaces its
+   children, but a Dialog body, a form and a detail pane do not. This class is
+   layout only (no color, no type) and stands in for a future `Stack`. */
+.recipes-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

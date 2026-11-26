@@ -1471,7 +1471,7 @@ function PatternsDemo() {
         }
         detail={
           current ? (
-            <div style={{ display: 'grid', gap: 16, padding: 24 }}>
+            <div style={{ display: 'grid', gap: 16 }}>
               <SectionHeading title={current.title} />
               <DetailList>
                 <DetailItem label="Última actividad">{current.meta}</DetailItem>

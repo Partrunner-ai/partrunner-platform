@@ -3767,6 +3767,8 @@ button.pr-stepper__dot:focus-visible {
   font-family: var(--pr-font-body, inherit);
 }
 .pr-section-heading__text { min-width: 0; }
+/* A heading above a list of facts needs air; Card has no flow gap of its own. */
+.pr-section-heading + .pr-detail-list { margin-block-start: 16px; }
 .pr-section-heading__eyebrow {
   margin: 0 0 6px;
   font-size: 11px;
@@ -5214,6 +5216,12 @@ button.pr-stepper__dot:focus-visible {
 .pr-split-view--fill .pr-split-view__list-scroll,
 .pr-split-view--fill .pr-split-view__detail-scroll {
   overflow: auto;
+}
+/* The detail pane owns its inset, like a Card body. Without it every consumer
+   re-adds the same padding with a style prop. */
+.pr-split-view__detail-scroll { padding: 24px; }
+@media (max-width: 640px) {
+  .pr-split-view__detail-scroll { padding: 16px; }
 }
 .pr-split-view__back {
   flex: none;

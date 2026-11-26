@@ -10,10 +10,11 @@ import {
 import { BrandMarkDemo } from './BrandMarkDemo';
 import { SkeletonsDemo } from './SkeletonsDemo';
 import { NavigationDemo } from './navigation/NavigationDemo';
+import { RecipesDemo } from './recipes/RecipesDemo';
 import './review.css';
 
 /** `#switcher` and `#appbar` are aliases of `#navigation`. */
-export type ReviewView = 'components' | 'shell' | 'brand' | 'navigation' | 'skeletons';
+export type ReviewView = 'components' | 'shell' | 'brand' | 'navigation' | 'skeletons' | 'recipes';
 export type ReviewTheme = 'light' | 'dark';
 
 const VIEWS: Array<{ id: ReviewView; label: string }> = [
@@ -22,11 +23,12 @@ const VIEWS: Array<{ id: ReviewView; label: string }> = [
   { id: 'brand', label: 'Brand mark' },
   { id: 'navigation', label: 'Navegación' },
   { id: 'skeletons', label: 'Esqueletos' },
+  { id: 'recipes', label: 'Recetas' },
 ];
 
 function viewFromHash(): ReviewView {
   if (typeof window === 'undefined') return 'components';
-  const candidate = window.location.hash.slice(1);
+  const candidate = window.location.hash.slice(1).split('/')[0] ?? '';
   if (candidate === 'appbar' || candidate === 'switcher') return 'navigation';
   return VIEWS.some(({ id }) => id === candidate)
     ? (candidate as ReviewView)
@@ -113,6 +115,7 @@ export function ReleaseReviewApp({
   const [theme, setTheme] = useState<ReviewTheme>(initialTheme);
 
   const selectView = (nextView: ReviewView) => {
+    if (nextView === view) return;
     setView(nextView);
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', `#${nextView}`);
@@ -135,6 +138,7 @@ export function ReleaseReviewApp({
         {view === 'brand' ? <BrandMarkDemo /> : null}
         {view === 'navigation' ? <NavigationDemo /> : null}
         {view === 'skeletons' ? <SkeletonsDemo /> : null}
+        {view === 'recipes' ? <RecipesDemo /> : null}
       </div>
     </div>
   );
