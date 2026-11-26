@@ -3951,14 +3951,14 @@ button.pr-stepper__dot:focus-visible {
   background: color-mix(in srgb, var(--pr-fg) 6%, transparent);
   color: var(--pr-fg);
   font-family: var(--pr-font-body, inherit);
-  /* Hugs its options. In a flex column or a grid the default would stretch the
-     track across the container, leaving small segments at one end; `fullWidth`
-     (`--block`) is the opt-in for the stretched case. */
-  align-self: flex-start;
-  justify-self: start;
+  /* Hugs its options. A non-auto width is not stretched by a flex column or a
+     grid, so the track stays as wide as its options without any `align-self`
+     or `justify-self`: in a toolbar row with `align-items: center` it keeps the
+     row's centring. `fullWidth` (`--block`) is the opt-in for the full width. */
+  width: fit-content;
   max-width: 100%;
 }
-.pr-segmented--block { display: flex; width: 100%; align-self: stretch; justify-self: stretch; }
+.pr-segmented--block { display: flex; width: 100%; }
 .pr-segmented__option {
   position: relative;
   display: inline-flex;
