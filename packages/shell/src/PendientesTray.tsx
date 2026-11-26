@@ -144,22 +144,23 @@ export function PendientesTray({
     }
   };
 
-  // The first row with a button gets the primary one; the rest are outlined.
   const hasButton = (item: StaffPendingItem) =>
     (item.bucket === 'team' && onClaim !== undefined) || isSafePendienteHref(item.href);
-  const listedByBucket = (bucket: 'mine' | 'team') =>
-    mine + team > 0 ? items.filter((item) => item.bucket === bucket) : [];
-  const primaryId = [
-    ...(mine > 0 ? listedByBucket('mine') : []),
-    ...(team > 0 ? listedByBucket('team') : []),
-  ].find(hasButton)?.id;
+
+  // The first row with a button in EACH section gets the primary one; the rest are outlined.
+  const primaryIds = new Set(
+    (['mine', 'team'] as const)
+      .filter((bucket) => (bucket === 'mine' ? mine : team) > 0)
+      .map((bucket) => items.filter((item) => item.bucket === bucket).find(hasButton)?.id)
+      .filter((id): id is string => id !== undefined),
+  );
 
   const renderItem = (item: StaffPendingItem) => {
     const meta = [item.queue, item.subtitle, item.ageLabel]
       .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
       .join(' · ');
     const state = claims[item.id];
-    const variant = item.id === primaryId ? 'primary' : 'outline';
+    const variant = primaryIds.has(item.id) ? 'primary' : 'outline';
     let action: ReactNode = null;
     if (item.bucket === 'team' && onClaim) {
       action = (

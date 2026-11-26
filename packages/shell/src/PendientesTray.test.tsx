@@ -137,7 +137,7 @@ describe('PendientesTray', () => {
     expect(screen.getByRole('dialog').textContent).toContain('De Finanzas, sin tomar · 3');
   });
 
-  it('gives the first button the primary look and the rest outlined', async () => {
+  it('gives the first button of each section the primary look and the rest outlined', async () => {
     const user = userEvent.setup();
     const claimPendiente = vi.fn().mockResolvedValue(undefined);
     renderHeader(context({ pendientes, claimPendiente }));
@@ -146,7 +146,37 @@ describe('PendientesTray', () => {
       screen.getByRole('dialog').querySelectorAll('.pr-pendientes__action'),
     );
     expect(actions.map((node) => node.textContent)).toEqual(['Abrir', 'Lo tomo']);
-    expect(actions.map((node) => node.getAttribute('data-variant'))).toEqual(['primary', 'outline']);
+    expect(actions.map((node) => node.getAttribute('data-variant'))).toEqual(['primary', 'primary']);
+  });
+
+  it('keeps one primary per section, the others outlined, and a primary when the other section is empty', async () => {
+    const user = userEvent.setup();
+    const claimPendiente = vi.fn().mockResolvedValue(undefined);
+    const mk = (id: string, bucket: 'mine' | 'team') => ({
+      id, bucket, verb: 'V', queue: 'Q', title: `T${id}`, href: `/x/${id}`,
+    });
+    const { unmount } = renderHeader(
+      context({
+        pendientes: { ...pendientes, mine: 2, team: 2, items: [mk('1', 'mine'), mk('2', 'mine'), mk('3', 'team'), mk('4', 'team')] },
+        claimPendiente,
+      }),
+    );
+    await user.click(trigger());
+    const variants = () =>
+      Array.from(screen.getByRole('dialog').querySelectorAll('.pr-pendientes__action')).map((n) =>
+        n.getAttribute('data-variant'),
+      );
+    expect(variants()).toEqual(['primary', 'outline', 'primary', 'outline']);
+    unmount();
+
+    renderHeader(
+      context({
+        pendientes: { ...pendientes, mine: 0, team: 2, items: [mk('3', 'team'), mk('4', 'team')] },
+        claimPendiente,
+      }),
+    );
+    await user.click(trigger());
+    expect(variants()).toEqual(['primary', 'outline']);
   });
 
   it('team rows say «Abrir» without claimPendiente, and need a safe href', async () => {
