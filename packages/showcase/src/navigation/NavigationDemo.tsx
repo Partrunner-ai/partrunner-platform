@@ -42,7 +42,8 @@ function readFavorites(): string[] {
 const PENDIENTES: StaffPendientesState = {
   mine: 2,
   team: 3,
-  href: '#pendientes',
+  teamLabel: 'Finanzas',
+  href: '/inicio#pendientes',
   byApp: {
     nexus: { mine: 2, team: 1 },
     liveops: { mine: 0, team: 2 },
@@ -56,10 +57,11 @@ const PENDIENTES: StaffPendientesState = {
       title: 'Tarifa de Flota Norte',
       subtitle: 'Ruta CDMX - Toluca',
       ageLabel: 'hace 3 h',
-      href: '#tarifas',
+      href: '/tarifas/1',
     },
-    { id: 'p2', bucket: 'mine', verb: 'Decidir', queue: 'Altas de unidad', title: 'Alta de camioneta 3.5 t' },
+    { id: 'p2', bucket: 'mine', verb: 'Decidir', queue: 'Altas de unidad', title: 'Alta de camioneta 3.5 t', href: '/altas/2' },
     { id: 'p3', bucket: 'team', verb: 'Revisar', queue: 'Documentos', title: 'Póliza vencida de Flota Sur', ageLabel: 'hace 1 d' },
+    { id: 'p4', bucket: 'team', verb: 'Aprobar', queue: 'Ajustes', title: 'Ajustes CxP · semana 47', subtitle: '12 ajustes' },
   ],
 };
 
@@ -220,6 +222,7 @@ export function NavigationDemo() {
       setLocale: () => {},
       pages: PAGES,
       pendientes: PENDIENTES,
+      claimPendiente: () => new Promise<void>((resolve) => window.setTimeout(resolve, 600)),
       setFavoriteApps: setFavorites,
     }),
     [favorites, setFavorites],

@@ -110,6 +110,8 @@ export interface StaffPendientesState {
   /** «Ver todo»: Nexus Inicio #pendientes. */
   href: string;
   loading?: boolean;
+  /** Nombre corto del equipo para el título «De <equipo>, sin tomar» (p. ej. «Finanzas»). */
+  teamLabel?: string;
 }
 
 /**
@@ -169,6 +171,12 @@ export interface StaffShellContextValue {
    * bandeja. Sin él, la bandeja usa `refreshNotifications` (el mismo snapshot).
    */
   refreshPendientes?: () => StaffShellMutation;
+  /**
+   * Toma un pendiente del equipo (botón «Lo tomo»). Debe rechazar si no se
+   * pudo tomar. Al terminar bien, la bandeja llama `refreshPendientes`. Sin él,
+   * las filas del equipo sólo tienen «Abrir».
+   */
+  claimPendiente?: (id: string) => Promise<void>;
   signOut?: () => StaffShellMutation;
   /** Optional cross-app page index for the «Ir a» palette (`navigation="unified"`). */
   pages?: readonly StaffShellPage[];

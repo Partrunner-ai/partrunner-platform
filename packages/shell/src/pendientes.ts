@@ -109,6 +109,7 @@ export function normalizePendientes(
     items,
     href: value.href,
   };
+  if (isNonEmptyString(value.teamLabel) && value.teamLabel.trim().length <= 40) result.teamLabel = value.teamLabel.trim();
   if (value.byApp !== undefined) {
     const byApp = normalizeByApp(value.byApp);
     if (byApp) return { ...result, byApp };
