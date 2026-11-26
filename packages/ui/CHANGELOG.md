@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.4.4
+
+### Patch Changes
+
+- Pin the new `@partrunner-ai/shell` patch («Pendientes» tray buttons and counter colors). No change to the ui components.
+
 ## 2.4.3
 
 ### Patch Changes
