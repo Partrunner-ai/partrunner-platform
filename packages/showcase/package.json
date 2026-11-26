@@ -8,6 +8,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite --host 127.0.0.1 --port 4173",
+    "test": "node ../ui/scripts/build-recipes.mjs --check",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -9,8 +9,9 @@ document for the package you change.
 - Keep non-UI server and URL entries framework-free. Declare UI framework peers and isolate optional
   adapters behind subpaths. Support React 18 and 19 without assuming a Tailwind version.
 - Changing the meaning of a `--pr-*` variable is a major change. State it and write the migration note.
-- For UI composition, use `docs/crystal-guide.md` § 5b. Shared presentation belongs in
-  `@partrunner-ai/ui`; product state, routing, data access, and one-off layout remain in the app.
+- For UI composition, use `packages/ui/DESIGN.md` (method, recipes, job → component table,
+  checklist). Shared presentation belongs in `@partrunner-ai/ui`; product state, routing, data
+  access, and one-off layout remain in the app.
 
 ## Delivery and safety
 
