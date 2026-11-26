@@ -122,4 +122,33 @@ describe('ItemRow', () => {
     expect(ref.current?.id).toBe('r1');
     expect(ref.current?.className).toContain('extra');
   });
+
+  it('exposes data-tone only when a tone is set', () => {
+    const { container } = render(
+      <ItemList aria-label="x">
+        <ItemRow title="A" tone="danger" />
+        <ItemRow title="B" selected />
+        <ItemRow title="C" tone="info" selected />
+      </ItemList>,
+    );
+    const rows = container.querySelectorAll('li');
+    expect(rows[0]?.getAttribute('data-tone')).toBe('danger');
+    expect(rows[1]?.hasAttribute('data-tone')).toBe(false);
+    expect(rows[2]?.getAttribute('data-tone')).toBe('info');
+    expect(rows[2]?.hasAttribute('data-selected')).toBe(true);
+  });
+
+  it('renders the footer as a third line inside the one control', () => {
+    const { container, getAllByRole } = render(
+      <ItemList aria-label="x">
+        <ItemRow title="A" description="Hola" footer="En proceso · 1 chat" />
+        <ItemRow title="B" />
+      </ItemList>,
+    );
+    const footer = container.querySelector('.pr-item-row__footer');
+    expect(footer?.textContent).toBe('En proceso · 1 chat');
+    expect(footer?.closest('.pr-item-row__main')).not.toBeNull();
+    expect(container.querySelectorAll('.pr-item-row__footer')).toHaveLength(1);
+    expect(getAllByRole('button')).toHaveLength(2);
+  });
 });

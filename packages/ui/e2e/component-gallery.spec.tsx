@@ -55,6 +55,8 @@ const PUBLIC_VISUAL_SELECTORS = [
   '.pr-notice',
   '.pr-detail-list',
   '.pr-item-list',
+  '.pr-item-row',
+  '.pr-item-row__footer',
   '.pr-split-view',
   '.pr-stack',
   '.pr-stack--row',

@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from 'react';
 
+export type ItemRowTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+
 export type ItemListDensity = 'comfortable' | 'compact';
 
 export interface ItemListProps extends HTMLAttributes<HTMLUListElement> {
@@ -64,6 +66,17 @@ export interface ItemRowProps extends Omit<LiHTMLAttributes<HTMLLIElement>, 'tit
   trailing?: ReactNode;
   /** Marks the open record: `aria-current`, a soft tint and a start-edge accent. */
   selected?: boolean;
+  /**
+   * A 3 px accent bar on the start edge, in the tone colour. Colour is never the
+   * only signal: pair it with a `Badge` or text that says the same thing.
+   */
+  tone?: ItemRowTone;
+  /**
+   * A third line under the description, in the meta text style. One line with an
+   * ellipsis. It sits inside the row's one interactive element, so it must not
+   * hold links, buttons or other interactive children.
+   */
+  footer?: ReactNode;
   /** Bolder title and a small dot. */
   unread?: boolean;
   disabled?: boolean;
@@ -92,6 +105,8 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
     meta,
     leading,
     trailing,
+    tone,
+    footer,
     selected = false,
     unread = false,
     disabled = false,
@@ -124,6 +139,7 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
             {description}
           </span>
         ) : null}
+        {footer != null ? <span className="pr-item-row__footer">{footer}</span> : null}
       </span>
       {trailing != null ? <span className="pr-item-row__trailing">{trailing}</span> : null}
     </>
@@ -169,6 +185,7 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
       {...rest}
       data-slot="item-row"
       data-selected={selected ? '' : undefined}
+      data-tone={tone}
       data-unread={unread ? '' : undefined}
       data-disabled={disabled ? '' : undefined}
       className={['pr-item-row', className].filter(Boolean).join(' ')}

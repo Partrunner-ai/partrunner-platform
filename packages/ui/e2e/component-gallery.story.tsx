@@ -128,6 +128,7 @@ import {
   ItemList,
   ItemRow,
   Notice,
+  toneFromString,
   SplitView,
   Stack,
   type BadgeTone,
@@ -1466,6 +1467,49 @@ function PatternsDemo() {
         <Disclosure variant="card" title="Datos fiscales" trailing={<Badge tone="warning" size="sm">Pendiente</Badge>}>
           Falta la constancia de situación fiscal.
         </Disclosure>
+      </div>
+      <div data-testid="ticket-desk-demo" style={{ maxWidth: 420, border: '1px solid var(--pr-border)' }}>
+        <ItemList aria-label="Ejemplo de bandeja de tickets">
+          <ItemRow
+            tone="danger"
+            unread
+            leading={<Avatar name="Transportes Ruiz" tone={toneFromString('ruiz')} decorative />}
+            title="Transportes Ruiz"
+            trailing={<Badge tone="danger" size="sm">Antigüedad &gt;24 h</Badge>}
+            description={<><strong>Flota:</strong> ¿Cuándo pagan la semana 46?</>}
+            meta="hace 3 h"
+            footer="2 aclaraciones · 1 chat · Sin asignar"
+            onClick={() => {}}
+          />
+          <ItemRow
+            tone="warning"
+            unread
+            selected
+            leading={<Avatar name="Logística del Norte" tone={toneFromString('norte')} decorative />}
+            title="Logística del Norte"
+            trailing={<Badge tone="warning" size="sm">Responder en 12 min</Badge>}
+            description={<><strong>Flota:</strong> Adjunto la factura corregida.</>}
+            meta="hace 20 min"
+            footer="1 aclaración · Atiende Ana Ruiz"
+            onClick={() => {}}
+          />
+          <ItemRow
+            leading={<Avatar name="Fletes López" tone={toneFromString('lopez')} decorative />}
+            title="Fletes López"
+            description={<><strong>FDS:</strong> Ya revisamos el cargo.</>}
+            meta="ayer"
+            footer="En proceso · 1 aclaración · Atiende Ana Ruiz"
+            onClick={() => {}}
+          />
+          <ItemRow
+            leading={<Avatar name="Ruta Dorada" tone={toneFromString('dorada')} decorative />}
+            title="Ruta Dorada"
+            description={<><strong>Dalia:</strong> Te avisamos cuando Finanzas responda.</>}
+            meta="lun"
+            footer="Espera a la flota · 1 chat · Sin asignar"
+            onClick={() => {}}
+          />
+        </ItemList>
       </div>
       <SplitView
         style={{ height: 320 }}

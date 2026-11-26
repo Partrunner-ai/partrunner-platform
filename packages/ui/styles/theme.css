@@ -5352,6 +5352,26 @@ button.pr-stepper__dot:focus-visible {
 .pr-item-row[data-selected] .pr-item-row__main:focus-visible {
   box-shadow: inset 3px 0 0 var(--pr-accent), inset 0 0 0 2px var(--pr-accent);
 }
+/* Tone bar. A selected row keeps its tint and swaps the accent edge for the tone bar. */
+.pr-item-row[data-tone]::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--pr-item-tone);
+  pointer-events: none;
+  z-index: 1;
+}
+.pr-item-row[data-tone='neutral'] { --pr-item-tone: var(--pr-fg-muted); }
+.pr-item-row[data-tone='info'] { --pr-item-tone: var(--pr-info); }
+.pr-item-row[data-tone='success'] { --pr-item-tone: var(--pr-success); }
+.pr-item-row[data-tone='warning'] { --pr-item-tone: var(--pr-warning); }
+.pr-item-row[data-tone='danger'] { --pr-item-tone: var(--pr-danger); }
+.pr-item-row[data-selected][data-tone] .pr-item-row__main { box-shadow: none; }
+.pr-item-row[data-selected][data-tone] .pr-item-row__main:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--pr-accent);
+}
 .pr-item-row__main:disabled,
 .pr-item-row__main[aria-disabled='true'] {
   cursor: not-allowed;
@@ -5409,6 +5429,16 @@ button.pr-stepper__dot:focus-visible {
   min-width: 0;
   overflow: hidden;
   font-size: 13px;
+  line-height: 1.4;
+  color: var(--pr-fg-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pr-item-row__footer {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--pr-fg-muted);
   white-space: nowrap;

@@ -443,6 +443,7 @@ export {
   type ItemRowLinkComponent,
   type ItemRowLinkProps,
   type ItemRowProps,
+  type ItemRowTone,
 } from './ItemList';
 export {
   SplitView,
