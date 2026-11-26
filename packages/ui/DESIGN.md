@@ -110,12 +110,14 @@ person reads one record.
         {fleets.map((fleet) => (
           <ItemRow key={fleet.id} selected={fleet.id === openId}
             tone={fleet.urgency ?? undefined} unread={fleet.nextStep === 'reply'}
-            leading={<Avatar name={fleet.name} tone={toneFromString(fleet.id)} decorative />}
+            leading={<Avatar name={fleet.name} size="sm" tone={toneFromString(fleet.id)} decorative />}
             title={fleet.name}
-            trailing={fleet.urgency ? <Badge tone={fleet.urgency}>{fleet.signal}</Badge> : null}
             description={<><strong>{fleet.lastSpeaker}:</strong> {fleet.lastMessage}</>}
             meta={fleet.lastSeen}
-            footer="2 aclaraciones · 1 chat · Atiende Ana Ruiz"
+            footer={<>
+              {fleet.urgency ? <Badge tone={fleet.urgency} size="sm">{fleet.signal}</Badge> : null}
+              2 aclaraciones · 1 chat · Atiende Ana Ruiz
+            </>}
             href={`/bandeja?f=${fleet.id}`} LinkComponent={Link} />   {/* or onClick */}
         ))}
       </ItemList>
@@ -149,8 +151,9 @@ person reads one record.
   Use `onClick` only when the selection is local state.
 - An inbox for work is a ticket desk. Each row answers four questions: who (the `Avatar` and the
   title), what was said last and by whom (the description starts with the speaker: «Flota:»,
-  «FDS:», «Dalia:»), how long it waits (a `Badge` with a tone in `trailing`), and what is open
-  and who has it (the `footer`).
+  «FDS:», «Dalia:»), how long it waits (a `Badge` at the start of the `footer`), and what is open
+  and who has it (the text of the `footer`). The time of the last message is the `meta`. Do not
+  use `trailing` in a ticket desk: a badge there pushes the time and cuts the title.
 - Give each record one next step: ours to reply, ours to work, or theirs. Sort in that order.
   Urgency colour (`tone` on the row and on the badge) shows only when the next step is ours. A
   record that waits for the other side stays quiet.
@@ -332,8 +335,8 @@ Do not store class names in a map.
 - `TableFrame count` shows a number; `countLabel={(count) => `${count} planes`}` changes its text.
 - `SegmentedControl` is as wide as its options. Pass `fullWidth` only inside a narrow panel.
 - `ItemRow tone` marks urgency with an accent bar on the start edge; pair it with a `Badge`, so
-  colour is never the only signal. `ItemRow footer` is the third line; it takes text, not
-  buttons.
+  colour is never the only signal. `ItemRow footer` is the third line; it takes text and a
+  `Badge` at the start, not buttons or links.
 - Numbers: `numeric` on a table column, on `TableCell` / `TableHead`, and on `DetailItem`
   aligns to the end edge with tabular figures.
 

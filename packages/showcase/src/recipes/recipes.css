@@ -85,7 +85,7 @@
 
 /* A ticket desk uses the screen: the list pane grows with the window. */
 .pr-split-view.inbox-split {
-  height: max(520px, calc(100vh - 190px));
+  height: max(520px, calc(100vh - 176px));
 }
 .inbox-list-head {
   display: flex;

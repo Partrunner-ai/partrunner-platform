@@ -71,7 +71,7 @@ function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-/** Third line of a row: the state, what is open and who has it. */
+/** Text of the third line: the state, what is open and who has it. The urgency badge goes before it. */
 function rowFooter(fleet: InboxFleet): string {
   const parts: string[] = [];
   if (fleet.nextStep !== 'reply') parts.push(fleet.nextStep === 'work' ? 'En proceso' : 'Espera a la flota');
@@ -419,20 +419,22 @@ export function InboxRecipe({ state, onRetry }: RecipeProps) {
                   leading={<Avatar name={fleet.name} size="sm" tone={toneFromString(fleet.id)} decorative />}
                   title={fleet.name}
                   unread={fleet.nextStep === 'reply'}
-                  trailing={
-                    fleet.urgency && fleet.signal ? (
-                      <Badge tone={fleet.urgency} size="sm">
-                        {fleet.signal}
-                      </Badge>
-                    ) : undefined
-                  }
                   description={
                     <>
                       <strong>{fleet.lastSpeaker}:</strong> {fleet.lastMessage}
                     </>
                   }
                   meta={fleet.lastSeen}
-                  footer={rowFooter(fleet)}
+                  footer={
+                    <>
+                      {fleet.urgency && fleet.signal ? (
+                        <Badge tone={fleet.urgency} size="sm">
+                          {fleet.signal}
+                        </Badge>
+                      ) : null}
+                      {rowFooter(fleet)}
+                    </>
+                  }
                   selected={fleet.id === selectedId}
                   onClick={() => setSelectedId(fleet.id)}
                 />
