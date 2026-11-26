@@ -69,7 +69,7 @@ export const PLACEMENTS: Placement[] = [
 export interface ChatMessage {
   kind: 'message';
   id: string;
-  /** `bot` is the assistant (Dalia). It never looks like a person. */
+  /** `bot` is the assistant. It never looks like a person. */
   from: 'fleet' | 'team' | 'bot';
   author: string;
   text: string;
@@ -99,7 +99,7 @@ export interface FleetCase {
 
 /** Who must move next: we reply, we work the record, or the fleet answers. */
 export type NextStep = 'reply' | 'work' | 'fleet';
-export type Speaker = 'Flota' | 'FDS' | 'Dalia';
+export type Speaker = 'Flota' | 'Soporte' | 'Asistente';
 
 export interface InboxFleet {
   id: string;
@@ -143,7 +143,7 @@ export const INBOX_FLEETS: InboxFleet[] = [
       msg('m2', 'team', MARIANA, 'Puedes subirla en el portal, en la sección de documentos.', '24 nov, 09:15'),
       msg('m3', 'fleet', 'Roberto Aguilar', 'Buen día. La actualizamos ayer en el portal, ¿se ve ya?', '24 nov, 10:02'),
       { kind: 'event', id: 'e1', label: 'Aclaración abierta', caseTitle: 'Pago retenido semana 47', time: '10:05' },
-      msg('m4', 'bot', 'Dalia', 'Abrí una aclaración con Finanzas para revisar tu constancia. Te aviso aquí cuando haya respuesta.', '24 nov, 10:06'),
+      msg('m4', 'bot', 'Asistente', 'Abrí una aclaración con Finanzas para revisar tu constancia. Te aviso aquí cuando haya respuesta.', '24 nov, 10:06'),
       msg('m5', 'team', MARIANA, 'Todavía aparece la de octubre. Súbela otra vez en formato PDF, por favor.', '24 nov, 10:20'),
       msg('m6', 'fleet', 'Roberto Aguilar', 'Ya subimos la constancia de situación fiscal, ¿pueden revisarla?', '24 nov, 11:48'),
     ],
@@ -174,7 +174,7 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f03', name: 'Fletes Sierra Madre', rfc: 'FSM190305QZ1', city: 'Saltillo, COA',
     lastMessage: 'Estamos revisando el desglose de cargos con Finanzas.', lastSeen: 'hace 3 h',
-    nextStep: 'work', lastSpeaker: 'FDS', urgency: null, signal: null,
+    nextStep: 'work', lastSpeaker: 'Soporte', urgency: null, signal: null,
     openCases: 1, openChats: 1, owner: 'Mariana Lozano',
     messages: [
       msg('m1', 'fleet', 'Ernesto Sierra', '¿Nos pueden explicar los cargos de la semana 46?', '24 nov, 07:30'),
@@ -186,11 +186,11 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f05', name: 'Distribuidora Valle Azul', rfc: 'DVA210114TN2', city: 'Puebla, PUE',
     lastMessage: 'Ya avisé a Finanzas. Te confirmo el saldo el jueves.', lastSeen: 'ayer',
-    nextStep: 'work', lastSpeaker: 'Dalia', urgency: null, signal: null,
+    nextStep: 'work', lastSpeaker: 'Asistente', urgency: null, signal: null,
     openCases: 0, openChats: 1, owner: 'Diego Salas',
     messages: [
       msg('m1', 'fleet', 'Andrés Valle', '¿Pueden revisar mi saldo a cargo?', '23 nov, 17:12'),
-      msg('m2', 'bot', 'Dalia', 'Ya avisé a Finanzas. Te confirmo el saldo el jueves.', '23 nov, 17:13'),
+      msg('m2', 'bot', 'Asistente', 'Ya avisé a Finanzas. Te confirmo el saldo el jueves.', '23 nov, 17:13'),
     ],
     cases: [], profile: { regime: '601 General de ley', units: 7, balance: 12400, since: '2025-08-18', contact: 'Andrés Valle', phone: '222 555 0125' },
   },
@@ -205,7 +205,7 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f07', name: 'Carga Ligera del Bajío', rfc: 'CLB190611JU8', city: 'Celaya, GTO',
     lastMessage: 'Te confirmamos el pago en cuanto Finanzas lo libere.', lastSeen: 'hace 2 d',
-    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Soporte', urgency: null, signal: null,
     openCases: 0, openChats: 1, owner: 'Ana Ruiz',
     messages: [msg('m1', 'team', MARIANA, 'Te confirmamos el pago en cuanto Finanzas lo libere.', '22 nov, 12:20')],
     cases: [], profile: { regime: '626 RESICO', units: 5, balance: 0, since: '2025-10-01', contact: 'Tomás Ledesma', phone: '461 555 0191' },
@@ -213,7 +213,7 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f08', name: 'Transportes Montes y Hnos.', rfc: 'TMH150204AB7', city: 'Toluca, MEX',
     lastMessage: 'Corrige el RFC en el portal y avísanos.', lastSeen: 'hace 2 d',
-    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Soporte', urgency: null, signal: null,
     openCases: 1, openChats: 1, owner: 'Diego Salas',
     messages: [msg('m1', 'team', MARIANA, 'Corrige el RFC en el portal y avísanos.', '22 nov, 09:05')],
     cases: [{ id: 'a1', title: 'RFC con error', reason: 'El RFC del portal no coincide con la constancia', amount: 0, opened: '2026-11-22', owner: 'Diego Salas', status: 'open' }],
@@ -222,15 +222,15 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f09', name: 'Fletes Rápidos del Pacífico', rfc: 'FRP180925MC5', city: 'Mazatlán, SIN',
     lastMessage: 'El pago de la semana 46 cae el jueves.', lastSeen: 'hace 3 d',
-    nextStep: 'fleet', lastSpeaker: 'Dalia', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Asistente', urgency: null, signal: null,
     openCases: 0, openChats: 1, owner: null,
-    messages: [msg('m1', 'bot', 'Dalia', 'El pago de la semana 46 cae el jueves.', '21 nov, 18:44')],
+    messages: [msg('m1', 'bot', 'Asistente', 'El pago de la semana 46 cae el jueves.', '21 nov, 18:44')],
     cases: [], profile: { regime: '601 General de ley', units: 8, balance: 0, since: '2025-04-22', contact: 'Valeria Ochoa', phone: '669 555 0107' },
   },
   {
     id: 'f10', name: 'Grupo Logístico Mezquital', rfc: 'GLM200302PX0', city: 'Durango, DGO',
     lastMessage: 'Te avisamos del cambio de horario de la ruta.', lastSeen: 'hace 3 d',
-    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Soporte', urgency: null, signal: null,
     openCases: 0, openChats: 1, owner: 'Ana Ruiz',
     messages: [msg('m1', 'team', MARIANA, 'Te avisamos del cambio de horario de la ruta.', '21 nov, 11:15')],
     cases: [], profile: { regime: '626 RESICO', units: 6, balance: 0, since: '2025-07-14', contact: 'Iván Mezquital', phone: '618 555 0152' },
@@ -238,7 +238,7 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f11', name: 'Camiones del Altiplano', rfc: 'CAL140516RE3', city: 'San Luis Potosí, SLP',
     lastMessage: 'Manda las placas nuevas por correo, por favor.', lastSeen: 'hace 4 d',
-    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Soporte', urgency: null, signal: null,
     openCases: 1, openChats: 1, owner: 'Diego Salas',
     messages: [msg('m1', 'team', MARIANA, 'Manda las placas nuevas por correo, por favor.', '20 nov, 16:02')],
     cases: [{ id: 'a1', title: 'Cambio de placas', reason: 'Falta registrar las placas nuevas de dos unidades', amount: 0, opened: '2026-11-20', owner: 'Diego Salas', status: 'open' }],
@@ -247,15 +247,15 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f12', name: 'Mudanzas y Fletes Zaragoza', rfc: 'MFZ170419QH6', city: 'Veracruz, VER',
     lastMessage: 'Te enviamos el convenio para firma.', lastSeen: 'hace 5 d',
-    nextStep: 'fleet', lastSpeaker: 'Dalia', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Asistente', urgency: null, signal: null,
     openCases: 0, openChats: 1, owner: null,
-    messages: [msg('m1', 'bot', 'Dalia', 'Te enviamos el convenio para firma.', '19 nov, 13:30')],
+    messages: [msg('m1', 'bot', 'Asistente', 'Te enviamos el convenio para firma.', '19 nov, 13:30')],
     cases: [], profile: { regime: '626 RESICO', units: 4, balance: 0, since: '2025-09-02', contact: 'Paola Zaragoza', phone: '229 555 0113' },
   },
   {
     id: 'f13', name: 'Transportes Hidalgo Express', rfc: 'THE190827SL1', city: 'Pachuca, HGO',
     lastMessage: 'Necesitamos los datos de la cuenta nueva.', lastSeen: 'hace 6 d',
-    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Soporte', urgency: null, signal: null,
     openCases: 0, openChats: 1, owner: 'Ana Ruiz',
     messages: [msg('m1', 'team', MARIANA, 'Necesitamos los datos de la cuenta nueva.', '18 nov, 10:10')],
     cases: [], profile: { regime: '601 General de ley', units: 10, balance: 0, since: '2025-01-30', contact: 'Ricardo Hidalgo', phone: '771 555 0146' },
@@ -263,7 +263,7 @@ export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f14', name: 'Fletes y Mensajería Tamaulipas', rfc: 'FMT210708VD9', city: 'Reynosa, TAM',
     lastMessage: 'Quedó aclarado el cargo. Avísanos si hay dudas.', lastSeen: '17 nov 2026',
-    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    nextStep: 'fleet', lastSpeaker: 'Soporte', urgency: null, signal: null,
     openCases: 0, openChats: 1, owner: null,
     messages: [msg('m1', 'team', MARIANA, 'Quedó aclarado el cargo. Avísanos si hay dudas.', '17 nov, 14:25')],
     cases: [], profile: { regime: '626 RESICO', units: 3, balance: 0, since: '2026-01-19', contact: 'Diana Cantú', phone: '899 555 0121' },

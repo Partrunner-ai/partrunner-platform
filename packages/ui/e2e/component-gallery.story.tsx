@@ -1494,7 +1494,7 @@ function PatternsDemo() {
           <ItemRow
             leading={<Avatar name="Fletes López" tone={toneFromString('lopez')} decorative />}
             title="Fletes López"
-            description={<><strong>FDS:</strong> Ya revisamos el cargo.</>}
+            description={<><strong>Soporte:</strong> Ya revisamos el cargo.</>}
             meta="ayer"
             footer="En proceso · 1 aclaración · Atiende Ana Ruiz"
             onClick={() => {}}
@@ -1502,7 +1502,7 @@ function PatternsDemo() {
           <ItemRow
             leading={<Avatar name="Ruta Dorada" tone={toneFromString('dorada')} decorative />}
             title="Ruta Dorada"
-            description={<><strong>Dalia:</strong> Te avisamos cuando Finanzas responda.</>}
+            description={<><strong>Asistente:</strong> Te avisamos cuando Finanzas responda.</>}
             meta="lun"
             footer="Espera a la flota · 1 chat · Sin asignar"
             onClick={() => {}}
