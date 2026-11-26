@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.4.5
+
+### Patch Changes
+
+- Pin `@partrunner-ai/shell` 2.10.2 (first button of each «Pendientes» section is primary). No change to the ui components.
+
 ## 2.4.4
 
 ### Patch Changes
