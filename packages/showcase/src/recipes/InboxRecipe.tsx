@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { MessageSquare, Send } from 'lucide-react';
+import { FileText, MessageSquare, Send } from 'lucide-react';
 import {
   Avatar,
   Badge,
@@ -7,15 +7,17 @@ import {
   DetailItem,
   DetailList,
   EmptyState,
+  FilterChip,
+  FilterChipRow,
   Input,
   ItemList,
   ItemRow,
+  MultiSelect,
   Page,
   PageHeader,
   PageSkeleton,
   SearchField,
   SectionHeading,
-  SegmentedControl,
   Separator,
   Stack,
   SplitView,
@@ -23,14 +25,74 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Toolbar,
+  ToolbarSpacer,
+  toneFromString,
 } from '@partrunner-ai/ui';
-import { INBOX_FLEETS, formatDate, formatMoney, type InboxFleet } from './fixtures';
+import {
+  INBOX_FLEETS,
+  INBOX_PEOPLE,
+  formatDate,
+  formatMoney,
+  type ChatItem,
+  type ChatMessage,
+  type InboxFleet,
+  type NextStep,
+} from './fixtures';
 import { ErrorNotice, ForbiddenState, NoResults, type RecipeProps } from './states';
 
-type Filter = 'all' | 'unread';
+type View = 'all' | NextStep | 'overdue';
+
+const STEP_ORDER: Record<NextStep, number> = { reply: 0, work: 1, fleet: 2 };
+const STATE_LABEL: Record<NextStep, string> = {
+  reply: 'Espera respuesta',
+  work: 'En proceso',
+  fleet: 'Espera a la flota',
+};
+
+function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** Third line of a row: the state, what is open and who has it. */
+function rowFooter(fleet: InboxFleet): string {
+  const parts: string[] = [];
+  if (fleet.nextStep !== 'reply') parts.push(fleet.nextStep === 'work' ? 'En proceso' : 'Espera a la flota');
+  if (fleet.openCases > 0) parts.push(plural(fleet.openCases, 'aclaración', 'aclaraciones'));
+  if (fleet.openChats > 0) parts.push(plural(fleet.openChats, 'chat', 'chats'));
+  parts.push(fleet.owner ? `Atiende ${fleet.owner}` : 'Sin asignar');
+  return parts.join(' · ');
+}
 
 function isWide(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(min-width: 900px)').matches;
+}
+
+interface ThreadGroup {
+  key: string;
+  from: ChatMessage['from'];
+  author: string;
+  messages: ChatMessage[];
+}
+
+type ThreadBlock = { type: 'group'; group: ThreadGroup } | { type: 'event'; item: Extract<ChatItem, { kind: 'event' }> };
+
+/** One group for each run of consecutive messages of one author. */
+function toBlocks(items: ChatItem[]): ThreadBlock[] {
+  const blocks: ThreadBlock[] = [];
+  for (const item of items) {
+    if (item.kind === 'event') {
+      blocks.push({ type: 'event', item });
+      continue;
+    }
+    const last = blocks[blocks.length - 1];
+    if (last?.type === 'group' && last.group.author === item.author) {
+      last.group.messages.push(item);
+    } else {
+      blocks.push({ type: 'group', group: { key: item.id, from: item.from, author: item.author, messages: [item] } });
+    }
+  }
+  return blocks;
 }
 
 function Conversation({ fleet }: { fleet: InboxFleet }) {
@@ -38,17 +100,32 @@ function Conversation({ fleet }: { fleet: InboxFleet }) {
   return (
     <Stack>
       <div className="chat" role="log" aria-label={`Conversación con ${fleet.name}`}>
-        {fleet.messages.map((message) => (
-          <div
-            key={message.id}
-            className={`chat__bubble${message.from === 'team' ? ' chat__bubble--team' : ''}`}
-          >
-            {message.text}
-            <span className="chat__meta">
-              {message.author} · {message.time}
-            </span>
-          </div>
-        ))}
+        {toBlocks(fleet.messages).map((block) =>
+          block.type === 'event' ? (
+            <div key={block.item.id} className="chat__event">
+              <Badge tone="info" icon={FileText}>
+                {block.item.label}
+              </Badge>
+              <Button variant="link" size="sm">
+                {block.item.caseTitle}
+              </Button>
+              <span className="chat__event-time">{block.item.time}</span>
+            </div>
+          ) : (
+            <div key={block.group.key} className={`chat__group chat__group--${block.group.from}`}>
+              <div className="chat__author">
+                <Avatar name={block.group.author} size="sm" tone={toneFromString(block.group.author)} decorative />
+                <span>{block.group.author}</span>
+              </div>
+              {block.group.messages.map((message) => (
+                <div key={message.id} className={`chat__bubble chat__bubble--${message.from}`}>
+                  {message.text}
+                  <span className="chat__meta">{message.time}</span>
+                </div>
+              ))}
+            </div>
+          ),
+        )}
       </div>
       <Separator />
       <form
@@ -137,7 +214,14 @@ function FleetDetail({ fleet }: { fleet: InboxFleet }) {
   return (
     <Stack>
       <SectionHeading
-        title={fleet.name}
+        title={
+          <>
+            {fleet.name}{' '}
+            <Badge tone={fleet.nextStep === 'reply' ? (fleet.urgency ?? 'warning') : 'neutral'}>
+              {STATE_LABEL[fleet.nextStep]}
+            </Badge>
+          </>
+        }
         description={`${fleet.rfc} · ${fleet.city}`}
         actions={
           <>
@@ -170,9 +254,10 @@ function FleetDetail({ fleet }: { fleet: InboxFleet }) {
   );
 }
 
-/** Recipe 2.3 · Inbox: SplitView with a list and a detail pane. */
+/** Recipe 2.3 · Inbox: a ticket desk. Toolbar with filters above a SplitView. */
 export function InboxRecipe({ state, onRetry }: RecipeProps) {
-  const [filter, setFilter] = useState<Filter>('all');
+  const [view, setView] = useState<View>('all');
+  const [people, setPeople] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(() =>
     isWide() ? (INBOX_FLEETS[0]?.id ?? null) : null,
@@ -180,14 +265,37 @@ export function InboxRecipe({ state, onRetry }: RecipeProps) {
 
   const header = <PageHeader title="Bandeja de flotas" subtitle="Mensajes y aclaraciones que esperan al equipo." />;
 
+  const all = useMemo(
+    () =>
+      state === 'empty'
+        ? []
+        : [...INBOX_FLEETS].sort((a, b) => STEP_ORDER[a.nextStep] - STEP_ORDER[b.nextStep]),
+    [state],
+  );
+  const counts = useMemo(
+    () => ({
+      all: all.length,
+      reply: all.filter((fleet) => fleet.nextStep === 'reply').length,
+      work: all.filter((fleet) => fleet.nextStep === 'work').length,
+      fleet: all.filter((fleet) => fleet.nextStep === 'fleet').length,
+      overdue: all.filter((fleet) => fleet.urgency === 'danger').length,
+    }),
+    [all],
+  );
   const fleets = useMemo(() => {
-    if (state === 'empty') return [];
     const needle = query.trim().toLowerCase();
-    return INBOX_FLEETS.filter((fleet) => {
-      if (filter === 'unread' && fleet.unread === 0) return false;
+    return all.filter((fleet) => {
+      if (view === 'overdue' ? fleet.urgency !== 'danger' : view !== 'all' && fleet.nextStep !== view) return false;
+      if (people.length > 0 && !(fleet.owner && people.includes(fleet.owner))) return false;
       return !needle || fleet.name.toLowerCase().includes(needle) || fleet.rfc.toLowerCase().includes(needle);
-    }).sort((a, b) => Number(b.unread > 0) - Number(a.unread > 0));
-  }, [filter, query, state]);
+    });
+  }, [all, view, people, query]);
+  const filtered = view !== 'all' || people.length > 0 || query.trim() !== '';
+  const clearFilters = () => {
+    setView('all');
+    setPeople([]);
+    setQuery('');
+  };
 
   if (state === 'forbidden') {
     return (
@@ -205,64 +313,109 @@ export function InboxRecipe({ state, onRetry }: RecipeProps) {
     );
   }
 
-  const unreadTotal = INBOX_FLEETS.reduce((sum, fleet) => sum + (fleet.unread > 0 ? 1 : 0), 0);
   const selected = fleets.find((fleet) => fleet.id === selectedId) ?? null;
+  const chips: Array<{ value: View; label: string; tone?: 'danger' }> = [
+    { value: 'all', label: 'Todas' },
+    { value: 'reply', label: 'Esperan respuesta' },
+    { value: 'work', label: 'En proceso' },
+    { value: 'fleet', label: 'Esperan a la flota' },
+    { value: 'overdue', label: 'Vencidas', tone: 'danger' },
+  ];
 
   return (
     <Page width="wide">
-      <PageHeader
-        title="Bandeja de flotas"
-        subtitle="Mensajes y aclaraciones que esperan al equipo."
-        actions={
-          <SegmentedControl<Filter>
-            aria-label="Vista"
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: 'all', label: 'Todas' },
-              { value: 'unread', label: 'Sin leer', count: state === 'empty' ? 0 : unreadTotal },
-            ]}
-          />
-        }
-      />
+      {header}
       {state === 'error' ? <ErrorNotice what="la bandeja" onRetry={onRetry} /> : null}
+      <Toolbar>
+        <FilterChipRow aria-label="Vista">
+          {chips.map((chip) => (
+            <FilterChip
+              key={chip.value}
+              active={view === chip.value}
+              count={counts[chip.value]}
+              tone={chip.tone}
+              dot={chip.tone != null}
+              onClick={() => setView(chip.value)}
+            >
+              {chip.label}
+            </FilterChip>
+          ))}
+        </FilterChipRow>
+        <ToolbarSpacer />
+        <MultiSelect
+          variant="filter"
+          aria-label="Atiende"
+          placeholder="Atiende"
+          options={INBOX_PEOPLE.map((person) => ({ value: person, label: person }))}
+          value={people}
+          onChange={setPeople}
+        />
+      </Toolbar>
       <SplitView
+        className="inbox-split"
+        listWidth="lg"
         listLabel="Conversaciones"
         detailLabel="Detalle de la flota"
         detailOpen={selected !== null}
         onBack={() => setSelectedId(null)}
         backLabel="Volver a la bandeja"
         listHeader={
-          <SearchField
-            fullWidth
-            aria-label="Buscar flota"
-            placeholder="Buscar flota o RFC"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          <div className="inbox-list-head">
+            <SearchField
+              fullWidth
+              aria-label="Buscar flota"
+              placeholder="Buscar flota o RFC"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <SectionHeading
+              headingLevel={3}
+              title={
+                filtered
+                  ? `${fleets.length} de ${counts.all} flotas`
+                  : plural(counts.all, 'flota', 'flotas')
+              }
+            />
+          </div>
         }
         list={
           fleets.length === 0 ? (
-            <NoResults
-              title={state === 'empty' ? 'La bandeja está al día' : 'Ninguna flota coincide'}
-              description={
-                state === 'empty'
-                  ? 'No hay conversaciones abiertas con flotas.'
-                  : 'Prueba con otro nombre o RFC.'
-              }
-            />
+            state === 'empty' ? (
+              <NoResults title="La bandeja está al día" description="No hay conversaciones abiertas con flotas." />
+            ) : (
+              <EmptyState
+                title="Ninguna flota con este filtro"
+                description="Prueba con otro filtro o con otro nombre."
+                action={
+                  <Button variant="secondary" size="sm" onClick={clearFilters}>
+                    Quitar filtros
+                  </Button>
+                }
+              />
+            )
           ) : (
-            <ItemList aria-label="Flotas">
+            <ItemList aria-label="Flotas" density="compact">
               {fleets.map((fleet) => (
                 <ItemRow
                   key={fleet.id}
+                  tone={fleet.urgency ?? undefined}
+                  leading={<Avatar name={fleet.name} size="sm" tone={toneFromString(fleet.id)} decorative />}
                   title={fleet.name}
-                  description={fleet.lastMessage}
-                  descriptionLines={2}
+                  unread={fleet.nextStep === 'reply'}
+                  trailing={
+                    fleet.urgency && fleet.signal ? (
+                      <Badge tone={fleet.urgency} size="sm">
+                        {fleet.signal}
+                      </Badge>
+                    ) : undefined
+                  }
+                  description={
+                    <>
+                      <strong>{fleet.lastSpeaker}:</strong> {fleet.lastMessage}
+                    </>
+                  }
                   meta={fleet.lastSeen}
-                  leading={<Avatar name={fleet.name} size="sm" />}
-                  trailing={fleet.unread > 0 ? <Badge tone="neutral">{fleet.unread}</Badge> : undefined}
-                  unread={fleet.unread > 0}
+                  footer={rowFooter(fleet)}
                   selected={fleet.id === selectedId}
                   onClick={() => setSelectedId(fleet.id)}
                 />

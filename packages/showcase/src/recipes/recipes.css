@@ -25,12 +25,28 @@
 .chat {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   padding: 4px 0;
 }
-.chat__bubble {
-  align-self: flex-start;
+.chat__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
   max-width: 78%;
+}
+.chat__group--team,
+.chat__group--bot {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.chat__author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pr-fg-muted);
+}
+.chat__bubble {
   padding: 8px 12px;
   border: 1px solid var(--pr-border);
   border-radius: var(--pr-radius-lg);
@@ -38,15 +54,49 @@
   color: var(--pr-fg);
 }
 .chat__bubble--team {
-  align-self: flex-end;
   border-color: transparent;
   background: var(--pr-tone-yellow-bg);
+}
+.chat__bubble--bot {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--pr-info) 12%, transparent);
 }
 .chat__meta {
   display: block;
   margin-top: 4px;
   color: var(--pr-fg-muted);
 }
+.chat__event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pr-fg-muted);
+}
+.chat__event::before,
+.chat__event::after {
+  content: '';
+  flex: 1 1 0;
+  height: 1px;
+  background: var(--pr-border);
+}
 @media (max-width: 640px) {
-  .chat__bubble { max-width: 92%; }
+  .chat__group { max-width: 92%; }
+}
+
+/* A ticket desk uses the screen: the list pane grows with the window. */
+.pr-split-view.inbox-split {
+  height: max(520px, calc(100vh - 190px));
+}
+.inbox-list-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.inbox-list-head > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.inbox-list-head .pr-section-heading {
+  flex: none;
+  white-space: nowrap;
 }

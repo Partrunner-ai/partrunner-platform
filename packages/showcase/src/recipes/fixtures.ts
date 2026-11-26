@@ -67,12 +67,25 @@ export const PLACEMENTS: Placement[] = [
 // ------------------------------------------------------------------ Bandeja
 
 export interface ChatMessage {
+  kind: 'message';
   id: string;
-  from: 'fleet' | 'team';
+  /** `bot` is the assistant (Dalia). It never looks like a person. */
+  from: 'fleet' | 'team' | 'bot';
   author: string;
   text: string;
   time: string;
 }
+
+/** A case event inside the thread. It is a centred line, not a bubble. */
+export interface ChatEvent {
+  kind: 'event';
+  id: string;
+  label: string;
+  caseTitle: string;
+  time: string;
+}
+
+export type ChatItem = ChatMessage | ChatEvent;
 
 export interface FleetCase {
   id: string;
@@ -84,6 +97,10 @@ export interface FleetCase {
   status: 'open' | 'answered';
 }
 
+/** Who must move next: we reply, we work the record, or the fleet answers. */
+export type NextStep = 'reply' | 'work' | 'fleet';
+export type Speaker = 'Flota' | 'FDS' | 'Dalia';
+
 export interface InboxFleet {
   id: string;
   name: string;
@@ -91,116 +108,164 @@ export interface InboxFleet {
   city: string;
   lastMessage: string;
   lastSeen: string;
-  unread: number;
-  messages: ChatMessage[];
+  nextStep: NextStep;
+  lastSpeaker: Speaker;
+  /** Urgency shows only when the next step is ours. Null when it is `fleet`. */
+  urgency: 'danger' | 'warning' | null;
+  signal: string | null;
+  openCases: number;
+  openChats: number;
+  owner: string | null;
+  messages: ChatItem[];
   cases: FleetCase[];
   profile: { regime: string; units: number; balance: number; since: string; contact: string; phone: string };
 }
 
-const MARIANA = 'Mariana (Finanzas)';
+export const INBOX_PEOPLE = ['Ana Ruiz', 'Mariana Lozano', 'Diego Salas'];
+
+const MARIANA = 'Mariana Lozano';
+const msg = (
+  id: string,
+  from: ChatMessage['from'],
+  author: string,
+  text: string,
+  time: string,
+): ChatMessage => ({ kind: 'message', id, from, author, text, time });
 
 export const INBOX_FLEETS: InboxFleet[] = [
   {
     id: 'f01', name: 'Transportes Aguilar del Norte', rfc: 'TAN180412KP3', city: 'Monterrey, NL',
-    lastMessage: 'Ya subimos la constancia de situación fiscal, ¿pueden revisarla?', lastSeen: 'hace 12 min', unread: 2,
+    lastMessage: 'Ya subimos la constancia de situación fiscal, ¿pueden revisarla?', lastSeen: 'hace 12 min',
+    nextStep: 'reply', lastSpeaker: 'Flota', urgency: 'danger', signal: 'Antigüedad >24 h',
+    openCases: 2, openChats: 1, owner: 'Mariana Lozano',
     messages: [
-      { id: 'm1', from: 'team', author: MARIANA, text: 'Hola, el pago de esta semana quedó retenido porque falta la constancia de situación fiscal vigente.', time: '24 nov 2026, 09:14' },
-      { id: 'm2', from: 'fleet', author: 'Roberto Aguilar', text: 'Buen día. La actualizamos ayer en el portal, ¿se ve ya?', time: '24 nov 2026, 10:02' },
-      { id: 'm3', from: 'team', author: MARIANA, text: 'Todavía aparece la de octubre. Súbela otra vez en formato PDF, por favor.', time: '24 nov 2026, 10:20' },
-      { id: 'm4', from: 'fleet', author: 'Roberto Aguilar', text: 'Ya subimos la constancia de situación fiscal, ¿pueden revisarla?', time: '24 nov 2026, 11:48' },
+      msg('m1', 'team', MARIANA, 'Hola, el pago de esta semana quedó retenido porque falta la constancia de situación fiscal vigente.', '24 nov 2026, 09:14'),
+      msg('m2', 'team', MARIANA, 'Puedes subirla en el portal, en la sección de documentos.', '24 nov 2026, 09:15'),
+      msg('m3', 'fleet', 'Roberto Aguilar', 'Buen día. La actualizamos ayer en el portal, ¿se ve ya?', '24 nov 2026, 10:02'),
+      { kind: 'event', id: 'e1', label: 'Aclaración abierta', caseTitle: 'Pago retenido semana 47', time: '10:05' },
+      msg('m4', 'bot', 'Dalia', 'Abrí una aclaración con Finanzas para revisar tu constancia. Te aviso aquí cuando haya respuesta.', '24 nov 2026, 10:06'),
+      msg('m5', 'team', MARIANA, 'Todavía aparece la de octubre. Súbela otra vez en formato PDF, por favor.', '24 nov 2026, 10:20'),
+      msg('m6', 'fleet', 'Roberto Aguilar', 'Ya subimos la constancia de situación fiscal, ¿pueden revisarla?', '24 nov 2026, 11:48'),
     ],
     cases: [
       { id: 'a1', title: 'Pago retenido semana 47', reason: 'Falta constancia de situación fiscal vigente', amount: 86400, opened: '2026-11-24', owner: 'Mariana Lozano', status: 'open' },
-      { id: 'a2', title: 'Descuento por siniestro', reason: 'La flota pide revisar el monto del deducible', amount: 4200, opened: '2026-11-17', owner: 'Mariana Lozano', status: 'answered' },
+      { id: 'a2', title: 'Descuento por siniestro', reason: 'La flota pide revisar el monto del deducible', amount: 4200, opened: '2026-11-17', owner: 'Mariana Lozano', status: 'open' },
     ],
     profile: { regime: '601 General de ley', units: 18, balance: 86400, since: '2025-02-10', contact: 'Roberto Aguilar', phone: '81 5550 0142' },
   },
   {
     id: 'f02', name: 'Logística Cumbres', rfc: 'LCU200918HM6', city: 'Querétaro, QRO',
-    lastMessage: 'Necesitamos mover la fecha del primer cobro del plan.', lastSeen: 'hace 1 h', unread: 1,
-    messages: [
-      { id: 'm1', from: 'fleet', author: 'Sofía Cumbres', text: 'Necesitamos mover la fecha del primer cobro del plan.', time: '24 nov 2026, 10:41' },
-    ],
+    lastMessage: 'Necesitamos mover la fecha del primer cobro del plan.', lastSeen: 'hace 1 h',
+    nextStep: 'reply', lastSpeaker: 'Flota', urgency: 'danger', signal: 'Vencida hace 2 h',
+    openCases: 1, openChats: 1, owner: null,
+    messages: [msg('m1', 'fleet', 'Sofía Cumbres', 'Necesitamos mover la fecha del primer cobro del plan.', '24 nov 2026, 10:41')],
     cases: [{ id: 'a1', title: 'Cambio de fecha de plan', reason: 'Pide mover el primer cobro al 7 dic 2026', amount: 18000, opened: '2026-11-24', owner: 'Sin asignar', status: 'open' }],
     profile: { regime: '601 General de ley', units: 9, balance: 18000, since: '2025-06-03', contact: 'Sofía Cumbres', phone: '442 555 0178' },
   },
   {
-    id: 'f03', name: 'Fletes Sierra Madre', rfc: 'FSM190305QZ1', city: 'Saltillo, COA',
-    lastMessage: 'Gracias, ya vimos el desglose de cargos.', lastSeen: 'hace 3 h', unread: 0,
-    messages: [
-      { id: 'm1', from: 'team', author: MARIANA, text: 'Te comparto el desglose de cargos de la semana 46.', time: '24 nov 2026, 07:30' },
-      { id: 'm2', from: 'fleet', author: 'Ernesto Sierra', text: 'Gracias, ya vimos el desglose de cargos.', time: '24 nov 2026, 08:05' },
-    ],
-    cases: [],
-    profile: { regime: '626 RESICO', units: 12, balance: 0, since: '2025-03-21', contact: 'Ernesto Sierra', phone: '844 555 0119' },
-  },
-  {
     id: 'f04', name: 'Ruta Dorada', rfc: 'RDO170722LB9', city: 'Guadalajara, JAL',
-    lastMessage: 'Nos faltó una unidad en la ruta del lunes, avisamos con tiempo.', lastSeen: 'hace 5 h', unread: 1,
-    messages: [
-      { id: 'm1', from: 'fleet', author: 'Camila Dorada', text: 'Nos faltó una unidad en la ruta del lunes, avisamos con tiempo.', time: '24 nov 2026, 06:50' },
-    ],
-    cases: [{ id: 'a1', title: 'Cargo por ruta no cubierta', reason: 'La flota avisó la baja antes de las 18:00', amount: 3500, opened: '2026-11-23', owner: 'Mariana Lozano', status: 'open' }],
+    lastMessage: 'Nos faltó una unidad en la ruta del lunes, avisamos con tiempo.', lastSeen: 'hace 5 h',
+    nextStep: 'reply', lastSpeaker: 'Flota', urgency: 'warning', signal: 'Responder en 12 min',
+    openCases: 1, openChats: 1, owner: 'Ana Ruiz',
+    messages: [msg('m1', 'fleet', 'Camila Dorada', 'Nos faltó una unidad en la ruta del lunes, avisamos con tiempo.', '24 nov 2026, 06:50')],
+    cases: [{ id: 'a1', title: 'Cargo por ruta no cubierta', reason: 'La flota avisó la baja antes de las 18:00', amount: 3500, opened: '2026-11-23', owner: 'Ana Ruiz', status: 'open' }],
     profile: { regime: '601 General de ley', units: 22, balance: 3500, since: '2024-11-05', contact: 'Camila Dorada', phone: '33 5550 0163' },
   },
   {
+    id: 'f03', name: 'Fletes Sierra Madre', rfc: 'FSM190305QZ1', city: 'Saltillo, COA',
+    lastMessage: 'Estamos revisando el desglose de cargos con Finanzas.', lastSeen: 'hace 3 h',
+    nextStep: 'work', lastSpeaker: 'FDS', urgency: null, signal: null,
+    openCases: 1, openChats: 1, owner: 'Mariana Lozano',
+    messages: [
+      msg('m1', 'fleet', 'Ernesto Sierra', '¿Nos pueden explicar los cargos de la semana 46?', '24 nov 2026, 07:30'),
+      msg('m2', 'team', MARIANA, 'Estamos revisando el desglose de cargos con Finanzas.', '24 nov 2026, 08:05'),
+    ],
+    cases: [{ id: 'a1', title: 'Revisión de cargos semana 46', reason: 'La flota pide el desglose de los cargos', amount: 7350, opened: '2026-11-24', owner: 'Mariana Lozano', status: 'open' }],
+    profile: { regime: '626 RESICO', units: 12, balance: 0, since: '2025-03-21', contact: 'Ernesto Sierra', phone: '844 555 0119' },
+  },
+  {
     id: 'f05', name: 'Distribuidora Valle Azul', rfc: 'DVA210114TN2', city: 'Puebla, PUE',
-    lastMessage: 'Quedamos para revisar el saldo el jueves.', lastSeen: 'ayer', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Andrés Valle', text: 'Quedamos para revisar el saldo el jueves.', time: '23 nov 2026, 17:12' }],
+    lastMessage: 'Ya avisé a Finanzas. Te confirmo el saldo el jueves.', lastSeen: 'ayer',
+    nextStep: 'work', lastSpeaker: 'Dalia', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: 'Diego Salas',
+    messages: [
+      msg('m1', 'fleet', 'Andrés Valle', '¿Pueden revisar mi saldo a cargo?', '23 nov 2026, 17:12'),
+      msg('m2', 'bot', 'Dalia', 'Ya avisé a Finanzas. Te confirmo el saldo el jueves.', '23 nov 2026, 17:13'),
+    ],
     cases: [], profile: { regime: '601 General de ley', units: 7, balance: 12400, since: '2025-08-18', contact: 'Andrés Valle', phone: '222 555 0125' },
   },
   {
     id: 'f06', name: 'Autotransportes Peña Blanca', rfc: 'APB160830DK4', city: 'León, GTO',
-    lastMessage: 'Adjunto el comprobante del depósito.', lastSeen: 'ayer', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Lucía Peña', text: 'Adjunto el comprobante del depósito.', time: '23 nov 2026, 15:40' }],
+    lastMessage: 'Adjunto el comprobante del depósito.', lastSeen: 'ayer',
+    nextStep: 'work', lastSpeaker: 'Flota', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: null,
+    messages: [msg('m1', 'fleet', 'Lucía Peña', 'Adjunto el comprobante del depósito.', '23 nov 2026, 15:40')],
     cases: [], profile: { regime: '601 General de ley', units: 15, balance: 0, since: '2024-09-12', contact: 'Lucía Peña', phone: '477 555 0188' },
   },
   {
     id: 'f07', name: 'Carga Ligera del Bajío', rfc: 'CLB190611JU8', city: 'Celaya, GTO',
-    lastMessage: 'Perfecto, esperamos la confirmación.', lastSeen: 'hace 2 d', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Tomás Ledesma', text: 'Perfecto, esperamos la confirmación.', time: '22 nov 2026, 12:20' }],
+    lastMessage: 'Te confirmamos el pago en cuanto Finanzas lo libere.', lastSeen: 'hace 2 d',
+    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: 'Ana Ruiz',
+    messages: [msg('m1', 'team', MARIANA, 'Te confirmamos el pago en cuanto Finanzas lo libere.', '22 nov 2026, 12:20')],
     cases: [], profile: { regime: '626 RESICO', units: 5, balance: 0, since: '2025-10-01', contact: 'Tomás Ledesma', phone: '461 555 0191' },
   },
   {
     id: 'f08', name: 'Transportes Montes y Hnos.', rfc: 'TMH150204AB7', city: 'Toluca, MEX',
-    lastMessage: 'Ya quedó corregido el RFC en el portal.', lastSeen: 'hace 2 d', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Beatriz Montes', text: 'Ya quedó corregido el RFC en el portal.', time: '22 nov 2026, 09:05' }],
-    cases: [], profile: { regime: '601 General de ley', units: 11, balance: 0, since: '2024-12-09', contact: 'Beatriz Montes', phone: '722 555 0134' },
+    lastMessage: 'Corrige el RFC en el portal y avísanos.', lastSeen: 'hace 2 d',
+    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    openCases: 1, openChats: 1, owner: 'Diego Salas',
+    messages: [msg('m1', 'team', MARIANA, 'Corrige el RFC en el portal y avísanos.', '22 nov 2026, 09:05')],
+    cases: [{ id: 'a1', title: 'RFC con error', reason: 'El RFC del portal no coincide con la constancia', amount: 0, opened: '2026-11-22', owner: 'Diego Salas', status: 'open' }],
+    profile: { regime: '601 General de ley', units: 11, balance: 0, since: '2024-12-09', contact: 'Beatriz Montes', phone: '722 555 0134' },
   },
   {
     id: 'f09', name: 'Fletes Rápidos del Pacífico', rfc: 'FRP180925MC5', city: 'Mazatlán, SIN',
-    lastMessage: '¿Cuándo cae el pago de la semana 46?', lastSeen: 'hace 3 d', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Valeria Ochoa', text: '¿Cuándo cae el pago de la semana 46?', time: '21 nov 2026, 18:44' }],
+    lastMessage: 'El pago de la semana 46 cae el jueves.', lastSeen: 'hace 3 d',
+    nextStep: 'fleet', lastSpeaker: 'Dalia', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: null,
+    messages: [msg('m1', 'bot', 'Dalia', 'El pago de la semana 46 cae el jueves.', '21 nov 2026, 18:44')],
     cases: [], profile: { regime: '601 General de ley', units: 8, balance: 0, since: '2025-04-22', contact: 'Valeria Ochoa', phone: '669 555 0107' },
   },
   {
     id: 'f10', name: 'Grupo Logístico Mezquital', rfc: 'GLM200302PX0', city: 'Durango, DGO',
-    lastMessage: 'Entendido, gracias por avisar.', lastSeen: 'hace 3 d', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Iván Mezquital', text: 'Entendido, gracias por avisar.', time: '21 nov 2026, 11:15' }],
+    lastMessage: 'Te avisamos del cambio de horario de la ruta.', lastSeen: 'hace 3 d',
+    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: 'Ana Ruiz',
+    messages: [msg('m1', 'team', MARIANA, 'Te avisamos del cambio de horario de la ruta.', '21 nov 2026, 11:15')],
     cases: [], profile: { regime: '626 RESICO', units: 6, balance: 0, since: '2025-07-14', contact: 'Iván Mezquital', phone: '618 555 0152' },
   },
   {
     id: 'f11', name: 'Camiones del Altiplano', rfc: 'CAL140516RE3', city: 'San Luis Potosí, SLP',
-    lastMessage: 'Les mandamos las placas nuevas por correo.', lastSeen: 'hace 4 d', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Mateo Rangel', text: 'Les mandamos las placas nuevas por correo.', time: '20 nov 2026, 16:02' }],
-    cases: [], profile: { regime: '601 General de ley', units: 14, balance: 0, since: '2024-10-28', contact: 'Mateo Rangel', phone: '444 555 0176' },
+    lastMessage: 'Manda las placas nuevas por correo, por favor.', lastSeen: 'hace 4 d',
+    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    openCases: 1, openChats: 1, owner: 'Diego Salas',
+    messages: [msg('m1', 'team', MARIANA, 'Manda las placas nuevas por correo, por favor.', '20 nov 2026, 16:02')],
+    cases: [{ id: 'a1', title: 'Cambio de placas', reason: 'Falta registrar las placas nuevas de dos unidades', amount: 0, opened: '2026-11-20', owner: 'Diego Salas', status: 'open' }],
+    profile: { regime: '601 General de ley', units: 14, balance: 0, since: '2024-10-28', contact: 'Mateo Rangel', phone: '444 555 0176' },
   },
   {
     id: 'f12', name: 'Mudanzas y Fletes Zaragoza', rfc: 'MFZ170419QH6', city: 'Veracruz, VER',
-    lastMessage: 'Listo, ya firmamos el convenio.', lastSeen: 'hace 5 d', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Paola Zaragoza', text: 'Listo, ya firmamos el convenio.', time: '19 nov 2026, 13:30' }],
+    lastMessage: 'Te enviamos el convenio para firma.', lastSeen: 'hace 5 d',
+    nextStep: 'fleet', lastSpeaker: 'Dalia', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: null,
+    messages: [msg('m1', 'bot', 'Dalia', 'Te enviamos el convenio para firma.', '19 nov 2026, 13:30')],
     cases: [], profile: { regime: '626 RESICO', units: 4, balance: 0, since: '2025-09-02', contact: 'Paola Zaragoza', phone: '229 555 0113' },
   },
   {
     id: 'f13', name: 'Transportes Hidalgo Express', rfc: 'THE190827SL1', city: 'Pachuca, HGO',
-    lastMessage: 'Quedamos pendientes del cambio de cuenta.', lastSeen: 'hace 6 d', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Ricardo Hidalgo', text: 'Quedamos pendientes del cambio de cuenta.', time: '18 nov 2026, 10:10' }],
+    lastMessage: 'Necesitamos los datos de la cuenta nueva.', lastSeen: 'hace 6 d',
+    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: 'Ana Ruiz',
+    messages: [msg('m1', 'team', MARIANA, 'Necesitamos los datos de la cuenta nueva.', '18 nov 2026, 10:10')],
     cases: [], profile: { regime: '601 General de ley', units: 10, balance: 0, since: '2025-01-30', contact: 'Ricardo Hidalgo', phone: '771 555 0146' },
   },
   {
     id: 'f14', name: 'Fletes y Mensajería Tamaulipas', rfc: 'FMT210708VD9', city: 'Reynosa, TAM',
-    lastMessage: 'Gracias por la aclaración.', lastSeen: '17 nov 2026', unread: 0,
-    messages: [{ id: 'm1', from: 'fleet', author: 'Diana Cantú', text: 'Gracias por la aclaración.', time: '17 nov 2026, 14:25' }],
+    lastMessage: 'Quedó aclarado el cargo. Avísanos si hay dudas.', lastSeen: '17 nov 2026',
+    nextStep: 'fleet', lastSpeaker: 'FDS', urgency: null, signal: null,
+    openCases: 0, openChats: 1, owner: null,
+    messages: [msg('m1', 'team', MARIANA, 'Quedó aclarado el cargo. Avísanos si hay dudas.', '17 nov 2026, 14:25')],
     cases: [], profile: { regime: '626 RESICO', units: 3, balance: 0, since: '2026-01-19', contact: 'Diana Cantú', phone: '899 555 0121' },
   },
 ];
