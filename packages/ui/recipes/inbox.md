@@ -411,6 +411,7 @@ export function InboxRecipe({ state, onRetry }: RecipeProps) {
               />
             )
           ) : (
+            // compact = the dense work queue: three text lines in about 59 px a row. Do not restyle the row parts.
             <ItemList aria-label="Flotas" density="compact">
               {fleets.map((fleet) => (
                 <ItemRow

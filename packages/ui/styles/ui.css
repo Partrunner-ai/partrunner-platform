@@ -5090,11 +5090,23 @@ button.pr-stepper__dot:focus-visible {
   cursor: pointer;
   transition: background-color 160ms var(--pr-ease, ease);
 }
+/* Compact: the dense work-queue rhythm. Three text lines are 59 px, with fixed line heights. */
 .pr-item-list--compact .pr-item-row__main {
   --pr-item-min: 36px;
-  gap: 8px;
-  padding: 6px 12px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 12px 5px 14px;
 }
+.pr-item-list--compact .pr-item-row__leading { padding-block-start: 2px; }
+.pr-item-list--compact .pr-item-row__trailing { align-self: center; }
+.pr-item-list--compact .pr-item-row__body { gap: 0; }
+.pr-item-list--compact .pr-item-row__top { align-items: center; }
+.pr-item-list--compact .pr-item-row__title { line-height: 18px; }
+.pr-item-list--compact .pr-item-row__description { line-height: 16px; }
+.pr-item-list--compact .pr-item-row__meta,
+.pr-item-list--compact .pr-item-row__footer { line-height: 15px; }
+.pr-item-list--compact .pr-item-row__dot--overlay { inset-block-start: 0; }
+.pr-item-list--compact .pr-item-row__footer .pr-badge { margin-block: -4px; }
 .pr-item-row__main:hover:not(:disabled):not([aria-disabled='true']) {
   --pr-item-bg: var(--pr-elevated);
   background: var(--pr-elevated);
@@ -5199,6 +5211,10 @@ button.pr-stepper__dot:focus-visible {
   color: var(--pr-fg-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.pr-item-row__description strong {
+  color: var(--pr-fg);
+  font-weight: 600;
 }
 .pr-item-row__footer {
   display: block;

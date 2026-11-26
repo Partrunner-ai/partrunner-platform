@@ -131,22 +131,23 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
   const content = (
     <>
       {leading != null ? (
-        <span className="pr-item-row__leading">
+        <span className="pr-item-row__leading" data-slot="item-row-leading">
           {leading}
-          {unread ? <span className="pr-item-row__dot pr-item-row__dot--overlay" aria-hidden /> : null}
+          {unread ? <span className="pr-item-row__dot pr-item-row__dot--overlay" data-slot="item-row-dot" aria-hidden /> : null}
         </span>
       ) : null}
       <span className="pr-item-row__body">
         <span className="pr-item-row__top">
-          {unread && leading == null ? <span className="pr-item-row__dot" aria-hidden /> : null}
-          <span className="pr-item-row__title">
+          {unread && leading == null ? <span className="pr-item-row__dot" data-slot="item-row-dot" aria-hidden /> : null}
+          <span className="pr-item-row__title" data-slot="item-row-title">
             {unread ? <span className="pr-visually-hidden">{unreadLabel}, </span> : null}
             {title}
           </span>
-          {meta != null ? <span className="pr-item-row__meta">{meta}</span> : null}
+          {meta != null ? <span className="pr-item-row__meta" data-slot="item-row-meta">{meta}</span> : null}
         </span>
         {description != null ? (
           <span
+            data-slot="item-row-description"
             className={[
               'pr-item-row__description',
               descriptionLines === 2 ? 'pr-item-row__description--2' : null,
@@ -157,9 +158,9 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
             {description}
           </span>
         ) : null}
-        {footer != null ? <span className="pr-item-row__footer">{footer}</span> : null}
+        {footer != null ? <span className="pr-item-row__footer" data-slot="item-row-footer">{footer}</span> : null}
       </span>
-      {trailing != null ? <span className="pr-item-row__trailing">{trailing}</span> : null}
+      {trailing != null ? <span className="pr-item-row__trailing" data-slot="item-row-trailing">{trailing}</span> : null}
     </>
   );
   const mainClass = 'pr-item-row__main';

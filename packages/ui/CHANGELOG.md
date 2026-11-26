@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.5.1
+
+### Patch Changes
+
+- `ItemList density="compact"` rows are denser, for a dense work queue: a three-line row is 59 px (it was 68 to 72 px), with fixed line heights of 18 px (title), 16 px (description) and 15 px (meta and footer), a 5 px row padding and a 10 px gap. Eight rows now fit in a 1440 × 900 window. `comfortable` does not change. A `<strong>` in the row description is semibold and uses the full text colour, so «**Flota:** text» marks who spoke last. Every `ItemRow` part carries a `data-slot` (`item-row-leading`, `item-row-title`, `item-row-meta`, `item-row-description`, `item-row-footer`, `item-row-trailing`, `item-row-dot`) for tests. An app does not need local CSS for the row parts.
+
 ## 2.5.0
 
 ### Minor Changes
