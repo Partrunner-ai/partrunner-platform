@@ -343,7 +343,8 @@ Do not store class names in a map.
   logic.
 - `DataTable` is an old alias of `Table`. It is not a second choice: use `Table`.
 - Numbers: `numeric` on a table column, on `TableCell` / `TableHead`, and on `DetailItem`
-  aligns to the end edge with tabular figures.
+  gives tabular figures. In a table the value is also end-aligned. On `DetailItem` it is
+  end-aligned only in a `DetailList` with `layout="inline"`.
 
 ## 4. Hierarchy and density
 
@@ -364,7 +365,7 @@ A good screen shows what matters first and makes the rest quiet. Use these limit
 - **Colour is a signal.** `danger` = blocked or lost money. `warning` = needs action soon.
   `success` = done. `info` = neutral news. If more than about 1 row in 5 has a tone, the rule that
   sets the tone is wrong.
-- **Numbers** align to the end edge (`numeric`) and use one format in the whole app, from the
+- **Numbers** use tabular figures (`numeric`), end-aligned in a table, and use one format in the whole app, from the
   app's shared helper: money `$12,400.00` (`es-MX`, MXN), dates `24 nov 2026`, a time of the
   same year `24 nov, 13:20`, relative time only for the last 7 days (`hace 3 h`).
 - **Text does not get cut inside a card.** One line of `ItemRow description` may truncate. A

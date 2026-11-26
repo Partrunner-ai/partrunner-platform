@@ -6,4 +6,4 @@ Add `Notice`, `DetailList`, `ItemList`, `SplitView`, `Stack` (a flex container w
 
 Two visual fixes: `SegmentedControl` now hugs its content by default (use `fullWidth` to stretch it), and `ValidationSummary` is more compact, with one tight line per error.
 
-Migration: a `SegmentedControl` that relied on stretching to the full width of its container now needs the `fullWidth` prop. `ValidationSummary` is shorter (less padding, one tight line per error); no code change is necessary.
+Migration: a `SegmentedControl` that relied on stretching to the full width of its container now needs the `fullWidth` prop. `ValidationSummary` is shorter (less padding, one tight line per error); no code change is necessary. `align="left"`, `"center"` and `"right"` on `TableCell` and `TableHead` are now a class and no longer a DOM `align` attribute (`left` and `right` use the same classes as `start` and `end`, which set `text-align: left` and `right`, so the look is the same; `right` also gives tabular figures).
