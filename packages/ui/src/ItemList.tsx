@@ -83,6 +83,11 @@ export interface ItemRowProps extends Omit<LiHTMLAttributes<HTMLLIElement>, 'tit
    * leading element and the title does not move. Without `leading`, it sits before the title.
    */
   unread?: boolean;
+  /**
+   * Visually hidden text read before the title when `unread` is set, so a screen reader
+   * says "No leído, <title>". Defaults to `No leído`.
+   */
+  unreadLabel?: string;
   disabled?: boolean;
   /** Renders the row as a link. Without it the row is a button. */
   href?: string;
@@ -113,6 +118,7 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
     footer,
     selected = false,
     unread = false,
+    unreadLabel = 'No leído',
     disabled = false,
     href,
     onClick,
@@ -133,7 +139,10 @@ export const ItemRow = forwardRef<HTMLLIElement, ItemRowProps>(function ItemRow(
       <span className="pr-item-row__body">
         <span className="pr-item-row__top">
           {unread && leading == null ? <span className="pr-item-row__dot" aria-hidden /> : null}
-          <span className="pr-item-row__title">{title}</span>
+          <span className="pr-item-row__title">
+            {unread ? <span className="pr-visually-hidden">{unreadLabel}, </span> : null}
+            {title}
+          </span>
           {meta != null ? <span className="pr-item-row__meta">{meta}</span> : null}
         </span>
         {description != null ? (

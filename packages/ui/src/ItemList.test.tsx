@@ -165,4 +165,32 @@ describe('ItemRow', () => {
     expect(container.querySelectorAll('.pr-item-row__footer')).toHaveLength(1);
     expect(getAllByRole('button')).toHaveLength(2);
   });
+
+  it('gives an unread row a hidden text label before the title', () => {
+    const { getByRole } = render(
+      <ItemList aria-label="x">
+        <ItemRow title="Transportes Ruiz" unread onClick={() => {}} />
+      </ItemList>,
+    );
+    const button = getByRole('button', { name: 'No leído, Transportes Ruiz' });
+    expect(button.querySelector('.pr-visually-hidden')?.textContent).toBe('No leído, ');
+  });
+
+  it('adds no unread label to a read row', () => {
+    const { container } = render(
+      <ItemList aria-label="x">
+        <ItemRow title="Transportes Ruiz" onClick={() => {}} />
+      </ItemList>,
+    );
+    expect(container.querySelector('.pr-visually-hidden')).toBeNull();
+  });
+
+  it('takes a custom unread label', () => {
+    const { getByRole } = render(
+      <ItemList aria-label="x">
+        <ItemRow title="Fleet" unread unreadLabel="Unread" leading={<span>L</span>} onClick={() => {}} />
+      </ItemList>,
+    );
+    expect(getByRole('button', { name: /Unread, Fleet/ })).toBeTruthy();
+  });
 });
