@@ -4152,6 +4152,11 @@ button.pr-stepper__dot:focus-visible {
   border-color: var(--pr-fg);
   color: var(--pr-bg);
 }
+/* Out-specifies the plain hover rule, so a pressed chip keeps its inverted ink. */
+.pr-filter-chip[aria-pressed='true']:hover:not(:disabled) {
+  border-color: var(--pr-fg);
+  color: var(--pr-bg);
+}
 .pr-filter-chip:disabled {
   opacity: 0.6;
   cursor: not-allowed;

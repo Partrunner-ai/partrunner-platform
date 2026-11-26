@@ -192,6 +192,21 @@ test('compact controls and embedded actions keep a 40px interaction target', asy
   }
 });
 
+test('a pressed filter chip keeps its inverted ink under the pointer', async ({ mount, page }) => {
+  await mount(<UiLightCatalog />);
+
+  const chip = page.locator(".pr-filter-chip[aria-pressed='true']").first();
+  await chip.hover();
+  await chip.evaluate((node) =>
+    Promise.all(node.getAnimations().map((animation) => animation.finished.catch(() => null))),
+  );
+  const [ink, background] = await chip.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return [style.color, style.backgroundColor];
+  });
+  expect(ink).not.toBe(background);
+});
+
 test('a dropdown trigger preserves its composed Button typography', async ({ mount, page }) => {
   await mount(<UiLightCatalog />);
 

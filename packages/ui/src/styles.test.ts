@@ -765,6 +765,9 @@ describe('the list composition set', () => {
     const active = rule(".pr-filter-chip[aria-pressed='true']");
     expect(active).toContain('background: var(--pr-fg)');
     expect(active).toContain('color: var(--pr-bg)');
+    const pressedHover = rule(".pr-filter-chip[aria-pressed='true']:hover:not(:disabled)");
+    expect(pressedHover).toContain('color: var(--pr-bg)');
+    expect(pressedHover).toContain('border-color: var(--pr-fg)');
     expect(rule('.pr-filter-chip__count')).toContain('font-variant-numeric: tabular-nums');
     expect(rule('.pr-filter-chip')).toContain('var(--pr-radius-md');
   });
