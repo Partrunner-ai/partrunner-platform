@@ -254,3 +254,11 @@ person must do or approve). `isStaffShellSnapshot` does not validate it: use
 `parseStaffShellSnapshot`, which drops a malformed block (or one whose «see all»
 `href` is unsafe) without rejecting the snapshot. An unsafe item `href` removes
 only that item's link.
+
+## Taking a pendiente from the tray
+
+The host may pass `claimPendiente(id)` in the staff shell context. Team rows then
+show «Lo tomo»; the promise must reject when the claim fails. On success the tray
+calls `refreshPendientes` (or `refreshNotifications`). Without it, team rows show
+«Abrir». The optional `teamLabel` of the `pendientes` block names the team in the
+heading («De Finanzas, sin tomar»).

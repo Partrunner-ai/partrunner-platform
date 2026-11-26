@@ -178,6 +178,14 @@ describe('pendientes in the snapshot', () => {
     expect(appPendingCount(parsed, 'nexus')).toEqual({ total: 1, tone: 'mine' });
   });
 
+  it('keeps a short non-empty teamLabel and ignores anything else', () => {
+    expect(normalizePendientes({ ...block, teamLabel: ' Finanzas ' })!.teamLabel).toBe('Finanzas');
+    for (const teamLabel of ['', '   ', 4, null, {}, 'x'.repeat(41)]) {
+      const parsed = normalizePendientes({ ...block, teamLabel });
+      expect(parsed && 'teamLabel' in parsed).toBe(false);
+    }
+  });
+
   it('normalizePendientes is usable on its own', () => {
     expect(normalizePendientes(block)).toEqual(block);
     expect(normalizePendientes(undefined)).toBeUndefined();

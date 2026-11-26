@@ -181,6 +181,8 @@ export function GlobalHeader({
             pendientes={shell.pendientes}
             locale={locale}
             onOpen={shell.refreshPendientes ?? shell.refreshNotifications}
+            onClaim={shell.claimPendiente}
+            onClaimed={shell.refreshPendientes ?? shell.refreshNotifications}
           />
         ) : null}
         <NotificationCenter

@@ -1,5 +1,11 @@
 # @partrunner-ai/shell
 
+## 2.10.1
+
+### Patch Changes
+
+- Match the approved «Pendientes» design. Counters use one look everywhere (tray button, menu badges, app tiles, «Mis apps»): «te toca» is a black circle with a yellow number (dark gray on the active menu row), team-only is a light gray circle with a dark number, and the bell stays red. In dark mode the tray button and the app-grid tiles flip to a yellow circle with a black number. The tray gets a «Ver todos en Inicio» link in the header, headings like «Te toca · 3» and «De Finanzas, sin tomar · 2», rows with a bold `verb · title` line, a muted `queue · subtitle · age` line and a button («Abrir», or «Lo tomo» for team rows), the first button in primary style, and an «Abrir Inicio» footer. New optional `teamLabel` on `StaffPendientesState` and the snapshot block (short non-empty string, else ignored). New optional `claimPendiente(id)` on `StaffShellContextValue`: «Lo tomo» disables the button («Tomando…»), refreshes the pendientes on success and keeps the tray open, and shows «No se pudo tomar. Intenta otra vez.» on failure. Without `claimPendiente`, team rows show «Abrir». A host on 2.10.0 that passes neither works unchanged.
+
 ## 2.10.0
 
 ### Minor Changes
