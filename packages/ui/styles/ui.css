@@ -5095,17 +5095,20 @@ button.pr-stepper__dot:focus-visible {
   --pr-item-min: 36px;
   align-items: flex-start;
   gap: 10px;
-  padding: 5px 12px 5px 14px;
+  padding-block: 5px;
+  padding-inline: 14px 12px;
 }
 .pr-item-list--compact .pr-item-row__leading { padding-block-start: 2px; }
 .pr-item-list--compact .pr-item-row__trailing { align-self: center; }
-.pr-item-list--compact .pr-item-row__body { gap: 0; }
+.pr-item-list--compact .pr-item-row__body { gap: 0; align-self: center; }
 .pr-item-list--compact .pr-item-row__top { align-items: center; }
 .pr-item-list--compact .pr-item-row__title { line-height: 18px; }
 .pr-item-list--compact .pr-item-row__description { line-height: 16px; }
 .pr-item-list--compact .pr-item-row__meta,
 .pr-item-list--compact .pr-item-row__footer { line-height: 15px; }
 .pr-item-list--compact .pr-item-row__dot--overlay { inset-block-start: 0; }
+/* The footer clips its overflow; the padding keeps a badge's edges inside it, the margin gives the room back. */
+.pr-item-list--compact .pr-item-row__footer { padding-block: 4px; margin-block: -4px; }
 .pr-item-list--compact .pr-item-row__footer .pr-badge { margin-block: -4px; }
 .pr-item-row__main:hover:not(:disabled):not([aria-disabled='true']) {
   --pr-item-bg: var(--pr-elevated);

@@ -154,9 +154,10 @@ person reads one record.
   «Soporte:», «Asistente:»), how long it waits (a `Badge` at the start of the `footer`), and what is open
   and who has it (the text of the `footer`). The time of the last message is the `meta`. Do not
   use `trailing` in a ticket desk: a badge there pushes the time and cuts the title.
-- `density="compact"` is for a dense work queue: three text lines in about 59 px a row, so 8 rows
-  fit in a 1440 × 900 window. Use the default `comfortable` for a short list. An app must not
-  restyle the row parts (`.pr-item-row__*`): the package gives the rhythm.
+- `density="compact"` is for a dense work queue: three text lines in 59 px a row (60 px with the
+  divider). Use the default `comfortable` for a short list. The footer of a compact row takes a `sm`
+  `Badge`; a `md` badge makes the row 1 px taller. An app must not restyle the row parts
+  (`.pr-item-row__*`): the package gives the rhythm.
 - Give each record one next step: ours to reply, ours to work, or theirs. Sort in that order.
   Urgency colour (`tone` on the row and on the badge) shows only when the next step is ours. A
   record that waits for the other side stays quiet.

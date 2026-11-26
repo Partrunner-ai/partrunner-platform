@@ -49,3 +49,56 @@ export function CompactRows({ density = 'compact' }: { density?: 'compact' | 'co
     </div>
   );
 }
+
+/** Short compact rows: one line, no leading, two lines, a trailing element and two footer badge sizes. */
+export function ShortRows() {
+  return (
+    <div style={{ width: 380 }}>
+      <ItemList aria-label="Filas cortas" density="compact">
+        <ItemRow data-testid="one-line" leading={<Avatar name="Ángeles Transportes" size="sm" decorative />} title="Solo título" />
+        <ItemRow data-testid="no-leading" title="Sin avatar" />
+        <ItemRow
+          data-testid="two-lines"
+          leading={<Avatar name="Gómez y Pérez" size="sm" decorative />}
+          title="Título y descripción"
+          description="Una sola línea de texto"
+        />
+        <ItemRow
+          data-testid="trailing"
+          leading={<Avatar name="Yáñez Fletes" size="sm" decorative />}
+          title="Con elemento final"
+          trailing={
+            <Badge tone="info" size="sm">
+              Nuevo
+            </Badge>
+          }
+        />
+        <ItemRow
+          data-testid="md-badge"
+          leading={<Avatar name="Quijano" size="sm" decorative />}
+          title="Insignia md"
+          description="Descripción"
+          footer={
+            <>
+              <Badge tone="danger">Pago retenido</Badge>2 aclaraciones · 1 chat
+            </>
+          }
+        />
+        <ItemRow
+          data-testid="sm-badge"
+          leading={<Avatar name="Quijano" size="sm" decorative />}
+          title="Insignia sm"
+          description="Descripción"
+          footer={
+            <>
+              <Badge tone="danger" size="sm">
+                Pago retenido
+              </Badge>
+              2 aclaraciones · 1 chat
+            </>
+          }
+        />
+      </ItemList>
+    </div>
+  );
+}
