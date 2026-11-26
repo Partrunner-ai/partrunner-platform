@@ -36,10 +36,15 @@ Read [`DESIGN.md`](./DESIGN.md) before you write or change a screen. It ships in
 (`node_modules/@partrunner-ai/ui/DESIGN.md`) and holds:
 
 - the work method: job sentence → recipe → components → states → screenshot and checklist;
-- five page recipes: list, inbox, record, form, work queue;
+- five page recipes: list, inbox, record, form, work queue. Each one has a full example with
+  all four states in [`recipes/`](./recipes) (`node_modules/@partrunner-ai/ui/recipes/*.md`);
 - the job → component table and the ordered tie-breaks — one job, one component;
 - limits for hierarchy and density, the four states of a data region, and text rules;
 - the list of things an app must not hand-build.
+
+The recipe examples are generated from the recipe screens of the component catalogue
+(`pnpm preview:components`, view «Recetas»). After a change to a recipe screen, run
+`pnpm --filter @partrunner-ai/ui recipes`. `pnpm test` fails when the files are out of date.
 
 To make an app's agents read it, add this line to the app's `AGENTS.md`:
 
