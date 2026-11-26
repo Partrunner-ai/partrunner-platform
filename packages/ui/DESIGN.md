@@ -155,8 +155,8 @@ person reads one record.
   and who has it (the text of the `footer`). The time of the last message is the `meta`. Do not
   use `trailing` in a ticket desk: a badge there pushes the time and cuts the title.
 - `density="compact"` is for a dense work queue: three text lines in 59 px a row (60 px with the
-  divider). Use the default `comfortable` for a short list. The footer of a compact row takes a `sm`
-  `Badge`; a `md` badge makes the row 1 px taller. An app must not restyle the row parts
+  divider), 62 px when the footer starts with a `sm` `Badge` (63 px with the divider). Use the default `comfortable` for a short list. The footer of a compact row takes a `sm`
+  `Badge`; a `md` badge makes the row 64 px (65 px with the divider). An app must not restyle the row parts
   (`.pr-item-row__*`): the package gives the rhythm.
 - Give each record one next step: ours to reply, ours to work, or theirs. Sort in that order.
   Urgency colour (`tone` on the row and on the badge) shows only when the next step is ours. A

@@ -5107,9 +5107,8 @@ button.pr-stepper__dot:focus-visible {
 .pr-item-list--compact .pr-item-row__meta,
 .pr-item-list--compact .pr-item-row__footer { line-height: 15px; }
 .pr-item-list--compact .pr-item-row__dot--overlay { inset-block-start: 0; }
-/* The footer clips its overflow; the padding keeps a badge's edges inside it, the margin gives the room back. */
-.pr-item-list--compact .pr-item-row__footer { padding-block: 4px; margin-block: -4px; }
-.pr-item-list--compact .pr-item-row__footer .pr-badge { margin-block: -4px; }
+/* A footer that starts with a badge is as tall as the badge: 18 px with a sm badge. */
+.pr-item-list--compact .pr-item-row__footer .pr-badge { margin-block: 0; line-height: 14px; }
 .pr-item-row__main:hover:not(:disabled):not([aria-disabled='true']) {
   --pr-item-bg: var(--pr-elevated);
   background: var(--pr-elevated);
@@ -5188,7 +5187,8 @@ button.pr-stepper__dot:focus-visible {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--pr-accent);
+  /* The accent darkened toward the text colour: at least 3:1 on the row in both themes. */
+  background: color-mix(in srgb, var(--pr-accent-deep) 55%, var(--pr-fg));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--pr-fg) 25%, transparent);
 }
 .pr-item-row__dot--overlay {

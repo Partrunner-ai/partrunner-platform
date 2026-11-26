@@ -14,7 +14,14 @@ const NAMES = [
 const TONES = ['danger', 'warning', 'info', 'success', undefined, 'danger', undefined, 'warning'] as const;
 
 /** Eight three-line compact rows: avatar, title, meta, `<strong>` description, footer with a badge. */
-export function CompactRows({ density = 'compact' }: { density?: 'compact' | 'comfortable' }) {
+export function CompactRows({
+  density = 'compact',
+  badges = true,
+}: {
+  density?: 'compact' | 'comfortable';
+  /** Put a `sm` badge at the start of the footer of the toned rows. */
+  badges?: boolean;
+}) {
   return (
     <div style={{ width: 380 }}>
       <ItemList aria-label="Flotas" density={density}>
@@ -31,7 +38,7 @@ export function CompactRows({ density = 'compact' }: { density?: 'compact' | 'co
             }
             footer={
               <>
-                {TONES[index] ? (
+                {badges && TONES[index] ? (
                   <Badge tone={TONES[index]} size="sm">
                     Pago retenido
                   </Badge>
@@ -98,6 +105,8 @@ export function ShortRows() {
             </>
           }
         />
+        <ItemRow data-testid="unread" leading={<Avatar name="Ópalo Express" size="sm" decorative />} title="No leída" unread />
+        <ItemRow data-testid="unread-selected" leading={<Avatar name="Ágil Carga" size="sm" decorative />} title="No leída y abierta" unread selected />
       </ItemList>
     </div>
   );
