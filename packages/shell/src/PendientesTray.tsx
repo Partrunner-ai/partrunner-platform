@@ -148,10 +148,11 @@ export function PendientesTray({
     (item.bucket === 'team' && onClaim !== undefined) || isSafePendienteHref(item.href);
 
   // The first row with a button in EACH section gets the primary one; the rest are outlined.
+  // A row that is being claimed is skipped, so the primary never sits on a disabled button.
   const primaryIds = new Set(
     (['mine', 'team'] as const)
       .filter((bucket) => (bucket === 'mine' ? mine : team) > 0)
-      .map((bucket) => items.filter((item) => item.bucket === bucket).find(hasButton)?.id)
+      .map((bucket) => items.filter((item) => item.bucket === bucket).find((item) => hasButton(item) && claims[item.id] !== 'pending')?.id)
       .filter((id): id is string => id !== undefined),
   );
 

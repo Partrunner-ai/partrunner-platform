@@ -179,6 +179,57 @@ describe('PendientesTray', () => {
     expect(variants()).toEqual(['primary', 'outline']);
   });
 
+  describe('primary button per section', () => {
+    const mk = (id: string, bucket: 'mine' | 'team', href?: string) => ({
+      id, bucket, verb: 'V', queue: 'Q', title: `T${id}`, ...(href ? { href } : {}),
+    });
+    const primaries = (bucket: 'mine' | 'team') => {
+      const section = screen.getByRole('dialog').querySelector(`section[data-bucket="${bucket}"]`)!;
+      return Array.from(section.querySelectorAll('[data-variant="primary"]')).map(
+        (n) => n.getAttribute('aria-label'),
+      );
+    };
+
+    it('skips a mine row with no safe href', async () => {
+      const user = userEvent.setup();
+      renderHeader(context({ pendientes: { ...pendientes, mine: 2, team: 0, items: [mk('1', 'mine'), mk('2', 'mine', '/x/2')] } }));
+      await user.click(trigger());
+      expect(primaries('mine')).toEqual(['Abrir: T2']);
+    });
+
+    it('team rows without claimPendiente: first one with a safe href is primary', async () => {
+      const user = userEvent.setup();
+      renderHeader(context({ pendientes: { ...pendientes, mine: 0, team: 2, items: [mk('3', 'team'), mk('4', 'team', '/x/4'), mk('5', 'team', '/x/5')] } }));
+      await user.click(trigger());
+      expect(primaries('team')).toEqual(['Abrir: T4']);
+    });
+
+    it('team rows without claimPendiente and without safe href: no primary', async () => {
+      const user = userEvent.setup();
+      renderHeader(context({ pendientes: { ...pendientes, mine: 0, team: 1, items: [mk('3', 'team')] } }));
+      await user.click(trigger());
+      expect(primaries('team')).toEqual([]);
+    });
+
+    it('moves the primary to the next team row while a claim is pending', async () => {
+      const user = userEvent.setup();
+      const claimPendiente = vi.fn(() => new Promise<void>(() => {}));
+      renderHeader(context({ pendientes: { ...pendientes, mine: 0, team: 2, items: [mk('3', 'team'), mk('4', 'team')] }, claimPendiente }));
+      await user.click(trigger());
+      expect(primaries('team')).toEqual(['Lo tomo: T3']);
+      await user.click(screen.getByRole('button', { name: 'Lo tomo: T3' }));
+      expect(primaries('team')).toEqual(['Lo tomo: T4']);
+      expect(screen.getByRole('button', { name: 'Tomando…: T3' }).getAttribute('data-variant')).toBe('outline');
+    });
+
+    it('has no mine section when it is empty', async () => {
+      const user = userEvent.setup();
+      renderHeader(context({ pendientes: { ...pendientes, mine: 0, team: 1, items: [mk('3', 'team', '/x/3')] } }));
+      await user.click(trigger());
+      expect(screen.getByRole('dialog').querySelector('section[data-bucket="mine"]')).toBeNull();
+    });
+  });
+
   it('team rows say «Abrir» without claimPendiente, and need a safe href', async () => {
     const user = userEvent.setup();
     renderHeader(
