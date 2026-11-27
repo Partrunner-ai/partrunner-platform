@@ -1,10 +1,12 @@
 version: 2
 updates:
   # One npm entry at the root: pnpm uses the root pnpm-lock.yaml for all packages/*.
-  # No entry per package folder, so no PR without a lockfile update.
+  # An update made from the root changes the package manifest and the lockfile together.
+  # Not confirmed by the GitHub docs: that this entry stops a security PR made from a
+  # package folder (manifest only, no lockfile). If one arrives, close it; the root PR is the good one.
   - package-ecosystem: npm
     directory: /
-    # 0 turns off version updates. Security updates stay on.
+    # 0 turns off version updates. Security updates stay on (they have their own fixed limit of 10 open PRs).
     # A version bump of a published package needs a Changeset (packages:published-check),
     # so weekly version PRs would be red. Turn this on only with a plan for Changesets.
     open-pull-requests-limit: 0
