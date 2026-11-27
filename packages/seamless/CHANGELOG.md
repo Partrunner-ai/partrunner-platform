@@ -1,5 +1,11 @@
 # @partrunner-ai/seamless
 
+## 1.1.1
+
+### Patch Changes
+
+- Raise the `next` dev dependency to 15.5.29 (security update). No change to the package code.
+
 ## 1.1.0
 
 ### Minor Changes
