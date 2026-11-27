@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
-import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { gzipSync } from 'node:zlib';
 
 import {
   decideCheck,
@@ -275,14 +273,15 @@ test('reports an execute bit change as a modified file', async (t) => {
 
 const pkg = (fields) => JSON.stringify({ name: 'x', version: '1.0.0', ...fields }, null, 2);
 
-test('fails when the published stream is far longer than the local one', async (t) => {
+test('reports drift when the published stream is far longer than the local one', async (t) => {
   const { tarball } = await fixture(t);
   const local = await tarball('local', { 'package.json': pkg({}) });
-  const bomb = gzipSync(Buffer.alloc(3 * 1024 * 1024));
-  const entry = await publishedEntry(local);
-  entry.bytes = bomb;
-  entry.metadata.dist.integrity = `sha512-${createHash('sha512').update(bomb).digest('base64')}`;
-  const { fetchImpl } = registry([entry]);
+  // The published tarball has one more large file: over the gunzip limit.
+  const published = await tarball('published', {
+    'package.json': pkg({}),
+    'big.bin': 'a'.repeat(3 * 1024 * 1024),
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
   const lines = [];
   await assert.rejects(
     verifyPublishedContents({
@@ -292,8 +291,9 @@ test('fails when the published stream is far longer than the local one', async (
       pack: () => local,
     }),
     (error) =>
-      /@partrunner-ai\/example@1\.0\.0 could not be compared/.test(error.message) &&
-      error.cause instanceof RangeError,
+      /removed: big\.bin/.test(error.message) &&
+      /Add a Changeset for '@partrunner-ai\/example'/.test(error.message) &&
+      !/could not be compared/.test(error.message),
   );
   assert.deepEqual(lines, []);
 });

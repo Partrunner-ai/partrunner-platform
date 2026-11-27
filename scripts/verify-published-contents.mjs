@@ -27,8 +27,10 @@ import { readReleaseInputs } from './release-plan.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
-// `devDependencies` is not listed: `pnpm pack` leaves it as written, and a
-// change there is the one difference packed-contents.mjs accepts.
+// `devDependencies` is not listed: at version time `pnpm pack` also writes exact
+// versions in place of `workspace:` ranges there, so the packed
+// `devDependencies` do change. packed-contents.mjs accepts that difference, so
+// such an entry does not count as a rewrite.
 const DEPENDENCY_FIELDS = [
   'dependencies',
   'optionalDependencies',
@@ -381,7 +383,14 @@ export async function verifyPublishedContents({
       let status;
       let report = { files: [], tarOnly: false };
       try {
-        status = compareTarballBytes(publishedBytes, await readFile(localTarball));
+        try {
+          status = compareTarballBytes(publishedBytes, await readFile(localTarball));
+        } catch (error) {
+          // The published stream is over the gunzip limit: it is far longer
+          // than the rebuilt one, so it differs. Report it as drift.
+          if (error?.code !== 'ERR_BUFFER_TOO_LARGE') throw error;
+          status = 'drift';
+        }
         if (status === 'drift') {
           report = await reportDrift(publishedBytes, localTarball, packageDirectory);
         }
