@@ -19,6 +19,17 @@ export function ToastTones({ mode = 'light' }: { mode?: 'light' | 'dark' }) {
   return <Toaster />;
 }
 
+/** One toast whose title and description contain a line break. */
+export function ToastBreaks() {
+  useEffect(() => {
+    toast.error('No pude crear la factura:\nel SAT no respondió', { description: 'Folio 1042\nIntenta de nuevo.' });
+    return () => {
+      toast.dismiss();
+    };
+  }, []);
+  return <Toaster />;
+}
+
 interface LedgerRow {
   id: string;
   operator: string;

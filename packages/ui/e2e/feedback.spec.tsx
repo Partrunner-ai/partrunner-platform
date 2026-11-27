@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/experimental-ct-react';
-import { LedgerTable, ToastTones } from './feedback.story';
+import { LedgerTable, ToastBreaks, ToastTones } from './feedback.story';
 
 for (const mode of ['light', 'dark'] as const) {
   test(`toasts use package tokens at the bottom right in ${mode} mode`, async ({ mount, page }) => {
@@ -82,4 +82,18 @@ test('toasts keep a 16 px gutter on a narrow screen', async ({ mount, page }) =>
     expect(left).toBeGreaterThanOrEqual(16 - 1);
     expect(right).toBeLessThanOrEqual(360 - 16 + 1);
   }
+});
+
+test('a line break in a toast title or description shows as a line break', async ({ mount, page }) => {
+  await mount(<ToastBreaks />);
+  await expect(page.locator('.pr-toast')).toHaveCount(1);
+  const whiteSpace = await page.evaluate(() => ({
+    title: getComputedStyle(document.querySelector('.pr-toast__title')!).whiteSpace,
+    description: getComputedStyle(document.querySelector('.pr-toast__description')!).whiteSpace,
+    titleHeight: document.querySelector('.pr-toast__title')!.getBoundingClientRect().height,
+  }));
+  expect(whiteSpace.title).toBe('pre-line');
+  expect(whiteSpace.description).toBe('pre-line');
+  // Two lines of 14 px / 1.45 text.
+  expect(whiteSpace.titleHeight).toBeGreaterThan(35);
 });
