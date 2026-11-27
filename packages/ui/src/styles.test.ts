@@ -222,6 +222,14 @@ describe('the card adoption surfaces', () => {
   });
 });
 
+describe('the stat tile trend chip', () => {
+  it('keeps «+4 pp» on one line and lets the footer truncate instead', () => {
+    const trend = exactRule('.pr-stat-tile__trend');
+    expect(trend).toContain('white-space: nowrap');
+    expect(trend).toContain('flex-shrink: 0');
+  });
+});
+
 describe('the bare input', () => {
   it('carries the border itself, not on a wrapper', () => {
     // `.pr-field__input` is transparent and borderless by design — the composite
