@@ -152,7 +152,8 @@ or failed package:
    ledger, publish missing versions in dependency order, and abort to a
    forward-fix version if any integrity differs. The only exception is an
    existing version whose published tarball differs from the retained one in
-   `devDependencies` alone (see `docs/public-package-artifact-gate.md`).
+   `devDependencies` alone, with the built files unchanged (see
+   `docs/public-package-artifact-gate.md`).
 
 At every live step, verify the exact npm organization, package, version,
 dist-tag, GitHub repository, workflow, environment, and commit before mutation.

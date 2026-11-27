@@ -16,6 +16,7 @@ import {
   readVersioning,
   verifyPublishedContents,
 } from './verify-published-contents.mjs';
+import { buildTarball } from './test-tarballs.mjs';
 
 const { Response } = globalThis;
 
@@ -251,13 +252,28 @@ test('rejects a download that does not match its registry integrity', async (t) 
 });
 
 test('reports a change in tar entry metadata alone', async (t) => {
+  // A different mtime changes the tar stream, but no file and no mode.
+  const { directory } = await fixture(t);
+  const published = await buildTarball(directory, 'published', { files: { 'bin.js': 'a' } });
+  const local = await buildTarball(directory, 'local', {
+    files: { 'bin.js': 'a' },
+    time: new Date('2026-02-02T00:00:00Z'),
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: tar entry metadata/,
+  );
+});
+
+test('reports an execute bit change as a modified file', async (t) => {
   const { tarball } = await fixture(t);
   const published = await tarball('published', { 'bin.js': 'a' });
   const local = await tarball('local', { 'bin.js': 'a' }, { 'bin.js': 0o755 });
   const { fetchImpl } = registry([await publishedEntry(published)]);
   await assert.rejects(
     verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
-    /modified: tar entry metadata/,
+    /modified: bin\.js/,
   );
 });
 
@@ -314,8 +330,125 @@ test('fails when another file differs next to a devDependencies change', async (
   const { fetchImpl } = registry([await publishedEntry(published)]);
   await assert.rejects(
     verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
-    (error) => /modified: index\.js/.test(error.message) && !/package\.json/.test(error.message.split('\n')[1]),
+    (error) => {
+      const changed = error.message
+        .split('\n')
+        .filter((line) => /^ {2}(added|removed|modified): /.test(line));
+      assert.deepEqual(changed, ['  modified: index.js']);
+      return true;
+    },
   );
+});
+
+async function rejectsWith(t, { published, local, pattern, notPattern }) {
+  const { directory } = await fixture(t);
+  const publishedFile = await buildTarball(directory, 'published', published);
+  const localFile = await buildTarball(directory, 'local', local);
+  const { fetchImpl } = registry([await publishedEntry(publishedFile)]);
+  const lines = [];
+  await assert.rejects(
+    verifyPublishedContents({
+      ...inputs(),
+      log: (line) => lines.push(line),
+      fetchImpl,
+      pack: () => localFile,
+    }),
+    (error) => {
+      assert.match(error.message, pattern);
+      if (notPattern) assert.doesNotMatch(error.message, notPattern);
+      return true;
+    },
+  );
+  assert.deepEqual(lines, []);
+}
+
+test('fails when devDependencies differ next to an execute bit change', async (t) => {
+  await rejectsWith(t, {
+    published: {
+      files: { 'package.json': pkg({ devDependencies: { v: '1' } }), 'bin.js': 'a' },
+    },
+    local: {
+      files: {
+        'package.json': pkg({ devDependencies: { v: '2' } }),
+        'bin.js': { content: 'a', mode: 0o755 },
+      },
+    },
+    pattern: /modified: bin\.js/,
+  });
+});
+
+test('fails when devDependencies differ next to an added empty directory', async (t) => {
+  await rejectsWith(t, {
+    published: { files: { 'package.json': pkg({ devDependencies: { v: '1' } }) } },
+    local: {
+      files: { 'package.json': pkg({ devDependencies: { v: '2' } }) },
+      dirs: ['empty'],
+    },
+    pattern: /added: empty\//,
+  });
+});
+
+test('fails on a top-level entry beside package/', async (t) => {
+  await rejectsWith(t, {
+    published: { files: { 'package.json': pkg({}) } },
+    local: { files: { 'package.json': pkg({}) }, outside: { 'extra/file.txt': 'x' } },
+    pattern: /only the directory package\/, found: extra, package/,
+  });
+});
+
+test('fails on a symbolic link and names it', async (t) => {
+  await rejectsWith(t, {
+    published: { files: { 'package.json': pkg({}) } },
+    local: {
+      files: { 'package.json': pkg({}) },
+      links: { 'dangling-link': '/nonexistent/target' },
+    },
+    pattern: /not a regular file or a directory: dangling-link/,
+    notPattern: /ENOENT/,
+  });
+});
+
+test('fails on a formatting difference alone and does not say devDependencies', async (t) => {
+  const fields = { dependencies: { a: '1' }, devDependencies: { v: '1' } };
+  await rejectsWith(t, {
+    published: { files: { 'package.json': JSON.stringify({ name: 'x', ...fields }, null, 2) } },
+    local: { files: { 'package.json': JSON.stringify({ name: 'x', ...fields }) } },
+    pattern: /modified: package\.json/,
+    notPattern: /apart from devDependencies/,
+  });
+});
+
+test('gives a nested package.json no devDependencies rule', async (t) => {
+  await rejectsWith(t, {
+    published: {
+      files: {
+        'package.json': pkg({}),
+        'dist/package.json': pkg({ devDependencies: { v: '1' } }),
+      },
+    },
+    local: {
+      files: {
+        'package.json': pkg({}),
+        'dist/package.json': pkg({ devDependencies: { v: '2' } }),
+      },
+    },
+    pattern: /modified: dist\/package\.json/,
+  });
+});
+
+test('flags an unversioned package that names a versioned one in dependencies', () => {
+  const { rewritten } = predictVersioning(
+    [{ name: '@partrunner-ai/tokens', type: 'patch' }],
+    [
+      workspace('@partrunner-ai/tokens'),
+      workspace('@partrunner-ai/shell', {
+        dependencies: { '@partrunner-ai/tokens': 'workspace:*' },
+      }),
+    ],
+  );
+  assert.deepEqual([...rewritten], [
+    ['@partrunner-ai/shell', ['@partrunner-ai/tokens']],
+  ]);
 });
 
 test('compares a package.json that does not parse by its raw bytes', async (t) => {

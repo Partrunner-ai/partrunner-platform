@@ -97,12 +97,26 @@ still ship, such as a changed dependency range in `package.json`, or token CSS
 that `shell` rebundles when only `tokens` was named.
 
 One field is not compared: the top-level `devDependencies` of the root
-`package.json`. Consumers never install it, so a change there (for example a
-Dependabot bump of a dev tool) needs no Changeset and no new version. The
-check logs `matches the published tarball apart from devDependencies` for such
-a package. Every other file, and every other field of `package.json`, is
-compared exactly. A `package.json` that does not parse is compared by its raw
-bytes. Tar entry metadata that differs alone (file modes or order) still fails.
+`package.json`. Consumers never install it. A change to it needs no Changeset
+and no new version when the built files do not change. A dev tool update that
+changes the build output still fails the check and needs a version. The check
+logs `matches the published tarball apart from devDependencies` for a package
+that differs in nothing else.
+
+The rule is exact. The two tarballs must differ only in that one field of the
+root `package.json`, and the field must really differ. Every other file, and
+every other field of `package.json`, is compared by its bytes and its execute
+bit. Every directory, also an empty one, is compared too. A formatting
+difference alone in the root `package.json` fails. A nested `package.json`
+gets no special rule. A `package.json` that does not parse is compared by its
+raw bytes. The unpacked tarball must hold only the directory `package/`, and
+only regular files and directories. Any other entry (a symbolic link, a FIFO,
+a device) or any top-level entry beside `package/` is an error. A link is never
+read.
+
+Two limits remain. When `devDependencies` really differ, the rest of the root
+`package.json` is compared as parsed JSON, so a formatting difference in the
+same file is not seen. The order of tar entries is not compared.
 
 The check also fails when a package keeps its version but names a versioned
 workspace package in `dependencies`, `optionalDependencies`, or
@@ -110,13 +124,17 @@ workspace package in `dependencies`, `optionalDependencies`, or
 `package.json`, so the file changes at version time. A `workspace:` entry in
 `devDependencies` does not count.
 
-The release step (`pnpm run release`) applies the same rule. When a version is
-already on npm and its integrity differs from the retained tarball, the step
-downloads the published tarball from the registry (the URL must start with
-`https://registry.npmjs.org/`), checks it against `dist.integrity`, and accepts
-the version only when it differs in `devDependencies` alone. It does not
-publish that version again. The check after a publish stays byte-exact. The
-rule lives in `scripts/packed-contents.mjs`.
+The release step (`pnpm run release`) uses the same comparison, but it accepts
+only the `devDependencies` status. When a version is already on npm and its
+integrity differs from the retained tarball, the step downloads the published
+tarball from the registry (the URL must start with
+`https://registry.npmjs.org/`, no redirect, 60 second limit), checks it against
+`dist.integrity`, and accepts the version only when it differs in
+`devDependencies` alone. Equal tar streams with different compressed bytes
+still fail there, as before. A missing tarball URL or a non-200 answer fails
+before any publish. The step does not publish that version again. The check
+after a publish stays byte-exact. The rule lives in
+`scripts/packed-contents.mjs`.
 
 Unpublished versions, such as a merged version PR awaiting release, are
 skipped. The check needs network access to the public registry. Each registry

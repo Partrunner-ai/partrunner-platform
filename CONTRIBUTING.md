@@ -23,8 +23,13 @@ must work across the supported React and build-tool generations.
 - Open a focused pull request against `main`.
 - Add or update tests for behavior changes.
 - Add a Changeset for any publishable package change. A change to a package's
-  `devDependencies` alone is not one: `pnpm packages:published-check` ignores
-  that field, because consumers never install it.
+  `devDependencies` needs no Changeset and no version when the built files do
+  not change: `pnpm packages:published-check` ignores that field, because
+  consumers never install it. A dev tool update that changes the build output
+  still fails the check and needs a version. The check rejects any other
+  difference, also a formatting change in `package.json`, an execute bit, or an
+  empty directory. It rejects tarball entries that are not regular files or
+  directories, and anything outside `package/`.
 - Treat a token meaning change, removed export, or removed interface as a major.
 - Do not commit credentials, local registry configuration, generated reports,
   or private operational data.

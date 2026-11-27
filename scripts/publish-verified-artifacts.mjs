@@ -106,9 +106,13 @@ export function verifyRegistryIntegrity(packageInfo, metadata) {
 
 /**
  * An existing version whose integrity differs from the retained tarball is
- * accepted only when it differs in the root `devDependencies` alone, the same
- * rule `verify-published-contents.mjs` applies. The version is not published
- * again. Anything else keeps the integrity error.
+ * accepted only when the two differ in the root `devDependencies` alone. The
+ * comparison is the one `verify-published-contents.mjs` uses, but this step
+ * accepts ONLY the `devDependencies` status. Equal tar streams with other
+ * compressed bytes (a different gzip header) still fail here, as before. The
+ * version is not published again. Anything else keeps the integrity error. A
+ * missing `dist.tarball`, a non-200 answer, a stalled download (60 seconds) and
+ * a download that does not match `dist.integrity` all throw before any publish.
  */
 export async function verifyExistingVersion(
   directory,
@@ -128,7 +132,10 @@ export async function verifyExistingVersion(
       `${label} tarball URL is not on ${REGISTRY}/: ${String(url)}`,
     );
   }
-  const response = await fetchImpl(url, { redirect: 'error' });
+  const response = await fetchImpl(url, {
+    redirect: 'error',
+    signal: globalThis.AbortSignal.timeout(60_000),
+  });
   if (response.status !== 200) {
     throw new Error(`npm registry returned ${response.status} for ${url}`);
   }
