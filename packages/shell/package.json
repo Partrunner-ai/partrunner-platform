@@ -74,7 +74,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.20.1",
     "jsdom": "^26.1.0",
-    "lucide-react": "^0.460.0",
+    "lucide-react": "^0.577.0",
     "vitest": "^4.1.11"
   },
   "publishConfig": {
