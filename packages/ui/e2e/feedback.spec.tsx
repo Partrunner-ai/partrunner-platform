@@ -20,11 +20,18 @@ for (const mode of ['light', 'dark'] as const) {
       return {
         background: getComputedStyle(toastNode).backgroundColor,
         text: getComputedStyle(title).color,
-        bodyText: getComputedStyle(document.body).color,
+        foreground: (() => {
+          const probe = document.createElement('span');
+          probe.style.color = 'var(--pr-fg)';
+          toastNode.appendChild(probe);
+          const value = getComputedStyle(probe).color;
+          probe.remove();
+          return value;
+        })(),
       };
     });
     expect(colours.background).not.toBe('rgb(255, 255, 255)');
-    expect(colours.text).toBe(colours.bodyText);
+    expect(colours.text).toBe(colours.foreground);
 
     await expect(page.getByRole('alert')).toHaveText('No se pudo guardar');
     await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();

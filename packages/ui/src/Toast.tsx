@@ -35,7 +35,8 @@ export interface ToastOptions {
   id?: ToastId;
   /**
    * Milliseconds before it closes. Leave it out: the tone sets it (success and info
-   * 5 s, warning 8 s, error stays until the person closes it). `Infinity` keeps it.
+   * 5 s, warning 8 s, error stays until the person closes it). A toast with an
+   * `action` stays until the person closes it or uses the action. `Infinity` keeps it.
    */
   duration?: number;
   /** Called when the toast closes for any reason. */
@@ -69,7 +70,9 @@ function toSonner(tone: ToastTone | 'loading', options: ToastOptions = {}): Exte
     id,
     description,
     action: action ? { label: action.label, onClick: () => action.onClick() } : undefined,
-    duration: tone === 'loading' ? Infinity : (duration ?? TOAST_DURATION[tone]),
+    // A toast with an action stays: sonner pauses its timer on hover, not on keyboard
+    // focus, so a timed «Deshacer» would close under a keyboard user.
+    duration: tone === 'loading' || action ? Infinity : (duration ?? TOAST_DURATION[tone]),
     onDismiss: onClose ? () => onClose() : undefined,
     onAutoClose: onClose ? () => onClose() : undefined,
   };
@@ -126,7 +129,9 @@ export const toast = {
    */
   promise: <T,>(promise: Promise<T> | (() => Promise<T>), messages: ToastPromiseMessages<T>): Promise<T> => {
     const id = sonnerToast.loading(messages.loading, toSonner('loading'));
-    const running = typeof promise === 'function' ? promise() : promise;
+    // `Promise.resolve().then` also catches a function that throws before it returns a
+    // promise, so the loading toast never stays open.
+    const running = typeof promise === 'function' ? Promise.resolve().then(promise) : promise;
     running.then(
       (data) => {
         show('success', resolve(messages.success, data), { id });

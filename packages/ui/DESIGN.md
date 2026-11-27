@@ -417,7 +417,8 @@ feels.
 - Mount `Toaster` once in the app root. Call `toast.success`, `toast.info`, `toast.warning`,
   `toast.error` or `toast.promise` from `@partrunner-ai/ui`. Do not import `sonner` in the app.
 - Success and info close after 5 s, warning after 8 s. An error stays until the person closes it,
-  because the person must read it.
+  because the person must read it. A toast with an action («Deshacer») also stays, so a person
+  who uses the keyboard can reach the action.
 - The title says what happened, in the past: «Ruta archivada». Give at most one action, with a
   verb: «Deshacer», «Reintentar». Do not put the whole error in the title; use `description`.
 - In an event handler that used to call `window.confirm`, use `useConfirm`. It needs no

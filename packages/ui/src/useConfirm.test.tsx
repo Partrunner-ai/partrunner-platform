@@ -54,6 +54,32 @@ describe('useConfirm', () => {
     expect(screen.getByText(/Se borran sus cargos/).className).toContain('pr-confirm-dialog__text');
   });
 
+  it('answers the first question false when a second one opens', async () => {
+    const answers: Array<[string, boolean]> = [];
+    function Twice() {
+      const { confirm, dialog } = useConfirm();
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              void confirm({ title: 'Primera' }).then((value) => answers.push(['first', value]));
+              void confirm({ title: 'Segunda', confirmLabel: 'Sí' }).then((value) => answers.push(['second', value]));
+            }}
+          >
+            Preguntar
+          </button>
+          {dialog}
+        </>
+      );
+    }
+    render(<Twice />);
+    await userEvent.click(screen.getByRole('button', { name: 'Preguntar' }));
+    expect(screen.getByText('Segunda')).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: 'Sí' }));
+    await waitFor(() => expect(answers).toEqual([['first', false], ['second', true]]));
+  });
+
   it('answers false when the component unmounts with the question open', async () => {
     const onAnswer = vi.fn();
     const { unmount } = render(<Harness onAnswer={onAnswer} />);

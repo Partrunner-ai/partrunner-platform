@@ -125,7 +125,37 @@ describe('toast timing', () => {
   });
 });
 
+describe('toast with an action', () => {
+  it('stays past the success time, so a keyboard user can reach «Deshacer»', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<Toaster />);
+    act(() => {
+      toast.success('Ruta archivada', { action: { label: 'Deshacer', onClick: () => undefined } });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(TOAST_DURATION.success * 4);
+    });
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeDefined();
+  });
+});
+
 describe('toast.promise', () => {
+  it('closes the loading toast when the function throws before it returns', async () => {
+    render(<Toaster />);
+    let returned: Promise<unknown> | undefined;
+    act(() => {
+      returned = toast.promise(
+        () => {
+          throw new Error('sin red');
+        },
+        { loading: 'Enviando…', success: 'Enviado', error: 'No se pudo enviar' },
+      );
+    });
+    await expect(returned).rejects.toThrow('sin red');
+    expect(await screen.findByRole('alert')).toBeDefined();
+    expect(screen.queryByText('Enviando…')).toBeNull();
+  });
+
   it('replaces the loading toast with the success message', async () => {
     render(<Toaster />);
     let finish: (value: number) => void = () => {};
