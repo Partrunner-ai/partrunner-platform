@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.8.1
+
+### Patch Changes
+
+- `StatTile`: the trend chip stays on one line (`white-space: nowrap`, `flex-shrink: 0`). A «+4 pp» chip no longer wraps in a narrow tile; the footer next to it truncates instead.
+
 ## 2.8.0
 
 ### Minor Changes
