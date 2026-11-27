@@ -612,18 +612,61 @@ describe('the tooltip surface', () => {
 describe('the loading placeholder', () => {
   it('pulses opacity rather than sliding a gradient that needs a per-mode value', () => {
     expect(rule('.pr-skeleton')).toContain('animation: pr-skeleton-pulse');
-    expect(rule('.pr-skeleton')).toContain('background: var(--pr-border)');
     expect(css).not.toContain('pr-skeleton-shimmer');
+  });
+
+  it('fills with the text colour at 1.4:1 to 1.6:1 contrast, not the border colour', () => {
+    // 17% of the text colour is 1.42:1 on the light surfaces; 14% is 1.43:1 on the dark page.
+    const light = 'background: color-mix(in srgb, var(--pr-fg) 17%, transparent)';
+    const dark = 'background: color-mix(in srgb, var(--pr-fg) 14%, transparent)';
+    expect(rule('.pr-skeleton')).toContain(light);
+    expect(rule(':where(.dark) .pr-skeleton')).toContain(dark);
+    expect(rule('.pr-table__skeleton-cell')).toContain(light);
+    expect(rule(':where(.dark) .pr-table__skeleton-cell')).toContain(dark);
+    expect(rule('.pr-skeleton')).not.toContain('var(--pr-border)');
+  });
+
+  it('keeps the dark fill at the specificity of the base rule so an app fill wins', () => {
+    expect(css).not.toContain('.dark .pr-skeleton {');
+    expect(css).not.toContain('.dark .pr-table__skeleton-cell {');
+    expect(css.indexOf(':where(.dark) .pr-skeleton {')).toBeGreaterThan(
+      css.indexOf('.pr-skeleton {'),
+    );
+  });
+
+  function reducedMotionSkeletonBlock(): postcss.AtRule {
+    let found: postcss.AtRule | undefined;
+    const start = css.indexOf('.pr-skeleton__group');
+    postcss.parse(css).walkAtRules('media', (at) => {
+      if (
+        found === undefined &&
+        at.params === '(prefers-reduced-motion: reduce)' &&
+        (at.source?.start?.offset ?? 0) > start
+      ) {
+        found = at;
+      }
+    });
+    if (found === undefined) throw new Error('no reduced-motion block after the skeleton');
+    return found;
+  }
+
+  function reducedMotionSkeletonRule(): string {
+    let body: string | undefined;
+    reducedMotionSkeletonBlock().walkRules((candidate) => {
+      if (candidate.selector === '.pr-skeleton') body = candidate.toString();
+    });
+    if (body === undefined) throw new Error('no .pr-skeleton rule in the reduced-motion block');
+    return body;
+  }
+
+  it('keeps at least 1.3:1 contrast under reduced motion', () => {
+    expect(reducedMotionSkeletonRule()).toContain('opacity: 0.9');
   });
 
   it('stops animating under reduced motion instead of pulsing forever', () => {
     // A placeholder that never resolves is a permanent animation on a page a user
     // may be stuck on, which is exactly what the preference is for.
-    const reduced = css.slice(css.indexOf('.pr-skeleton__group'));
-    expect(reduced).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(reduced.slice(reduced.indexOf('@media (prefers-reduced-motion: reduce)'))).toContain(
-      'animation: none',
-    );
+    expect(reducedMotionSkeletonRule()).toContain('animation: none');
   });
 });
 
