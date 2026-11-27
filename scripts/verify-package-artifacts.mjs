@@ -2950,6 +2950,7 @@ import * as seamless from '@partrunner-ai/seamless';
 import * as shell from '@partrunner-ai/shell';
 import * as tokens from '@partrunner-ai/tokens';
 import * as ui from '@partrunner-ai/ui';
+import * as uiServer from '@partrunner-ai/ui/server';
 
 assert.equal(typeof apiCore.tbl, 'function');
 assert.equal(typeof apiFeatureFlags.evaluateFlagDecision, 'function');
@@ -2968,6 +2969,15 @@ assert.ok(ui.TableFrame);
 assert.ok(ui.FilterChip);
 assert.equal(ui.toneFromString('Ana Operadora'), ui.toneFromString('Ana Operadora'));
 assert.ok(ui.TINT_TONES.includes(ui.toneFromString('Ana Operadora')));
+assert.equal(uiServer.Card, ui.Card);
+assert.equal(typeof uiServer.StatTile, 'function');
+assert.equal(typeof uiServer.EmptyState, 'function');
+assert.ok(uiServer.StatTileGrid);
+assert.equal(
+  uiServer.StatTile({ label: 'Rutas', value: 3, tone: 'blue' }).props.className,
+  'pr-stat-tile pr-stat-tile--blue',
+);
+assert.ok(!readFileSync(new URL(import.meta.resolve('@partrunner-ai/ui/server')), 'utf8').trimStart().startsWith('"use client"'));
 
 const subpaths = JSON.parse(
   readFileSync(new URL('./verify-subpaths.json', import.meta.url), 'utf8'),
@@ -2986,6 +2996,7 @@ const seamless = require('@partrunner-ai/seamless');
 const shell = require('@partrunner-ai/shell');
 const tokens = require('@partrunner-ai/tokens');
 const ui = require('@partrunner-ai/ui');
+const uiServer = require('@partrunner-ai/ui/server');
 
 assert.equal(typeof apiCore.tbl, 'function');
 assert.equal(typeof apiFeatureFlags.evaluateFlagDecision, 'function');
@@ -3003,6 +3014,10 @@ assert.equal(typeof ui.DateRangeFilter, 'function');
 assert.ok(ui.TableFrame);
 assert.ok(ui.FilterChip);
 assert.ok(ui.TINT_TONES.includes(ui.toneFromString('Ana Operadora')));
+assert.equal(typeof uiServer.StatTile, 'function');
+assert.equal(typeof uiServer.EmptyState, 'function');
+assert.ok(uiServer.Card);
+assert.ok(!require('node:fs').readFileSync(require.resolve('@partrunner-ai/ui/server'), 'utf8').trimStart().startsWith('"use client"'));
 for (const path of subpaths) assert.ok(require.resolve(path), path);
 `;
 
@@ -3036,6 +3051,16 @@ import {
   type TableFrameProps,
   type TintTone,
 } from '@partrunner-ai/ui';
+import {
+  Card as ServerCard,
+  EmptyState as ServerEmptyState,
+  StatTile as ServerStatTile,
+  StatTileGrid as ServerStatTileGrid,
+  type CardProps as ServerCardProps,
+  type EmptyStateProps as ServerEmptyStateProps,
+  type StatTileProps as ServerStatTileProps,
+} from '@partrunner-ai/ui/server';
+import { createElement } from 'react';
 
 const schema: SchemaName = 'core';
 const segmented: SegmentedControlProps<'all' | 'mine'> = {
@@ -3073,6 +3098,11 @@ const session: NexusSession = {
 };
 const theme: ThemeName = 'nexus';
 const button: ButtonProps = { children: THEMES[theme].light.accent };
+// On the server entry an icon is an element, not a component.
+const serverTile: ServerStatTileProps = { label: 'Rutas', value: 3, icon: createElement('svg') };
+const serverEmpty: ServerEmptyStateProps = { title: 'Sin rutas', icon: createElement('svg') };
+const serverCard: ServerCardProps = { asChild: true, tone: 'blue' };
+void [ServerCard, ServerEmptyState, ServerStatTile, ServerStatTileGrid, serverCard, serverEmpty, serverTile];
 void [
   AppShell,
   Button,
@@ -3104,6 +3134,43 @@ const bellSound: StaffBellSound = DEFAULT_BELL_SOUND;
 void bellSound;
 const shellContext = null as StaffShellContextValue | null;
 void shellContext;
+`;
+
+// Runs with `node --conditions=react-server` on the React 19 line: `react`
+// then resolves to the build a Server Component sees, which has no stateful,
+// effect or context hooks. Every module of the `@partrunner-ai/ui/server`
+// graph must have no "use client" directive and import only names that build
+// exports. The check is static: lucide-react 1.x marks its own icon module
+// "use client", which a bundler honours and plain Node does not.
+const RSC_FIXTURE = `
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as React from 'react';
+
+assert.equal(typeof React.useState, 'undefined', 'react must resolve to its react-server build');
+const serverExports = new Set(Object.keys(React));
+const entry = fileURLToPath(import.meta.resolve('@partrunner-ai/ui/server'));
+const seen = new Set();
+const queue = [entry];
+while (queue.length > 0) {
+  const file = queue.pop();
+  if (seen.has(file)) continue;
+  seen.add(file);
+  const body = readFileSync(file, 'utf8');
+  assert.ok(!/^\\s*(['"])use client\\1/.test(body), file + ' must not be a client module');
+  for (const match of body.matchAll(/(?:import|export)\\s[^;]*?from\\s*['"](\\.[^'"]+)['"]/g)) {
+    queue.push(resolve(dirname(file), match[1]));
+  }
+  for (const match of body.matchAll(/import\\s*\\{([^}]*)\\}\\s*from\\s*['"]react['"]/g)) {
+    for (const part of match[1].split(',')) {
+      const name = part.trim().split(/\\s+as\\s+/)[0];
+      if (name) assert.ok(serverExports.has(name), file + ' imports react.' + name + ', which a Server Component cannot use');
+    }
+  }
+}
+assert.ok(seen.size > 1);
 `;
 
 const NEXT_TYPES_FIXTURE = `
@@ -3158,6 +3225,7 @@ async function verifyFixture(manager, reactLine, tarballs, subpaths, root) {
   );
   await writeFile(join(fixture, 'verify-esm.mjs'), ESM_FIXTURE);
   await writeFile(join(fixture, 'verify-cjs.cjs'), CJS_FIXTURE);
+  await writeFile(join(fixture, 'verify-rsc.mjs'), RSC_FIXTURE);
   await writeFile(join(fixture, 'verify-types.ts'), TYPES_FIXTURE);
   await writeFile(join(fixture, 'verify-types.cts'), TYPES_FIXTURE);
   await writeFile(
@@ -3248,6 +3316,13 @@ async function verifyFixture(manager, reactLine, tarballs, subpaths, root) {
     cwd: fixture,
     env: environment,
   });
+  // React 18 stable has no react-server build to check against.
+  if (reactLine.name === 'react19') {
+    run(process.execPath, ['--conditions=react-server', 'verify-rsc.mjs'], {
+      cwd: fixture,
+      env: environment,
+    });
+  }
   run(
     join(ROOT, 'node_modules', '.bin', 'tsc'),
     ['--project', 'tsconfig.next-stub.json'],

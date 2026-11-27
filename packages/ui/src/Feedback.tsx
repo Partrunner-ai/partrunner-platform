@@ -1,5 +1,6 @@
-import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, type HTMLAttributes, type ReactNode, type Ref } from 'react';
 import { Loader2, type LucideIcon } from 'lucide-react';
+import { withIconDefaults } from './iconElement';
 
 export type SpinnerSize = 'sm' | 'md' | 'lg';
 
@@ -66,24 +67,43 @@ export interface EmptyStateProps extends Omit<HTMLAttributes<HTMLDivElement>, 't
  * spacing drift between screens that are all saying "there is nothing here".
  */
 export const EmptyState = forwardRef<HTMLDivElement, EmptyStateProps>(function EmptyState(
-  { icon: Icon, title, description, action, className, children, ...rest },
+  { icon: Icon, ...rest },
   ref,
 ) {
+  return renderEmptyState({ ...rest, icon: Icon ? <Icon size={22} /> : null }, ref);
+});
+
+/**
+ * `EmptyState` props with the icon as an element. The server entry exports this
+ * shape; the client `EmptyState` converts its component to an element first.
+ */
+export interface EmptyStateMarkupProps extends Omit<EmptyStateProps, 'icon'> {
+  /** An icon element, for example `<Inbox />`. */
+  icon?: ReactNode;
+}
+
+/**
+ * The one copy of the empty-state markup, shared by the client and the server
+ * `EmptyState`.
+ *
+ * @internal Not exported from the package entries.
+ */
+export function renderEmptyState(
+  { icon, title, description, action, className, children, ...rest }: EmptyStateMarkupProps,
+  ref?: Ref<HTMLDivElement>,
+) {
+  const iconNode = withIconDefaults(icon, { size: 22 });
   return (
-    <div
-      ref={ref}
-      className={['pr-empty', className].filter(Boolean).join(' ')}
-      {...rest}
-    >
-      {Icon && (
+    <div ref={ref} className={['pr-empty', className].filter(Boolean).join(' ')} {...rest}>
+      {iconNode != null && iconNode !== false ? (
         <span className="pr-empty__icon" aria-hidden>
-          <Icon size={22} />
+          {iconNode}
         </span>
-      )}
+      ) : null}
       <p className="pr-empty__title">{title}</p>
       {description && <p className="pr-empty__description">{description}</p>}
       {children}
       {action && <div className="pr-empty__action">{action}</div>}
     </div>
   );
-});
+}
