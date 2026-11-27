@@ -1,4 +1,4 @@
-import { forwardRef, type HTMLAttributes, type ReactNode, type Ref } from 'react';
+import { forwardRef, isValidElement, type HTMLAttributes, type ReactNode, type Ref } from 'react';
 import { Loader2, type LucideIcon } from 'lucide-react';
 import { withIconDefaults } from './iconElement';
 
@@ -95,7 +95,7 @@ export function renderEmptyState(
   const iconNode = withIconDefaults(icon, { size: 22 });
   return (
     <div ref={ref} className={['pr-empty', className].filter(Boolean).join(' ')} {...rest}>
-      {iconNode != null && iconNode !== false ? (
+      {isValidElement(iconNode) ? (
         <span className="pr-empty__icon" aria-hidden>
           {iconNode}
         </span>

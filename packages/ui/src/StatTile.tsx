@@ -1,4 +1,4 @@
-import { forwardRef, type HTMLAttributes, type ReactNode, type Ref } from 'react';
+import { forwardRef, isValidElement, type HTMLAttributes, type ReactNode, type Ref } from 'react';
 import { TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
 import { withIconDefaults } from './iconElement';
 
@@ -91,7 +91,7 @@ export function renderStatTile(
           <p className="pr-stat-tile__value">{value}</p>
           {hint != null ? <p className="pr-stat-tile__hint">{hint}</p> : null}
         </div>
-        {iconNode != null && iconNode !== false ? (
+        {isValidElement(iconNode) ? (
           <div className="pr-stat-tile__icon">{iconNode}</div>
         ) : null}
       </div>

@@ -1,10 +1,12 @@
 import { renderStatTile, type StatTileMarkupProps } from '../StatTile';
+import type { WithoutHandlers } from './props';
 
 /**
  * `StatTile` props on the server entry. Same as the client props, except that
- * `icon` is an element (`icon={<Truck />}`), not a component (`icon={Truck}`).
+ * `icon` is an element (`icon={<Truck />}`), not a component (`icon={Truck}`),
+ * and there are no event handlers (`onClick`, ...).
  */
-export type StatTileProps = StatTileMarkupProps;
+export type StatTileProps = WithoutHandlers<StatTileMarkupProps>;
 
 /**
  * Server-safe `StatTile`: the same markup and classes as the client tile, as a

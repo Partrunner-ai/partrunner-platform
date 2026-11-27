@@ -16,8 +16,13 @@
  *
  * Rules for this file:
  *  - No hooks, no context, no browser API anywhere in the import graph. The
- *    server-entry test and the package artifact check run the bundle under the
- *    `react-server` condition, where React has no hooks.
+ *    server-entry test scans the built graph: no "use client" module, and
+ *    from `react` only named imports that its `react-server` build exports
+ *    (no namespace or default import). The package artifact check runs the
+ *    same scan against that build's real export list, under
+ *    `node --conditions=react-server`. Neither renders the bundle there:
+ *    lucide-react 1.x creates a context when it loads, which a bundler keeps
+ *    on the client and plain Node does not.
  *  - `forwardRef`, `cloneElement` and `Children` are allowed: they are part of
  *    React's server API.
  *  - An icon is an element (`icon={<Truck />}`), never a component.

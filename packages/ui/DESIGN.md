@@ -524,6 +524,9 @@ Rules:
    `render`, `columns` with `render`, `icon={Truck}`) needs a client file.
 4. The icon element takes the same defaults as the component form (`strokeWidth` 2.25 in a
    `StatTile`, `size` 22 in an `EmptyState`). Props that you set on the element win.
+5. No event handlers on a `/server` part. `StatTile` and `EmptyState` do not accept `on*`
+   props. `Card` is the client component, so its type still accepts `onClick`, but a Server
+   Component cannot pass it. For a clickable card, use `Card asChild` around a link.
 
 ```tsx
 // app/(admin)/resumen/page.tsx: a Server Component

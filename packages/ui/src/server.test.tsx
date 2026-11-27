@@ -56,10 +56,20 @@ function esmGraph(entry: string) {
   return seen;
 }
 
-function reactNamedImports(body: string) {
+/**
+ * The names a module imports from `react`. A namespace or default import
+ * (`import * as React`, `import React`) hides which names it uses, so it is
+ * returned as `*` or `default` and fails the server-safe check.
+ */
+function reactImports(body: string) {
   const names: string[] = [];
-  for (const match of body.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"]react['"]/g)) {
-    for (const part of match[1]!.split(',')) {
+  for (const match of body.matchAll(/import\s+([^;'"]*?)\s*from\s*['"]react['"]/g)) {
+    const clause = match[1]!.trim();
+    const braces = /\{([^}]*)\}/.exec(clause);
+    const outside = clause.replace(/\{[^}]*\}/, '').replace(/,/g, ' ').trim();
+    if (/^\*\s+as\s/.test(outside)) names.push('*');
+    else if (outside) names.push('default');
+    for (const part of braces?.[1]!.split(',') ?? []) {
       const name = part.trim().split(/\s+as\s+/)[0];
       if (name) names.push(name);
     }
@@ -86,7 +96,7 @@ describe('server entry: built artifact', () => {
     const imported = new Set<string>();
     for (const [file, body] of graph) {
       expect(hasClientDirective(body), file).toBe(false);
-      for (const name of reactNamedImports(body)) imported.add(name);
+      for (const name of reactImports(body)) imported.add(name);
     }
     expect(imported.size).toBeGreaterThan(0);
     const unsafe = [...imported].filter((name) => !REACT_SERVER_EXPORTS.has(name));
@@ -184,5 +194,32 @@ describe('server entry: same markup as the main entry', () => {
       </server.StatTileGrid>,
     );
     expect(container.firstElementChild!.className).toBe('pr-stat-grid pr-stat-grid--cols-3');
+  });
+});
+
+describe('server entry: icon guard and handlers', () => {
+  it.each([0, '', true, false, null])('StatTile and EmptyState render no icon box for icon=%j', (icon) => {
+    const tile = render(<server.StatTile label="x" value={1} icon={icon} />);
+    expect(tile.container.querySelector('.pr-stat-tile__icon')).toBeNull();
+    const empty = render(<server.EmptyState title="Sin rutas" icon={icon} />);
+    expect(empty.container.querySelector('.pr-empty__icon')).toBeNull();
+  });
+
+  it('does not accept event handlers on StatTile and EmptyState', () => {
+    // @ts-expect-error A Server Component cannot pass a function prop.
+    const tile = <server.StatTile label="x" value={1} onClick={() => {}} />;
+    // @ts-expect-error A Server Component cannot pass a function prop.
+    const empty = <server.EmptyState title="x" onClick={() => {}} />;
+    expect([tile, empty]).toHaveLength(2);
+  });
+});
+
+describe('server entry: React import scan', () => {
+  it('reads named, namespace and default imports', () => {
+    expect(reactImports(`import { forwardRef, cloneElement as c } from 'react';`)).toEqual(['forwardRef', 'cloneElement']);
+    expect(reactImports(`import * as React from 'react';`)).toEqual(['*']);
+    expect(reactImports(`import React from "react";`)).toEqual(['default']);
+    expect(reactImports(`import React, { useState } from 'react';`)).toEqual(['default', 'useState']);
+    expect(reactImports(`import { jsx } from 'react/jsx-runtime';`)).toEqual([]);
   });
 });

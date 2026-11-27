@@ -3140,7 +3140,8 @@ void shellContext;
 // then resolves to the build a Server Component sees, which has no stateful,
 // effect or context hooks. Every module of the `@partrunner-ai/ui/server`
 // graph must have no "use client" directive and import only names that build
-// exports. The check is static: lucide-react 1.x marks its own icon module
+// exports by name (a namespace or default import fails). The check is static:
+// lucide-react 1.x creates a context when it loads and marks its icon module
 // "use client", which a bundler honours and plain Node does not.
 const RSC_FIXTURE = `
 import assert from 'node:assert/strict';
@@ -3163,8 +3164,12 @@ while (queue.length > 0) {
   for (const match of body.matchAll(/(?:import|export)\\s[^;]*?from\\s*['"](\\.[^'"]+)['"]/g)) {
     queue.push(resolve(dirname(file), match[1]));
   }
-  for (const match of body.matchAll(/import\\s*\\{([^}]*)\\}\\s*from\\s*['"]react['"]/g)) {
-    for (const part of match[1].split(',')) {
+  for (const match of body.matchAll(/import\\s+([^;'"]*?)\\s*from\\s*['"]react['"]/g)) {
+    const clause = match[1].trim();
+    const outside = clause.replace(/\\{[^}]*\\}/, '').replace(/,/g, ' ').trim();
+    assert.equal(outside, '', file + ' must import react by name, not as a namespace or default');
+    const braces = /\\{([^}]*)\\}/.exec(clause);
+    for (const part of braces ? braces[1].split(',') : []) {
       const name = part.trim().split(/\\s+as\\s+/)[0];
       if (name) assert.ok(serverExports.has(name), file + ' imports react.' + name + ', which a Server Component cannot use');
     }
