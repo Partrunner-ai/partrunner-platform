@@ -54,6 +54,21 @@ const text = (block, start, length) => {
   return field.subarray(0, end === -1 ? length : end).toString('utf8');
 };
 
+/**
+ * An octal header field, or null when it is not plain: after removal of leading
+ * spaces and trailing NUL and space bytes, only the digits 0-7 may remain. An
+ * empty field is 0 only when `emptyIsZero`.
+ */
+function octalField(header, start, length, emptyIsZero = false) {
+  const value = header
+    .subarray(start, start + length)
+    .toString('latin1')
+    .replace(/[\0 ]+$/, '')
+    .replace(/^ +/, '');
+  if (value === '') return emptyIsZero ? 0 : null;
+  return /^[0-7]+$/.test(value) ? parseInt(value, 8) : null;
+}
+
 /** Records of a PAX header: `<length> <key>=<value>\n`. */
 function parsePax(data) {
   const records = new Map();
@@ -66,6 +81,7 @@ function parsePax(data) {
     }
     const record = data.subarray(space + 1, offset + length - 1).toString('utf8');
     const equals = record.indexOf('=');
+    if (equals === -1) throw new Error('Tarball has a malformed PAX header');
     records.set(record.slice(0, equals), record.slice(equals + 1));
     offset += length;
   }
@@ -87,7 +103,10 @@ const TYPE_NAMES = {
  * segment, no backslash, and a path that no other entry has. Reading the
  * headers does not depend on how `tar -tv` prints an entry on one platform or
  * another. A PAX (`x`) or GNU long name (`L`) header gives the path of the next
- * entry; any other header kind is an error.
+ * entry; any other header kind is an error. The reader is strict: a bad header
+ * checksum, a size field that is not plain octal, a second name header for one
+ * entry, or any byte after the end of the archive is an error, so it never sees
+ * another list of entries than `tar` does.
  */
 export function assertSafeTarEntries(tar, label = 'Tarball') {
   const seen = new Set();
@@ -96,26 +115,46 @@ export function assertSafeTarEntries(tar, label = 'Tarball') {
   let offset = 0;
   while (offset + BLOCK <= tar.length) {
     const header = tar.subarray(offset, offset + BLOCK);
-    if (header.every((byte) => byte === 0)) return;
-    if (header[124] & 0x80) {
-      throw new Error(`${label} has an entry with an unsupported size field`);
+    if (header.every((byte) => byte === 0)) {
+      if (longName !== null || pax !== null) {
+        throw new Error(`${label} has a long name or PAX header with no entry after it`);
+      }
+      if (tar.subarray(offset).some((byte) => byte !== 0)) {
+        throw new Error(`${label} has data after the end of the archive`);
+      }
+      return;
     }
-    const size = parseInt(text(header, 124, 12).trim() || '0', 8);
-    if (!Number.isInteger(size) || size < 0) {
-      throw new Error(`${label} has a malformed tar header`);
+    const sum = header.reduce(
+      (total, byte, index) => total + (index >= 148 && index < 156 ? 0x20 : byte),
+      0,
+    );
+    const stored = octalField(header, 148, 8);
+    if (stored === null || stored !== sum) {
+      throw new Error(`${label} has a tar header with a bad checksum`);
     }
     const type = String.fromCharCode(header[156] || 0x30);
+    const size = octalField(header, 124, 12, type === '5');
+    if (size === null) throw new Error(`${label} has a malformed tar header`);
     const dataEnd = offset + BLOCK + size;
     if (dataEnd > tar.length) throw new Error(`${label} is truncated`);
     const data = tar.subarray(offset + BLOCK, dataEnd);
     offset += BLOCK + Math.ceil(size / BLOCK) * BLOCK;
     if (type === 'L') {
+      if (longName !== null || pax !== null) {
+        throw new Error(`${label} has two name headers for one entry`);
+      }
       longName = text(data, 0, data.length);
       continue;
     }
     if (type === 'x') {
+      if (longName !== null || pax !== null) {
+        throw new Error(`${label} has two name headers for one entry`);
+      }
       pax = parsePax(data);
       continue;
+    }
+    if (longName !== null && pax?.has('path')) {
+      throw new Error(`${label} has both a GNU long name and a PAX path for one entry`);
     }
     let path = longName ?? pax?.get('path');
     if (path === undefined || path === null) {
@@ -148,6 +187,9 @@ export function assertSafeTarEntries(tar, label = 'Tarball') {
       throw new Error(`${label} has two entries with the same path: ${path}`);
     }
     seen.add(normal);
+  }
+  if (longName !== null || pax !== null) {
+    throw new Error(`${label} has a long name or PAX header with no entry after it`);
   }
   if (offset < tar.length) throw new Error(`${label} is truncated`);
 }

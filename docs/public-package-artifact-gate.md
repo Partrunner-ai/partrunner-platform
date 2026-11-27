@@ -116,6 +116,9 @@ anything is unpacked. Every entry must be a regular file or a directory, under
 `package/`, with no `..` segment and no second entry of the same path. Any other
 entry (a hard link, a symbolic link, a FIFO, a device, an absolute path, a path
 outside `package/`) is an error that names the entry, and nothing is unpacked.
+The reader is strict: a bad header checksum, a size that is not plain octal, a
+second name header for one entry, or a byte after the end of the archive is an
+error.
 After the unpack, the tree must hold only the directory `package/`, and only
 regular files and directories. A link is never read.
 

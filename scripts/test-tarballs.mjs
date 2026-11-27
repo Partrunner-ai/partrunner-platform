@@ -71,19 +71,21 @@ const octal = (value, length) =>
  * Linux. Each entry is `{ path, type, content, linkname, mode }`. `type` is a
  * tar type flag: '0' file (default), '5' directory, '1' hard link, '2' symbolic
  * link, '6' FIFO. A path is written as given, so `..` and absolute paths work.
- * Only a path of up to 100 bytes fits.
+ * Only a path of up to 100 bytes fits; use an 'x' or 'L' entry for a longer
+ * one. `sizeField` and `checksum` write a raw header field. `trailer` adds
+ * bytes after the end of the archive.
  */
-export async function buildRawTarball(directory, name, entries) {
+export async function buildRawTarball(directory, name, entries, { trailer = null } = {}) {
   const blocks = [];
   for (const entry of entries) {
-    const { path, type = '0', content = '', linkname = '', mode = 0o644 } = entry;
+    const { path, type = '0', content = '', linkname = '', mode = 0o644, sizeField = null, checksum = null } = entry;
     const data = Buffer.from(content);
     const header = Buffer.alloc(512);
     field(path, 100).copy(header, 0);
     octal(mode, 8).copy(header, 100);
     octal(0, 8).copy(header, 108);
     octal(0, 8).copy(header, 116);
-    octal(data.length, 12).copy(header, 124);
+    (sizeField === null ? octal(data.length, 12) : field(sizeField, 12)).copy(header, 124);
     octal(0, 12).copy(header, 136);
     header.fill(0x20, 148, 156);
     header.write(type, 156);
@@ -91,11 +93,12 @@ export async function buildRawTarball(directory, name, entries) {
     header.write('ustar\0', 257);
     header.write('00', 263);
     const sum = header.reduce((total, byte) => total + byte, 0);
-    octal(sum, 7).copy(header, 148);
+    (checksum === null ? octal(sum, 7) : field(checksum, 7)).copy(header, 148);
     header[155] = 0x20;
     blocks.push(header, data, Buffer.alloc((512 - (data.length % 512)) % 512));
   }
   blocks.push(Buffer.alloc(1024));
+  if (trailer !== null) blocks.push(Buffer.from(trailer));
   const file = join(directory, `${name}.tgz`);
   await writeFile(file, gzipSync(Buffer.concat(blocks)));
   return file;

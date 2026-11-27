@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
+import { readFileSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -338,4 +339,82 @@ test('cleans up a tree with a read-only directory, and never throws', async (t) 
   await removeTree(out);
   await assert.rejects(readFile(join(out, 'package/package.json')), /ENOENT/);
   await assert.doesNotReject(removeTree(join(directory, 'never-existed')));
+});
+
+const pax = (key, value) => {
+  let length = key.length + value.length + 3;
+  while (`${length} ${key}=${value}\n`.length !== length) length += 1;
+  return `${length} ${key}=${value}\n`;
+};
+
+async function rejectsRaw(t, entries, pattern, options) {
+  const { directory } = await workspace(t);
+  const file = await buildRawTarball(directory, 'strict', entries, options);
+  await assert.rejects(unpackTarball(file, join(directory, 'out')), pattern);
+  await assert.rejects(readFile(join(directory, 'out/package/package.json')));
+}
+
+test('rejects a header with a bad checksum', async (t) => {
+  await rejectsRaw(
+    t,
+    [...rawPackage, rawFile('package/a.js', 'a', { checksum: '0000001' })],
+    /bad checksum/,
+  );
+});
+
+test('rejects a size field that is not plain octal', async (t) => {
+  for (const sizeField of ['18', '1x', '-1', '']) {
+    await rejectsRaw(
+      t,
+      [...rawPackage, rawFile('package/a.js', 'a', { sizeField })],
+      /malformed tar header/,
+    );
+  }
+});
+
+test('rejects data after the end of the archive', async (t) => {
+  await rejectsRaw(t, rawPackage, /data after the end of the archive/, {
+    trailer: 'x',
+  });
+});
+
+test('rejects two sources for one path, repeated name headers, and a lone one', async (t) => {
+  const long = (path) => ({ path: 'long', type: 'L', content: `${path}\0` });
+  const px = (path) => ({ path: 'pax', type: 'x', content: pax('path', path) });
+  const file = rawFile('package/a.js', 'a');
+  await rejectsRaw(t, [...rawPackage, long('package/b.js'), px('package/c.js'), file], /both a GNU long name and a PAX path|two name headers/);
+  await rejectsRaw(t, [...rawPackage, long('package/b.js'), long('package/c.js'), file], /two name headers/);
+  await rejectsRaw(t, [...rawPackage, px('package/b.js'), px('package/c.js'), file], /two name headers/);
+  await rejectsRaw(t, [...rawPackage, long('package/b.js')], /no entry after it/);
+  await rejectsRaw(t, [...rawPackage, px('package/b.js')], /no entry after it/);
+});
+
+test('rejects a PAX record without an equals sign', async (t) => {
+  await rejectsRaw(
+    t,
+    [
+      ...rawPackage,
+      { path: 'pax', type: 'x', content: '9 nokeyv\n' },
+      rawFile('package/a.js', 'a'),
+    ],
+    /malformed PAX header/,
+  );
+});
+
+test('accepts a PAX path and a GNU long name over 100 characters', async (t) => {
+  const { directory } = await workspace(t);
+  const longPath = `package/${'d'.repeat(60)}/${'e'.repeat(60)}.js`;
+  const withPax = await buildRawTarball(directory, 'pax', [
+    ...rawPackage,
+    { path: 'pax', type: 'x', content: pax('path', longPath) },
+    rawFile('package/short.js', 'a'),
+  ]);
+  const withLong = await buildRawTarball(directory, 'gnu', [
+    ...rawPackage,
+    { path: 'long', type: 'L', content: `${longPath}\0` },
+    rawFile('package/short.js', 'a'),
+  ]);
+  for (const file of [withPax, withLong]) {
+    assert.doesNotThrow(() => assertSafeTarEntries(gunzipSync(readFileSync(file))));
+  }
 });
