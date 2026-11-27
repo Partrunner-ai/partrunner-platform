@@ -125,6 +125,38 @@ describe('ItemRow', () => {
     expect(document.querySelector('a[aria-disabled="true"]')?.hasAttribute('href')).toBe(false);
   });
 
+  it('gives every row part a data-slot', () => {
+    const { container } = render(
+      <ItemList aria-label="x" density="compact">
+        <ItemRow
+          title="Ruiz"
+          description="Hola"
+          meta="3 h"
+          footer="Pie"
+          leading={<i />}
+          trailing={<b />}
+          unread
+        />
+        <ItemRow title="Sin icono" unread />
+      </ItemList>,
+    );
+    const slots = (row: Element) =>
+      Array.from(row.querySelectorAll('[data-slot]'), (node) => node.getAttribute('data-slot'));
+    const [full, plain] = Array.from(container.querySelectorAll('li'));
+    expect(slots(full!)).toEqual([
+      'item-row-main',
+      'item-row-leading',
+      'item-row-dot',
+      'item-row-title',
+      'item-row-meta',
+      'item-row-description',
+      'item-row-footer',
+      'item-row-trailing',
+    ]);
+    expect(slots(plain!)).toEqual(['item-row-main', 'item-row-dot', 'item-row-title']);
+    expect(container.querySelector('.pr-item-row__title')?.getAttribute('data-slot')).toBe('item-row-title');
+  });
+
   it('forwards ref, class and rest props to the li', () => {
     const ref = createRef<HTMLLIElement>();
     render(
