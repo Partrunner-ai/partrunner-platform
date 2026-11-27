@@ -61,10 +61,16 @@ const decision = evaluateFlagDecision(
     flotilleroId: actor.flotilleroId,
     flotilleroRfc: actor.flotilleroRfc,
     email: actor.email,
-    roles: actor.roles,
+    permissions: actor.effectivePermissions,
   },
 );
 ```
+
+An `allowlist` flag matches a listed flotillero id or RFC, a listed admin
+email, or an admin who holds any code in `admin_permissions` (Nexus permission
+codes such as `supply.fleets.read`; `'*'` matches any non-empty list). The host
+passes the effective permissions it already loaded. `admin_roles` is retired:
+it is not matched and normalization drops it.
 
 The host still owns missing keys, invalid host context, provider failures,
 database access, cache policy, and exposure events. `evaluateFlag` remains the
