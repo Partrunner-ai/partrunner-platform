@@ -7,9 +7,20 @@
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
-const ROLE_CODE_RE = /^[a-z][a-z0-9_]*$/;
+const PERMISSION_CODE_RE = /^[a-z0-9_]+(\.[a-z0-9_]+)+$/;
 
-/** Common role-code suggestions. Valid role codes are not limited to this list. */
+/** Grant held by super admins: it matches every non-empty `admin_permissions` list. */
+export const FEATURE_FLAG_WILDCARD_PERMISSION = '*';
+
+/** True for a Nexus permission code such as `supply.fleets.read`. */
+export function isValidFeatureFlagPermissionCode(code: string): boolean {
+  return PERMISSION_CODE_RE.test(code.trim());
+}
+
+/**
+ * @deprecated Role targeting is retired. Use `admin_permissions` with Nexus
+ * permission codes. Kept only so existing imports still compile.
+ */
 export const FEATURE_FLAG_ADMIN_ROLES = [
   'super_admin',
   'product_manager',
@@ -36,6 +47,12 @@ export interface FeatureFlagTargeting {
   flotillero_ids?: string[];
   flotillero_rfcs?: string[];
   admin_emails?: string[];
+  /** Nexus permission codes. An admin who holds any of them matches. */
+  admin_permissions?: string[];
+  /**
+   * @deprecated Ignored since 1.6.0: not validated, not matched, and dropped
+   * from normalized output. Use `admin_permissions`.
+   */
   admin_roles?: string[];
 }
 
@@ -55,13 +72,23 @@ export interface FeatureFlagEvaluationRow {
 /** Legacy caller context retained for the compatible boolean evaluator. */
 export type FeatureFlagContext =
   | { kind: 'user'; flotilleroId?: string | null; rfc?: string | null }
-  | { kind: 'admin'; email?: string | null; role?: string | null };
+  | {
+      kind: 'admin';
+      email?: string | null;
+      /** Effective Nexus permission codes of the admin. */
+      permissions?: readonly string[] | null;
+      /** @deprecated Ignored since 1.6.0. Use `permissions`. */
+      role?: string | null;
+    };
 
 /** Provider-neutral actor fields understood by the structured row evaluator. */
 export interface FeatureFlagActor {
   flotilleroId?: string | null;
   flotilleroRfc?: string | null;
   email?: string | null;
+  /** Effective Nexus permission codes. `'*'` matches any non-empty list. */
+  permissions?: readonly string[] | null;
+  /** @deprecated Ignored since 1.6.0. Use `permissions`. */
   roles?: readonly string[] | null;
 }
 
@@ -117,7 +144,7 @@ export function validateTargeting(v: unknown): v is FeatureFlagTargeting {
   if (!checkStringArray('flotillero_ids', s => UUID_RE.test(s))) return false;
   if (!checkStringArray('flotillero_rfcs', s => s.length >= 12 && s.length <= 13)) return false;
   if (!checkStringArray('admin_emails', s => EMAIL_RE.test(s))) return false;
-  if (!checkStringArray('admin_roles', s => ROLE_CODE_RE.test(s))) return false;
+  if (!checkStringArray('admin_permissions', s => PERMISSION_CODE_RE.test(s))) return false;
 
   return true;
 }
@@ -128,7 +155,7 @@ function normalizeTargeting(t: FeatureFlagTargeting): FeatureFlagTargeting {
     flotillero_ids: (t.flotillero_ids ?? []).map(s => s.trim().toLowerCase()),
     flotillero_rfcs: (t.flotillero_rfcs ?? []).map(s => s.trim().toUpperCase()),
     admin_emails: (t.admin_emails ?? []).map(s => s.trim().toLowerCase()),
-    admin_roles: (t.admin_roles ?? []).map(s => s.trim()),
+    admin_permissions: (t.admin_permissions ?? []).map(s => s.trim()),
   };
 }
 
@@ -160,6 +187,19 @@ function normalized(value: string | null | undefined): string {
 function listIncludes(list: readonly string[] | undefined, value: string | null | undefined): boolean {
   const candidate = normalized(value);
   return Boolean(candidate && list?.some(item => normalized(item) === candidate));
+}
+
+/** True when the actor holds a listed code, or `'*'` and the list is not empty. */
+function holdsAnyPermission(
+  listed: readonly string[] | undefined,
+  held: readonly string[] | null | undefined
+): boolean {
+  if (!listed?.length || !held?.length) return false;
+  return held.some(
+    code =>
+      typeof code === 'string' &&
+      (code.trim() === FEATURE_FLAG_WILDCARD_PERMISSION || listIncludes(listed, code))
+  );
 }
 
 /** Evaluate one already-loaded row without database or cache access. */
@@ -194,7 +234,7 @@ export function evaluateFlagDecision<TPayload = unknown>(
     listIncludes(targeting.flotillero_ids, actor?.flotilleroId) ||
     listIncludes(targeting.flotillero_rfcs, actor?.flotilleroRfc) ||
     listIncludes(targeting.admin_emails, actor?.email) ||
-    Boolean(actor?.roles?.some(role => listIncludes(targeting.admin_roles, role)));
+    holdsAnyPermission(targeting.admin_permissions, actor?.permissions);
 
   return matches
     ? {
@@ -230,13 +270,9 @@ export function evaluateFlag(
   }
 
   const email = ctx.email?.trim().toLowerCase() ?? '';
-  const role = ctx.role?.trim() ?? '';
   const emails = targeting.admin_emails ?? [];
-  const roles = targeting.admin_roles ?? [];
-  if (emails.length === 0 && roles.length === 0) return false;
   if (email && emails.includes(email)) return true;
-  if (role && roles.includes(role)) return true;
-  return false;
+  return holdsAnyPermission(targeting.admin_permissions, ctx.permissions);
 }
 
 /** Build value_json while preserving unknown sibling keys. */

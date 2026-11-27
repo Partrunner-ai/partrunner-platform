@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluateFlag,
   evaluateFlagDecision,
+  mergeTargetingIntoValueJson,
   parseTargetingResult,
   type FeatureFlagContext,
 } from './feature-flags';
@@ -69,7 +70,7 @@ describe('evaluateFlag', () => {
     ).toBe(false);
   });
 
-  it('keeps legacy metadata and role behavior unchanged', () => {
+  it('keeps legacy metadata behavior and ignores retired role targeting', () => {
     expect(
       evaluateFlag(
         { value_bool: true, value_json: { variant: 42 } },
@@ -84,9 +85,24 @@ describe('evaluateFlag', () => {
             targeting: { mode: 'allowlist', admin_roles: ['operations_manager'] },
           },
         },
-        { kind: 'admin', role: 'OPERATIONS_MANAGER' }
+        { kind: 'admin', role: 'operations_manager' }
       )
     ).toBe(false);
+  });
+
+  it('matches admin permissions in the legacy admin context', () => {
+    const flag = {
+      value_bool: true,
+      value_json: {
+        targeting: { mode: 'allowlist', admin_permissions: ['supply.fleets.read'] },
+      },
+    };
+    expect(evaluateFlag(flag, { kind: 'admin', permissions: ['supply.fleets.read'] })).toBe(true);
+    expect(evaluateFlag(flag, { kind: 'admin', permissions: ['*'] })).toBe(true);
+    expect(evaluateFlag(flag, { kind: 'admin', permissions: ['finance.payments.read'] })).toBe(
+      false
+    );
+    expect(evaluateFlag(flag, { kind: 'user', flotilleroId: null })).toBe(false);
   });
 
   it.each<{
@@ -135,7 +151,18 @@ describe('evaluateFlag', () => {
       expected: true,
     },
     {
-      name: 'admin role match',
+      name: 'admin permission match',
+      flag: {
+        value_bool: true,
+        value_json: {
+          targeting: { mode: 'allowlist', admin_permissions: ['ops.routes.read'] },
+        },
+      },
+      context: { kind: 'admin', permissions: [' OPS.routes.read '] },
+      expected: true,
+    },
+    {
+      name: 'retired admin role',
       flag: {
         value_bool: true,
         value_json: {
@@ -143,7 +170,7 @@ describe('evaluateFlag', () => {
         },
       },
       context: { kind: 'admin', role: 'operations_manager' },
-      expected: true,
+      expected: false,
     },
     {
       name: 'legacy context field isolation',
@@ -168,13 +195,17 @@ describe('evaluateFlag', () => {
       context: { kind: 'admin', email: 'operator@partrunner.com' },
       expected: false,
     },
-  ])('keeps the 1.0.2 result for $name', ({ flag, context, expected }) => {
+  ])('evaluates $name the same in both evaluators', ({ flag, context, expected }) => {
     expect(evaluateFlag(flag, context)).toBe(expected);
 
     const actor =
       context.kind === 'user'
         ? { flotilleroId: context.flotilleroId, flotilleroRfc: context.rfc }
-        : { email: context.email, roles: context.role ? [context.role] : [] };
+        : {
+            email: context.email,
+            permissions: context.permissions,
+            roles: context.role ? [context.role] : [],
+          };
     expect(evaluateFlagDecision(flag, actor).enabled).toBe(expected);
   });
 });
@@ -198,7 +229,7 @@ describe('parseTargetingResult', () => {
         flotillero_ids: [],
         flotillero_rfcs: ['ABC010101AB1'],
         admin_emails: ['operator@partrunner.com'],
-        admin_roles: [],
+        admin_permissions: [],
       },
     });
     expect(parseTargetingResult({ targeting: null })).toEqual({ status: 'invalid' });
@@ -211,7 +242,8 @@ describe('parseTargetingResult', () => {
       parseTargetingResult({
         targeting: {
           mode: 'allowlist',
-          admin_roles: ['partrunner_admin', 'payment_approver', 'new_role_code'],
+          admin_permissions: [' supply.fleets.read ', 'finance.payments.approve'],
+          admin_roles: ['Invalid-Role'],
         },
       })
     ).toEqual({
@@ -221,51 +253,84 @@ describe('parseTargetingResult', () => {
         flotillero_ids: [],
         flotillero_rfcs: [],
         admin_emails: [],
-        admin_roles: ['partrunner_admin', 'payment_approver', 'new_role_code'],
+        admin_permissions: ['supply.fleets.read', 'finance.payments.approve'],
       },
     });
-    expect(
-      parseTargetingResult({
-        targeting: { mode: 'allowlist', admin_roles: ['Invalid-Role'] },
-      })
-    ).toEqual({ status: 'invalid' });
+    for (const bad of ['supply', 'supply.', '*', 'supply.fleets-read', 'supply fleets.read']) {
+      expect(
+        parseTargetingResult({ targeting: { mode: 'allowlist', admin_permissions: [bad] } })
+      ).toEqual({ status: 'invalid' });
+    }
   });
 });
 
 describe('evaluateFlagDecision', () => {
-  it('matches any supported actor field and any actor role', () => {
+  it('matches when the actor holds any listed permission or the wildcard', () => {
     const flag = {
       value_bool: true,
       value_json: {
         targeting: {
           mode: 'allowlist',
-          admin_roles: ['finance_manager'],
+          admin_emails: ['lead@partrunner.com'],
+          admin_permissions: ['finance.payments.approve', 'supply.fleets.read'],
         },
       },
     };
+    const on = { enabled: true, reason: 'matched', variant: null, payload: null };
+    const off = { enabled: false, reason: 'disabled', variant: null, payload: null };
 
     expect(
       evaluateFlagDecision(flag, {
         email: 'operator@partrunner.com',
-        roles: ['viewer', 'FINANCE_MANAGER'],
+        permissions: ['ops.routes.read', 'supply.fleets.read'],
       })
-    ).toEqual({ enabled: true, reason: 'matched', variant: null, payload: null });
+    ).toEqual(on);
+    expect(evaluateFlagDecision(flag, { email: 'lead@partrunner.com', permissions: [] })).toEqual(
+      on
+    );
+    expect(evaluateFlagDecision(flag, { permissions: ['*'] })).toEqual(on);
+    expect(evaluateFlagDecision(flag, { permissions: ['ops.routes.read'] })).toEqual(off);
+    expect(evaluateFlagDecision(flag, { permissions: null })).toEqual(off);
   });
 
-  it.each(['partrunner_admin', 'partrunner_finance', 'payment_approver', 'new_role_code'])(
-    'matches valid dynamic Nexus role code %s',
-    role => {
-      expect(
-        evaluateFlagDecision(
-          {
-            value_bool: true,
-            value_json: { targeting: { mode: 'allowlist', admin_roles: [role] } },
+  it('does not let the wildcard match an allowlist without permissions', () => {
+    expect(
+      evaluateFlagDecision(
+        {
+          value_bool: true,
+          value_json: {
+            targeting: { mode: 'allowlist', admin_emails: ['lead@partrunner.com'] },
           },
-          { roles: [role] }
-        )
-      ).toEqual({ enabled: true, reason: 'matched', variant: null, payload: null });
-    }
-  );
+        },
+        { permissions: ['*'] }
+      ).enabled
+    ).toBe(false);
+  });
+
+  it('ignores retired role targeting and drops it from merged value_json', () => {
+    const flag = {
+      value_bool: true,
+      value_json: {
+        targeting: { mode: 'allowlist', admin_roles: ['finance_manager'] },
+      },
+    };
+    expect(evaluateFlagDecision(flag, { roles: ['finance_manager'] }).enabled).toBe(false);
+    expect(
+      mergeTargetingIntoValueJson(
+        { note: 'keep', targeting: { mode: 'all', admin_roles: ['supply'] } },
+        { mode: 'allowlist', admin_permissions: ['supply.fleets.read'], admin_roles: ['supply'] }
+      )
+    ).toEqual({
+      note: 'keep',
+      targeting: {
+        mode: 'allowlist',
+        flotillero_ids: [],
+        flotillero_rfcs: [],
+        admin_emails: [],
+        admin_permissions: ['supply.fleets.read'],
+      },
+    });
+  });
 
   it('returns archive, disabled, and invalid configuration reasons in order', () => {
     const malformed = { targeting: { mode: 'percentage' } };

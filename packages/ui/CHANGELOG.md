@@ -1,5 +1,13 @@
 # @partrunner-ai/ui
 
+## 2.5.3
+
+### Patch Changes
+
+- Fix `FilterChip`: a pressed chip under the pointer no longer paints its label
+  and count in the same ink as its background. The hover rule now keeps the
+  inverted colors of the pressed state.
+
 ## 2.5.2
 
 ### Patch Changes
