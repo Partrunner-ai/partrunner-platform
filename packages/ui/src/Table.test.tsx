@@ -2,6 +2,7 @@ import { createRef } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { TableRoot } from './TablePrimitives';
 import {
   DataTable,
   Table,
@@ -429,6 +430,37 @@ describe('density', () => {
   it('is not compact by default', () => {
     const { container } = render(<Table columns={columns} rows={rows} />);
     expect(container.querySelector('.pr-table--compact')).toBeNull();
+    expect(container.querySelector('.pr-table--ledger')).toBeNull();
+  });
+
+  it('is ledger for a full-page operational table', () => {
+    const { container } = render(<Table columns={columns} rows={rows} density="ledger" maxHeight={480} />);
+    const table = container.querySelector('table');
+    expect(table?.classList.contains('pr-table--ledger')).toBe(true);
+    expect(table?.classList.contains('pr-table--compact')).toBe(false);
+    expect(table?.classList.contains('pr-table--sticky-header')).toBe(true);
+  });
+
+  it('marks the selected row with data-state for the selection styles', () => {
+    const { container } = render(
+      <Table columns={columns} rows={rows} density="ledger" isRowSelected={(_row, index) => index === 1} />,
+    );
+    const bodyRows = container.querySelectorAll('tbody tr');
+    expect(bodyRows[0]?.getAttribute('data-state')).toBeNull();
+    expect(bodyRows[1]?.getAttribute('data-state')).toBe('selected');
+  });
+
+  it('passes ledger density through the compound table root', () => {
+    const { container } = render(
+      <TableRoot aria-label="Rutas" density="ledger">
+        <tbody>
+          <tr>
+            <td>1</td>
+          </tr>
+        </tbody>
+      </TableRoot>,
+    );
+    expect(container.querySelector('table')?.classList.contains('pr-table--ledger')).toBe(true);
   });
 });
 

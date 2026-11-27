@@ -2590,6 +2590,50 @@
   font-size: 13px;
 }
 
+/* Ledger density: a full-page operational table read row by row. Short rows, a
+   faint stripe on even rows so the eye keeps its line across many columns, and an
+   accent bar on the selected row. Colours come from tokens, so dark mode follows. */
+.pr-table--ledger .pr-table__th {
+  height: 32px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.pr-table--ledger .pr-table__td {
+  height: 36px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+.pr-table--ledger .pr-table__row {
+  border-top-color: color-mix(in srgb, var(--pr-border) 60%, transparent);
+}
+.pr-table--ledger tbody > .pr-table__row:nth-child(even) > .pr-table__td {
+  background: color-mix(in srgb, var(--pr-fg) 2.5%, var(--pr-surface));
+}
+/* Hover and selection keep the default table colours; `tbody >` lifts them over the stripe. */
+.pr-table--ledger tbody > .pr-table__row--clickable:hover > .pr-table__td,
+.pr-table--ledger tbody > .pr-table__row--clickable:focus-visible > .pr-table__td {
+  background: var(--pr-elevated);
+}
+.pr-table--ledger tbody > .pr-table__row[data-state='selected'] > .pr-table__td,
+.pr-table--ledger tbody > .pr-table__row[aria-expanded='true'] > .pr-table__td {
+  background: var(--pr-tone-yellow-bg);
+}
+/* The bar is painted by the first cell, not the row: a row box-shadow is dropped by
+   `border-collapse` in some engines and would be hidden under a sticky first cell. */
+.pr-table--ledger tbody > .pr-table__row[data-state='selected'] > .pr-table__td:first-child,
+.pr-table--ledger tbody > .pr-table__row--clickable:hover > .pr-table__td:first-child {
+  box-shadow: inset 3px 0 0 var(--pr-accent);
+}
+.pr-table--ledger.pr-table--sticky-first tbody > .pr-table__row[data-state='selected'] > .pr-table__td:first-child,
+.pr-table--ledger.pr-table--sticky-first tbody > .pr-table__row--clickable:hover > .pr-table__td:first-child {
+  box-shadow: inset 3px 0 0 var(--pr-accent), 6px 0 8px -8px rgb(0 0 0 / 0.28);
+}
+
 /* ─────────────────────── Dropdown menu ─────────────────────── */
 
 /* Only the native trigger needs a type reset. An `asChild` control keeps its own
@@ -3700,6 +3744,9 @@ button.pr-stepper__dot:focus-visible {
   gap: 8px;
 }
 
+.pr-confirm-dialog__text {
+  white-space: pre-line;
+}
 .pr-confirm-dialog__icon-row {
   display: flex;
   justify-content: center;
@@ -4996,6 +5043,96 @@ button.pr-stepper__dot:focus-visible {
   .pr-notice__dismiss { order: 2; }
   .pr-notice__actions { order: 3; flex-basis: 100%; margin-inline-start: 0; padding-inline-start: 30px; }
 }
+
+/* ───────────────────────── Toast ───────────────────────── */
+
+/* The result of an action the person just did. `sonner` owns placement, stacking,
+   swipe and timers (its own small layout sheet); every visual rule is here, over
+   `--pr-*`, so a toast follows the theme in light and dark like every other part. */
+.pr-toaster {
+  --width: 380px;
+  font-family: var(--pr-font-body, inherit);
+}
+.pr-toast {
+  --pr-toast-tone: var(--pr-info);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: var(--width);
+  padding: 12px 12px 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--pr-toast-tone) 30%, var(--pr-border));
+  border-radius: var(--pr-radius-md, 0.75rem);
+  /* Mixed into the surface, so the toast stays opaque over any content below it. */
+  background: color-mix(in srgb, var(--pr-toast-tone) 8%, var(--pr-surface));
+  box-shadow: var(--pr-shadow-elevated);
+  color: var(--pr-fg);
+  font-family: var(--pr-font-body, inherit);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.pr-toast--success { --pr-toast-tone: var(--pr-success); }
+.pr-toast--info { --pr-toast-tone: var(--pr-info); }
+.pr-toast--warning { --pr-toast-tone: var(--pr-warning); }
+.pr-toast--error { --pr-toast-tone: var(--pr-danger); }
+.pr-toast--loading { --pr-toast-tone: var(--pr-fg-muted); }
+.pr-toast:focus-visible { outline: none; box-shadow: var(--pr-shadow-elevated), var(--pr-focus-ring); }
+
+.pr-toast__icon {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 1.45em;
+  color: var(--pr-toast-tone);
+}
+.pr-toast__spinner { animation: pr-toast-spin 0.9s linear infinite; }
+@keyframes pr-toast-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pr-toast__spinner { animation: none; }
+}
+.pr-toast__content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pr-toast__title {
+  font-weight: 650;
+  color: var(--pr-fg);
+  overflow-wrap: anywhere;
+}
+.pr-toast__description {
+  color: var(--pr-fg-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.pr-toast__action {
+  order: 2;
+  flex: none;
+  align-self: center;
+}
+/* sonner renders the close button first in the DOM; it sits at the end edge. */
+.pr-toast__close {
+  order: 3;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pr-radius-sm, 0.5rem);
+  background: transparent;
+  color: var(--pr-fg-muted);
+  cursor: pointer;
+}
+.pr-toast__close:hover { background: color-mix(in srgb, var(--pr-fg) 8%, transparent); color: var(--pr-fg); }
+.pr-toast__close:focus-visible { outline: none; box-shadow: var(--pr-focus-ring); }
 
 /* ───────────────────────── DetailList ───────────────────────── */
 

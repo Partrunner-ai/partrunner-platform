@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Label, SegmentedControl } from '@partrunner-ai/ui';
+import { FeedbackRecipe } from './FeedbackRecipe';
 import { FormRecipe } from './FormRecipe';
 import { InboxRecipe } from './InboxRecipe';
 import { ListPageRecipe } from './ListPageRecipe';
@@ -8,7 +9,7 @@ import { WorkQueueRecipe } from './WorkQueueRecipe';
 import { STATE_OPTIONS, type RecipeProps, type RecipeState } from './states';
 import './recipes.css';
 
-type RecipeId = 'list' | 'inbox' | 'record' | 'form' | 'queue';
+type RecipeId = 'list' | 'inbox' | 'record' | 'form' | 'queue' | 'feedback';
 
 const RECIPES: Array<{ value: RecipeId; label: string; Component: ComponentType<RecipeProps> }> = [
   { value: 'list', label: 'Lista', Component: ListPageRecipe },
@@ -16,6 +17,7 @@ const RECIPES: Array<{ value: RecipeId; label: string; Component: ComponentType<
   { value: 'record', label: 'Ficha', Component: RecordPageRecipe },
   { value: 'form', label: 'Formulario', Component: FormRecipe },
   { value: 'queue', label: 'Cola', Component: WorkQueueRecipe },
+  { value: 'feedback', label: 'Avisos', Component: FeedbackRecipe },
 ];
 
 const STATES = STATE_OPTIONS.map((option) => option.value);

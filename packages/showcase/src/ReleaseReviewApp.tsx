@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge } from '@partrunner-ai/ui';
+import { Badge, Toaster } from '@partrunner-ai/ui';
 import { ThemeToggle } from '@partrunner-ai/shell';
 import {
   ShellDarkCatalog,
@@ -140,6 +140,8 @@ export function ReleaseReviewApp({
         {view === 'skeletons' ? <SkeletonsDemo /> : null}
         {view === 'recipes' ? <RecipesDemo /> : null}
       </div>
+      {/* One Toaster for the whole app, as DESIGN.md asks. */}
+      <Toaster />
     </div>
   );
 }

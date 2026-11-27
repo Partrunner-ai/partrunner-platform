@@ -43,7 +43,8 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@partrunner-ai/tokens": "workspace:*"
+    "@partrunner-ai/tokens": "workspace:*",
+    "sonner": "^2.0.8"
   },
   "peerDependencies": {
     "lucide-react": ">=0.312.0",

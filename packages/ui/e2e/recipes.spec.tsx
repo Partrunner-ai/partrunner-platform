@@ -12,7 +12,7 @@ async function openRecipe(
   await page.getByRole('radio', { name, exact: true }).first().click();
 }
 
-test('renders the five recipes', async ({ mount, page }) => {
+test('renders the five screen recipes', async ({ mount, page }) => {
   await mount(<ReleaseReviewApp initialView="recipes" initialTheme="light" />);
 
   await expect(page.getByRole('heading', { name: 'Colocadas', level: 1 })).toBeVisible();
@@ -129,4 +129,40 @@ test('an inbox filter with no result shows an empty state with a way out', async
   await expect(page.getByText('Ninguna flota con este filtro')).toBeVisible();
   await page.getByRole('button', { name: 'Quitar filtros' }).click();
   await expect(page.locator('.pr-item-list > li')).toHaveCount(14);
+});
+
+test('the feedback recipe uses one channel for each message', async ({ mount, page }) => {
+  await mount(<ReleaseReviewApp initialView="recipes" initialTheme="light" />);
+  await openRecipe(page, 'Avisos');
+  await expect(page.getByRole('heading', { name: 'Datos fiscales', level: 1 })).toBeVisible();
+
+  // A state that stays: a Notice.
+  await expect(page.getByText('Pago de la semana 47 retenido')).toBeVisible();
+
+  // A wrong field: the error is under the field, and no toast shows.
+  await page.getByRole('button', { name: 'Guardar RFC' }).click();
+  await expect(page.getByText('Escribe un RFC de 12 o 13 caracteres.')).toBeVisible();
+  await expect(page.locator('.pr-toast')).toHaveCount(0);
+
+  // The result of an action: a toast.
+  await page.getByRole('textbox', { name: /RFC/ }).fill('TBA010203AB1');
+  await page.getByRole('button', { name: 'Guardar RFC' }).click();
+  await expect(page.locator('.pr-toast--success')).toHaveText(/RFC guardado/);
+
+  // An action that can be undone: a toast with «Deshacer», no dialog.
+  await page.getByRole('button', { name: 'Archivar ruta' }).click();
+  await page.getByRole('button', { name: 'Deshacer' }).click();
+  await expect(page.getByText('Ruta 1042 restaurada')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Archivar ruta' })).toBeEnabled();
+
+  // A failure stays and is announced as an alert.
+  await page.getByRole('button', { name: 'Enviar factura' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'No se pudo enviar la factura' })).toBeVisible();
+
+  // An action that deletes data: a ConfirmDialog first.
+  await page.getByRole('button', { name: 'Eliminar registro' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('No se puede deshacer.');
+  await dialog.getByRole('button', { name: 'Eliminar registro' }).click();
+  await expect(page.getByText('Registro eliminado')).toBeVisible();
 });
