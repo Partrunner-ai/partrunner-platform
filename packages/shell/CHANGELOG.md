@@ -1,5 +1,11 @@
 # @partrunner-ai/shell
 
+## 2.10.2
+
+### Patch Changes
+
+- Fix the button tone in the «Pendientes» tray. The first button of each section («Te toca» and the team section) is now primary (black). In 2.10.1 only the first button of the whole tray was primary. While «Lo tomo» is running on a row, the primary button moves to the next row of that section, so a disabled button is never the primary one.
+
 ## 2.10.1
 
 ### Patch Changes
