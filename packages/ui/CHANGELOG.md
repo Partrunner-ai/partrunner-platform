@@ -1,5 +1,11 @@
 # @partrunner-ai/ui
 
+## 2.8.0
+
+### Minor Changes
+
+- Add `trendUnit` to `StatTile` (client and server entries). It is the text after the trend number, default `'%'`. Use `' pp'` for a change in percentage points.
+
 ## 2.7.0
 
 ### Minor Changes
