@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,10 +11,13 @@ import {
   describeError,
   diffFileHashes,
   formatDriftError,
+  hashTree,
   predictVersioning,
   readVersioning,
+  removeTree,
   verifyPublishedContents,
 } from './verify-published-contents.mjs';
+import { buildRawTarball, buildTarball } from './test-tarballs.mjs';
 
 const { Response } = globalThis;
 
@@ -43,11 +45,15 @@ test('versions only real bumps and flags dependents whose pins change', () => {
       workspace('@partrunner-ai/seamless', {
         dependencies: { '@partrunner-ai/tokens': '^2.0.0' },
       }),
+      workspace('@partrunner-ai/api-core', {
+        peerDependencies: { '@partrunner-ai/tokens': 'workspace:*' },
+      }),
     ],
   );
   assert.deepEqual([...versioned], ['@partrunner-ai/tokens', '@partrunner-ai/ui']);
+  // The shell devDependency does not count; the api-core peer dependency does.
   assert.deepEqual([...rewritten], [
-    ['@partrunner-ai/shell', ['@partrunner-ai/tokens']],
+    ['@partrunner-ai/api-core', ['@partrunner-ai/tokens']],
   ]);
 });
 
@@ -99,25 +105,18 @@ test('includes the cause of a failed request', () => {
   assert.match(describeError(error), /caused by: getaddrinfo ENOTFOUND/);
 });
 
-const FIXED_TIME = new Date('2026-01-01T00:00:00Z');
-
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'published-contents-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const tarball = async (name, files, modes = {}) => {
-    const source = join(directory, name);
-    await mkdir(join(source, 'package'), { recursive: true });
-    for (const [path, contents] of Object.entries(files)) {
-      await writeFile(join(source, 'package', path), contents);
-      await chmod(join(source, 'package', path), modes[path] ?? 0o644);
-      await utimes(join(source, 'package', path), FIXED_TIME, FIXED_TIME);
-    }
-    // Fixed mtimes leave file modes as the only tar metadata that can differ.
-    await utimes(join(source, 'package'), FIXED_TIME, FIXED_TIME);
-    const file = join(directory, `${name}.tgz`);
-    execFileSync('tar', ['-czf', file, '-C', source, 'package']);
-    return file;
-  };
+  const tarball = (name, files, modes = {}) =>
+    buildTarball(directory, name, {
+      files: Object.fromEntries(
+        Object.entries(files).map(([path, content]) => [
+          path,
+          { content, mode: modes[path] ?? 0o644 },
+        ]),
+      ),
+    });
   return { directory, tarball };
 }
 
@@ -247,13 +246,313 @@ test('rejects a download that does not match its registry integrity', async (t) 
 });
 
 test('reports a change in tar entry metadata alone', async (t) => {
+  // A different mtime changes the tar stream, but no file and no mode.
+  const { directory } = await fixture(t);
+  const published = await buildTarball(directory, 'published', { files: { 'bin.js': 'a' } });
+  const local = await buildTarball(directory, 'local', {
+    files: { 'bin.js': 'a' },
+    mtime: Date.parse('2026-02-02T00:00:00Z') / 1000,
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: tar entry metadata/,
+  );
+});
+
+test('reports an execute bit change as a modified file', async (t) => {
   const { tarball } = await fixture(t);
   const published = await tarball('published', { 'bin.js': 'a' });
   const local = await tarball('local', { 'bin.js': 'a' }, { 'bin.js': 0o755 });
   const { fetchImpl } = registry([await publishedEntry(published)]);
   await assert.rejects(
     verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
-    /modified: tar entry metadata/,
+    /modified: bin\.js/,
+  );
+});
+
+const pkg = (fields) => JSON.stringify({ name: 'x', version: '1.0.0', ...fields }, null, 2);
+
+test('reports drift when the published stream is far longer than the local one', async (t) => {
+  const { tarball } = await fixture(t);
+  const local = await tarball('local', { 'package.json': pkg({}) });
+  // The published tarball has one more large file: over the gunzip limit.
+  const published = await tarball('published', {
+    'package.json': pkg({}),
+    'big.bin': 'a'.repeat(3 * 1024 * 1024),
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  const lines = [];
+  await assert.rejects(
+    verifyPublishedContents({
+      ...inputs(),
+      log: (line) => lines.push(line),
+      fetchImpl,
+      pack: () => local,
+    }),
+    (error) =>
+      /removed: big\.bin/.test(error.message) &&
+      /Add a Changeset for '@partrunner-ai\/example'/.test(error.message) &&
+      !/could not be compared/.test(error.message),
+  );
+  assert.deepEqual(lines, []);
+});
+
+test('hashTree rejects a link in an unpacked tree and never reads it', async (t) => {
+  const { directory } = await fixture(t);
+  await mkdir(join(directory, 'tree'));
+  await symlink('/nonexistent', join(directory, 'tree/link'));
+  await assert.rejects(
+    hashTree(join(directory, 'tree')),
+    /not a regular file or a directory: link/,
+  );
+});
+
+test('removeTree cleans a tree with a read-only directory and never throws', async (t) => {
+  const { directory } = await fixture(t);
+  await mkdir(join(directory, 'out/sub'), { recursive: true });
+  await writeFile(join(directory, 'out/sub/file.js'), 'a');
+  await chmod(join(directory, 'out/sub'), 0o555);
+  await removeTree(join(directory, 'out'));
+  await assert.rejects(readFile(join(directory, 'out/sub/file.js')), /ENOENT/);
+  await assert.doesNotReject(removeTree(join(directory, 'never-existed')));
+});
+
+test('passes and says so when only devDependencies differ', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', {
+    'package.json': pkg({ dependencies: { a: '^1.0.0' }, devDependencies: { vite: '^5.0.0' } }),
+    'index.js': 'a',
+  });
+  const local = await tarball('local', {
+    'package.json': pkg({ dependencies: { a: '^1.0.0' }, devDependencies: { vite: '^6.0.0', vitest: '^2.0.0' } }),
+    'index.js': 'a',
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  const lines = [];
+  await verifyPublishedContents({
+    ...inputs(),
+    log: (line) => lines.push(line),
+    fetchImpl,
+    pack: () => local,
+  });
+  assert.deepEqual(lines, [
+    '@partrunner-ai/example@1.0.0: matches the published tarball apart from devDependencies',
+  ]);
+});
+
+test('fails when dependencies differ, even next to a devDependencies change', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', {
+    'package.json': pkg({ dependencies: { a: '^1.0.0' }, devDependencies: { vite: '^5.0.0' } }),
+  });
+  const local = await tarball('local', {
+    'package.json': pkg({ dependencies: { a: '^2.0.0' }, devDependencies: { vite: '^6.0.0' } }),
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: package\.json/,
+  );
+});
+
+test('fails when another file differs next to a devDependencies change', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', {
+    'package.json': pkg({ devDependencies: { vite: '^5.0.0' } }),
+    'index.js': 'a',
+  });
+  const local = await tarball('local', {
+    'package.json': pkg({ devDependencies: { vite: '^6.0.0' } }),
+    'index.js': 'b',
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    (error) => {
+      const changed = error.message
+        .split('\n')
+        .filter((line) => /^ {2}(added|removed|modified): /.test(line));
+      // The report lists exact file differences.
+      assert.deepEqual(changed, ['  modified: index.js', '  modified: package.json']);
+      return true;
+    },
+  );
+});
+
+async function rejectsWith(t, { published, local, pattern, notPattern }) {
+  const { directory } = await fixture(t);
+  const publishedFile = await buildTarball(directory, 'published', published);
+  const localFile = await buildTarball(directory, 'local', local);
+  const { fetchImpl } = registry([await publishedEntry(publishedFile)]);
+  const lines = [];
+  await assert.rejects(
+    verifyPublishedContents({
+      ...inputs(),
+      log: (line) => lines.push(line),
+      fetchImpl,
+      pack: () => localFile,
+    }),
+    (error) => {
+      assert.match(describeError(error), pattern);
+      if (notPattern) assert.doesNotMatch(describeError(error), notPattern);
+      return true;
+    },
+  );
+  assert.deepEqual(lines, []);
+}
+
+test('fails when devDependencies differ next to an execute bit change', async (t) => {
+  await rejectsWith(t, {
+    published: {
+      files: { 'package.json': pkg({ devDependencies: { v: '1' } }), 'bin.js': 'a' },
+    },
+    local: {
+      files: {
+        'package.json': pkg({ devDependencies: { v: '2' } }),
+        'bin.js': { content: 'a', mode: 0o755 },
+      },
+    },
+    pattern: /modified: bin\.js/,
+  });
+});
+
+test('fails when devDependencies differ next to an added empty directory', async (t) => {
+  await rejectsWith(t, {
+    published: { files: { 'package.json': pkg({ devDependencies: { v: '1' } }) } },
+    local: {
+      files: { 'package.json': pkg({ devDependencies: { v: '2' } }) },
+      dirs: ['empty'],
+    },
+    pattern: /added: empty\//,
+  });
+});
+
+test('fails on a top-level entry beside package/', async (t) => {
+  await rejectsWith(t, {
+    published: { files: { 'package.json': pkg({}) } },
+    local: { files: { 'package.json': pkg({}) }, outside: { 'extra/file.txt': 'x' } },
+    pattern: /modified: tar entry metadata/,
+  });
+});
+
+test('fails on a symbolic link and names it', async (t) => {
+  await rejectsWith(t, {
+    published: { files: { 'package.json': pkg({}) } },
+    local: {
+      files: { 'package.json': pkg({}) },
+      links: { 'dangling-link': '/nonexistent/target' },
+    },
+    pattern: /could not be compared[\s\S]*not a regular file or a directory: dangling-link/,
+    notPattern: /ENOENT/,
+  });
+});
+
+test('fails on a hard link entry next to a real devDependencies difference', async (t) => {
+  const { directory } = await fixture(t);
+  const published = await buildRawTarball(directory, 'published', [
+    { path: 'package/', type: '5', mode: 0o755 },
+    { path: 'package/package.json', content: pkg({ devDependencies: { v: '1' } }) },
+    { path: 'package/a.js', content: 'a' },
+    { path: 'package/b.js', content: 'other' },
+    { path: 'package/b.js', type: '1', linkname: 'package/a.js' },
+  ]);
+  const local = await buildRawTarball(directory, 'local', [
+    { path: 'package/', type: '5', mode: 0o755 },
+    { path: 'package/package.json', content: pkg({ devDependencies: { v: '2' } }) },
+    { path: 'package/a.js', content: 'a' },
+    { path: 'package/b.js', content: 'a' },
+  ]);
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: package\.json/,
+  );
+});
+
+test('reports the drift of a tarball that holds a read-only directory', async (t) => {
+  const { directory } = await fixture(t);
+  const entries = (content) => [
+    { path: 'package/', type: '5', mode: 0o755 },
+    { path: 'package/package.json', content: pkg({}) },
+    { path: 'package/ro/', type: '5', mode: 0o555 },
+    { path: 'package/ro/file.js', content },
+  ];
+  const published = await buildRawTarball(directory, 'published', entries('a'));
+  const local = await buildRawTarball(directory, 'local', entries('b'));
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: ro\/file\.js/,
+  );
+});
+
+test('fails on a formatting difference alone and does not say devDependencies', async (t) => {
+  const fields = { dependencies: { a: '1' }, devDependencies: { v: '1' } };
+  await rejectsWith(t, {
+    published: { files: { 'package.json': JSON.stringify({ name: 'x', ...fields }, null, 2) } },
+    local: { files: { 'package.json': JSON.stringify({ name: 'x', ...fields }) } },
+    pattern: /modified: package\.json/,
+    notPattern: /apart from devDependencies/,
+  });
+});
+
+test('gives a nested package.json no devDependencies rule', async (t) => {
+  await rejectsWith(t, {
+    published: {
+      files: {
+        'package.json': pkg({}),
+        'dist/package.json': pkg({ devDependencies: { v: '1' } }),
+      },
+    },
+    local: {
+      files: {
+        'package.json': pkg({}),
+        'dist/package.json': pkg({ devDependencies: { v: '2' } }),
+      },
+    },
+    pattern: /modified: dist\/package\.json/,
+  });
+});
+
+test('flags an unversioned package that names a versioned one in dependencies', () => {
+  const { rewritten } = predictVersioning(
+    [{ name: '@partrunner-ai/tokens', type: 'patch' }],
+    [
+      workspace('@partrunner-ai/tokens'),
+      workspace('@partrunner-ai/shell', {
+        dependencies: { '@partrunner-ai/tokens': 'workspace:*' },
+      }),
+    ],
+  );
+  assert.deepEqual([...rewritten], [
+    ['@partrunner-ai/shell', ['@partrunner-ai/tokens']],
+  ]);
+});
+
+test('compares a package.json that does not parse by its raw bytes', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', { 'package.json': '{"devDependencies": 1,' });
+  const local = await tarball('local', { 'package.json': '{"devDependencies": 2,' });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: package\.json/,
+  );
+});
+
+test('still fails when a devDependencies-only drift also has a pending pin rewrite', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', { 'package.json': pkg({ devDependencies: { v: '1' } }) });
+  const local = await tarball('local', { 'package.json': pkg({ devDependencies: { v: '2' } }) });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({
+      ...inputs({ rewritten: new Map([[example.name, ['@partrunner-ai/tokens']]]) }),
+      fetchImpl,
+      pack: () => local,
+    }),
+    /will pin new versions of @partrunner-ai\/tokens/,
   );
 });
 
@@ -347,7 +646,7 @@ test('predicts versioning from a real Changesets workspace', async (t) => {
 
   const { versioned, rewritten } = await readVersioning(root);
   assert.deepEqual([...versioned].sort(), ['tokens', 'ui']);
-  assert.deepEqual([...rewritten], [['shell', ['tokens']]]);
+  assert.deepEqual([...rewritten], []);
 });
 
 test('uses the same Changesets libraries as the Changesets CLI', () => {
