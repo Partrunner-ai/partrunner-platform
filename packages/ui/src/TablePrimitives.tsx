@@ -9,6 +9,11 @@ import {
 } from 'react';
 import type { TableDensity } from './Table';
 
+/** @internal The table modifier class for a density; `default` has none. */
+export function densityClass(density: TableDensity): string | null {
+  return density === 'default' ? null : `pr-table--${density}`;
+}
+
 function classes(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(' ');
 }
@@ -63,7 +68,7 @@ export const TableRoot = forwardRef<HTMLTableElement, TableRootProps>(function T
       className={classes(
         'pr-table',
         'pr-table--compound',
-        density === 'compact' && 'pr-table--compact',
+        densityClass(density),
         stickyFirstColumn && 'pr-table--sticky-first',
         maxHeight !== undefined && 'pr-table--sticky-header',
         className,

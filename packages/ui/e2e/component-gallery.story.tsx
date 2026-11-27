@@ -129,6 +129,7 @@ import {
   ItemRow,
   Notice,
   toneFromString,
+  toast,
   SplitView,
   Stack,
   type BadgeTone,
@@ -948,6 +949,39 @@ function UiCatalog({ mode }: { mode: CatalogMode }) {
               <Spinner label="Cargando rutas" />
               <Spinner size="sm" label="Cargando" />
               <Spinner size="lg" label="Sincronizando" />
+            </div>
+          </Card>
+          <Card>
+            <SectionHeading
+              title="Toast"
+              description="The result of an action the person just did. The app mounts one Toaster."
+            />
+            <div className="catalog__row">
+              <Button size="sm" variant="secondary" onClick={() => toast.success('Pago enviado')}>
+                Éxito
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  toast.error('No se pudo guardar', {
+                    description: 'Revisa tu conexión e intenta de nuevo.',
+                    action: { label: 'Reintentar', onClick: () => toast.success('Guardado') },
+                  })
+                }
+              >
+                Error
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => toast.success('Ruta archivada', { action: { label: 'Deshacer', onClick: () => undefined } })}
+              >
+                Con «Deshacer»
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => toast.warning('Se importaron 18 de 20 filas')}>
+                Aviso
+              </Button>
             </div>
           </Card>
         </div>
