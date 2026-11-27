@@ -4,7 +4,7 @@
 
 ### Patch Changes
 
-- The loading placeholder (`Skeleton`, `PageSkeleton` and the table loading rows) is easier to see. Its fill was the border colour, about 1.2:1 against the surface. It is now a translucent mix of the text colour: 17% in the light theme and 14% in the dark theme, which gives 1.42:1 to 1.51:1 on the page, card and elevated surfaces. Under `prefers-reduced-motion` the fixed opacity is 0.9 (it was 0.7), so the fill still holds at least 1.36:1. Size, shape and pulse do not change. An app does not need local CSS for the fill.
+- The loading placeholder (`Skeleton`, `PageSkeleton` and the table loading rows) is easier to see. Its fill was the border colour, about 1.2:1 against the surface. It is now a translucent mix of the text colour: 17% in the light theme and 14% in the dark theme, which gives 1.42:1 to 1.51:1 on the page, card and elevated surfaces. Under `prefers-reduced-motion` the fixed opacity is 0.9 (it was 0.7), so the fill still holds at least 1.36:1. Size, shape and pulse do not change. An app does not need local CSS for the fill. An app's own one-class fill on the skeleton still wins in both themes.
 
 ## 2.5.1
 

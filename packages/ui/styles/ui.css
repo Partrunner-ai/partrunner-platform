@@ -2558,7 +2558,7 @@
   background: color-mix(in srgb, var(--pr-fg) 17%, transparent);
   animation: pr-table-pulse 1.4s ease-in-out infinite;
 }
-.dark .pr-table__skeleton-cell { background: color-mix(in srgb, var(--pr-fg) 14%, transparent); }
+:where(.dark) .pr-table__skeleton-cell { background: color-mix(in srgb, var(--pr-fg) 14%, transparent); }
 @keyframes pr-table-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
@@ -2818,7 +2818,8 @@
   border-radius: var(--pr-radius-sm, 0.625rem);
   animation: pr-skeleton-pulse 1600ms var(--pr-ease, ease) infinite;
 }
-.dark .pr-skeleton { background: color-mix(in srgb, var(--pr-fg) 14%, transparent); }
+/* :where() keeps the dark rule at the specificity of the base rule, so an app's own one-class fill wins in both themes. */
+:where(.dark) .pr-skeleton { background: color-mix(in srgb, var(--pr-fg) 14%, transparent); }
 .pr-skeleton--block { min-height: 16px; }
 .pr-skeleton--text {
   height: 0.85em;
