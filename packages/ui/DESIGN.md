@@ -282,7 +282,7 @@ Do not choose between two components for one job. If a job is not in the table, 
 | Page title block | `PageHeader` | a local header component, a hero card |
 | Titled section inside a page | `SectionHeading` | `PageHeader` twice |
 | Gap between your own blocks | `Stack` (`gap`: `xs` 4, `sm` 8, `md` 12, `lg` 16 or `xl` 24 px) | margin utilities, a flex `div` with a class |
-| KPI figures in a row | `StatTile` in `StatTileGrid` | `Card` with a big number |
+| KPI figures in a row | `StatTile` in `StatTileGrid` (`trendValue`; `trendUnit=" pp"` for percentage points, default `%`) | `Card` with a big number |
 | Move between **routes** | `NavigationTabs` (`currentPath`, `items`, the router's `LinkComponent`) | `Tabs`, buttons with `role="tab"` |
 | **Parts of one record** or one section, each with its own content | `Tabs` | `SegmentedControl` |
 | **Which list or view** the page shows (Todas / Mías, Por revisar / Planes, lista / tablero) | `SegmentedControl` | two `Button`s with `aria-pressed` |
