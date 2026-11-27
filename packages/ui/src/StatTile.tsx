@@ -27,6 +27,11 @@ export interface StatTileProps extends HTMLAttributes<HTMLDivElement> {
    * Positive renders green with a leading `+`, negative renders rose.
    */
   trendValue?: number | null;
+  /**
+   * Text after the trend number. Default `'%'`. Use `' pp'` for a change in
+   * percentage points.
+   */
+  trendUnit?: string;
   /** Footer area for secondary metrics, right-aligned and truncated. */
   footer?: ReactNode;
 }
@@ -71,7 +76,7 @@ export interface StatTileMarkupProps extends Omit<StatTileProps, 'icon'> {
  * @internal Not exported from the package entries.
  */
 export function renderStatTile(
-  { label, value, hint, icon, tone = 'neutral', trendValue, footer, className, ...rest }: StatTileMarkupProps,
+  { label, value, hint, icon, tone = 'neutral', trendValue, trendUnit = '%', footer, className, ...rest }: StatTileMarkupProps,
   ref?: Ref<HTMLDivElement>,
 ) {
   const showTrend = typeof trendValue === 'number' && Number.isFinite(trendValue);
@@ -106,7 +111,8 @@ export function renderStatTile(
             >
               <TrendIcon aria-hidden strokeWidth={2.5} />
               {trendUp ? '+' : ''}
-              {trendValue}%
+              {trendValue}
+              {trendUnit}
             </span>
           ) : (
             <span />

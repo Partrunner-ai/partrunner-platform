@@ -56,6 +56,11 @@ describe('StatTile', () => {
     expect(getByText('-3%')).toBeDefined();
   });
 
+  it('renders the trend unit given, for example percentage points', () => {
+    const { container } = render(<StatTile label="x" value={1} trendValue={4} trendUnit=" pp" />);
+    expect(container.querySelector('.pr-stat-tile__trend')!.textContent).toBe('+4 pp');
+  });
+
   it('hides the whole meta row when trend is null and no footer is given', () => {
     const { container } = render(
       <StatTile label="x" value={1} trendValue={null} />,
