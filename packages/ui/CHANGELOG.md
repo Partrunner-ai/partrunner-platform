@@ -1,5 +1,30 @@
 # @partrunner-ai/ui
 
+## 2.7.0
+
+### Minor Changes
+
+- Add the `@partrunner-ai/ui/server` entry for Next Server Components.
+  
+  The main entry is one `"use client"` bundle, so from a Server Component every part is a
+  Client Component and its props cross the RSC boundary. A component function prop such as
+  `icon={Truck}` on `StatTile` or `EmptyState` cannot cross it, and Next can drop one
+  `Card asChild` from a list on the Flight path.
+  
+  The new entry has no `"use client"` directive and exports only parts with no hooks:
+  `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `Slot`,
+  `StatTileGrid`, and server variants of `StatTile` and `EmptyState`. In the server
+  variants `icon` is an element (`icon={<Truck />}`). They share one markup function with
+  the client components, so the HTML and the classes are the same.
+  
+  Existing imports from `@partrunner-ai/ui` do not change. Builds on #34.
+
+### Patch Changes
+
+- Make every toast 440 px wide (it was 356 px), so a typical error with an action button wraps in two lines, not four. The action stays beside the text. On a screen narrower than 472 px the toast keeps a 16 px gutter on each side.
+  
+  A line break in a toast title or description (for example `"No pude crear la factura:\n<detalle>"`) now shows as a line break instead of collapsing into a space.
+
 ## 2.6.0
 
 ### Minor Changes
