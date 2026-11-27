@@ -47,7 +47,8 @@ updates:
     # No automatic version update for these. The rules do not change security updates: for a
     # security update Dependabot uses only the `versions` list of an ignore rule, and these rules
     # have none (dependabot-core, common/lib/dependabot/config/ignore_condition.rb).
-    # The GitHub docs do not say this.
+    # The GitHub docs say that `ignore` can apply to security updates too, and do not say what
+    # `update-types` does there.
     ignore:
       # Major versions: do them by hand.
       - dependency-name: "*"
