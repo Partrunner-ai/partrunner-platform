@@ -6,18 +6,49 @@ updates:
   # package folder (manifest only, no lockfile). If one arrives, close it; the root PR is the good one.
   - package-ecosystem: npm
     directory: /
-    # 0 turns off version updates. Security updates stay on (they have their own fixed limit of 10 open PRs).
-    # A version bump of a published package needs a Changeset (packages:published-check),
-    # so weekly version PRs would be red. Turn this on only with a plan for Changesets.
-    open-pull-requests-limit: 0
+    # Version updates: at most two pull requests each week, one for development dependencies
+    # and one for production dependencies, minor and patch versions only.
+    # Security updates do not follow this schedule (they have their own fixed limit of 10 open PRs).
     schedule:
       interval: weekly
-    # Group security alerts into one PR where Dependabot allows it.
+      day: monday
+      time: "08:00"
+      timezone: America/Mexico_City
+    # A release must be 7 days old before a version update proposes it. Security updates do not wait.
+    cooldown:
+      default-days: 7
+    # Keep a version range that already allows the new release: then only the lockfile changes.
+    # This option also applies to security updates: a fix inside the current range changes
+    # only the lockfile, and the published package keeps its range.
+    versioning-strategy: increase-if-necessary
     groups:
+      # Group security alerts into one PR where Dependabot allows it.
       npm-security:
         applies-to: security-updates
         patterns:
           - "*"
+      # packages:published-check accepts a change of only devDependencies in a published package.
+      # If this PR fails that check, the update changed the built files: add a Changeset.
+      npm-development:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      # A change of the dependencies of a published package always needs a Changeset.
+      # With the strategy above, most of these updates change only the lockfile.
+      npm-production:
+        applies-to: version-updates
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+    # Version updates do not propose a major version; do those by hand.
+    # This rule does not change security updates: a security fix can still be a major version.
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
