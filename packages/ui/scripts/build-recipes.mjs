@@ -46,6 +46,12 @@ const RECIPES = [
     use: 'The person makes the same decision on many records.',
   },
   {
+    file: 'feedback.md',
+    source: 'FeedbackRecipe.tsx',
+    title: 'Feedback',
+    use: 'The person learns of a wrong field, a state that stays, the result of an action, or a risk before acting.',
+  },
+  {
     file: 'states.md',
     source: 'states.tsx',
     title: 'State helpers',

@@ -45,7 +45,8 @@ Each recipe has a full example that compiles, with all four states, in this pack
 | Work queue | the person makes the same decision on many records | `recipes/work-queue.md` |
 
 The skeletons below show the structure only. Take prop details from the full example.
-`recipes/states.md` shows the four states of section 5 on one region.
+`recipes/states.md` shows the four states of section 5 on one region. `recipes/feedback.md` shows
+the four feedback channels of section 5 on one screen.
 `Page` spaces its direct children. Inside any other container use `Stack` for the gaps.
 
 ### 2.1 List page
@@ -295,8 +296,9 @@ Do not choose between two components for one job. If a job is not in the table, 
 | Rows of the list in a `SplitView` or a side panel | `ItemList` + `ItemRow` | `<button>` rows with local CSS |
 | Facts of one record: label and value | `DetailList` + `DetailItem` | `<dl>`, a two-column `div` grid, a two-column table |
 | Content that opens and closes | `Disclosure` | `<details>`, a button with `aria-expanded` |
-| Message about the page or a section (hold, warning, result) | `Notice tone` | a coloured `div`, red text, a toned `Card` |
-| Confirm a risky action | `ConfirmDialog` | `window.confirm`, a local modal |
+| Message about the page or a section that stays until it is fixed (hold, warning) | `Notice tone` | a coloured `div`, red text, a toned `Card` |
+| Result of an action the person just did (saved, sent, failed) | `toast.success` / `toast.error` (one `Toaster` per app) | `window.alert`, a modal, `sonner` imported by the app |
+| Confirm a risky action | `ConfirmDialog`, or `useConfirm` in an event handler | `window.confirm`, a local modal, a local confirm hook |
 | Form field with label, hint, error | `FormField` around one control | a `<label>` and a `<p>` |
 | Short form or a decision | `Dialog` | a local `Modal` |
 | Edit beside the page content | `Sheet` (`SheetRoot`, `SheetContent`) | a second page |
@@ -346,6 +348,9 @@ Do not store class names in a map.
   `unreadLabel` to change it.
 - `DateRangeFilter` presets come from the app (`mexicoCityDaysAgo(7)`). The package owns no date
   logic.
+- `Table density`: `default` for most tables; `compact` for a breakdown nested under a summary;
+  `ledger` for a full-page operational table read row by row (36 px rows, stripes, accent bar on
+  the selected row). Add `maxHeight` to pin the header of a long ledger.
 - `DataTable` is an old alias of `Table`. It is not a second choice: use `Table`.
 - Numbers: `numeric` on a table column, on `TableCell` / `TableHead`, and on `DetailItem`
   gives tabular figures. In a table the value is also end-aligned. On `DetailItem` it is
@@ -392,8 +397,44 @@ Each data region has four states. Write all four before you call the screen fini
 | Error | `Notice tone="danger"` with what failed, and a "Reintentar" `Button` in `actions` | red text, a raw error code |
 | No permission | `EmptyState` in place of the content: the title says who can use it ("Solo Finanzas puede ver esta sección"), the description says how to get access. Hide the tabs, filters and actions the person cannot use | an error style; controls that do nothing |
 
-A saved change answers at once: the button shows `loading`, then the row changes. A result that
-the person must read is a `Notice tone="success"` near the place of the action.
+A saved change answers at once: the button shows `loading`, then the row changes, then a toast
+says the result. A result that must stay on the screen (a hold, a partial import to fix) is a
+`Notice` near the place of the action.
+
+### Feedback: choose one channel
+
+Each message has one channel. Choose it by what the message is about, not by how important it
+feels.
+
+| The message is about | Use | Example copy |
+|---|---|---|
+| One field that is wrong | `FormField error` | «Escribe un RFC de 12 o 13 caracteres.» |
+| The state of a page or a section, which stays until somebody fixes it | `Notice` | «Pago de la semana 47 retenido. Falta la constancia fiscal.» |
+| The result of an action the person just did | `toast` | «Plan de pago creado.» / «No se pudo enviar la factura.» + «Reintentar» |
+| An action that cannot be undone or that deletes data, before it runs | `ConfirmDialog` / `useConfirm` | «¿Eliminar la ruta 1042? No se puede deshacer.» |
+
+- Never `window.alert`, `window.confirm` or `window.prompt`. Never a modal pop-up only to give
+  information.
+- Mount `Toaster` once in the app root. Call `toast.success`, `toast.info`, `toast.warning`,
+  `toast.error` or `toast.promise` from `@partrunner-ai/ui`. Do not import `sonner` in the app.
+- Success and info close after 5 s, warning after 8 s. An error stays until the person closes it,
+  because the person must read it. A toast with an action («Deshacer») also stays, so a person
+  who uses the keyboard can reach the action.
+- The title says what happened, in the past: «Ruta archivada». Give at most one action, with a
+  verb: «Deshacer», «Reintentar». Do not put the whole error in the title; use `description`.
+- In an event handler that used to call `window.confirm`, use `useConfirm`. It needs no
+  provider: `const { confirm, dialog } = useConfirm();`, render `{dialog}` once in the same
+  component, then `if (!(await confirm({ title: '¿Eliminar la ruta 1042?', confirmLabel:
+  'Eliminar ruta', destructive: true }))) return;`. Cancel, Escape and unmount answer `false`.
+- An action that can be undone does not need a `ConfirmDialog`: run it and give «Deshacer» in the
+  toast.
+- `Notice tone="danger"` is an `alert`. Inside a region that is already a live region, pass
+  `role="none"` so the message is not announced twice.
+- `Skeleton lines={3}` puts `className` on each bar. Put layout classes in `groupClassName`.
+- A toast does not replace a state of the screen. When the list fails to load, the region shows
+  the error `Notice`; a toast is not enough.
+
+`recipes/feedback.md` shows the four channels on one screen.
 
 ## 6. Text on the screen
 
@@ -414,6 +455,7 @@ Each of these is a defect. Search your diff for them before you finish.
 - A `style={…}` prop, or a new CSS rule for the colour, type or spacing of a screen.
 - Tailwind palette or arbitrary-value classes: `text-red-700`, `bg-amber-50`, `text-[13px]`.
 - A hex or `rgb()` colour. A `font-size` in app CSS.
+- `window.alert`, `window.confirm`, `window.prompt`, or `import … from 'sonner'` in an app.
 - A local copy of a package component: `Modal`, `StatTile`, `PageHeader`, `Toolbar`, `StatusPill`,
   `Field`, `LoadingBlock`.
 - Overrides of `.pr-*` classes or `--pr-*` variables.

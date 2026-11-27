@@ -13,6 +13,11 @@ export interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
   height?: number | string;
   /** Repeats the placeholder, with the last line shortened when `shape` is `text`. */
   lines?: number;
+  /**
+   * With `lines` > 1, classes for the group (layout such as a margin or a minimum
+   * height). `className` stays on each bar.
+   */
+  groupClassName?: string;
 }
 
 /**
@@ -27,7 +32,7 @@ export interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
  * screen reader announces "loading" once instead of reading out a dozen empty boxes.
  */
 export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(function Skeleton(
-  { shape = 'block', width, height, lines = 1, className, style, ...rest },
+  { shape = 'block', width, height, lines = 1, className, groupClassName, style, ...rest },
   ref,
 ) {
   const sizing: CSSProperties = {
@@ -39,7 +44,15 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(function Skele
 
   if (lines <= 1) {
     return (
-      <div ref={ref} aria-hidden data-slot="skeleton" className={classes} style={sizing} {...rest} />
+      <div
+        ref={ref}
+        // A caller that names the bar or gives it a role wants it announced: do not hide it.
+        aria-hidden={rest.role || rest['aria-label'] || rest['aria-labelledby'] ? undefined : true}
+        data-slot="skeleton"
+        className={classes}
+        style={sizing}
+        {...rest}
+      />
     );
   }
 
@@ -49,7 +62,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(function Skele
       role="status"
       aria-busy="true"
       data-slot="skeleton-group"
-      className="pr-skeleton__group"
+      className={groupClassName ? `pr-skeleton__group ${groupClassName}` : 'pr-skeleton__group'}
       {...rest}
     >
       {Array.from({ length: lines }, (_, index) => (

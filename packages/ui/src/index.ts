@@ -342,6 +342,7 @@ export {
   ConfirmDialog,
   type ConfirmDialogProps,
 } from './ConfirmDialog';
+export { useConfirm, type ConfirmOptions, type UseConfirmResult } from './useConfirm';
 export { TINT_TONES, toneFromString, type TintTone } from './tone';
 export { StatusDot, type StatusDotProps, type StatusDotSize } from './StatusDot';
 export { IconTile, type IconTileProps, type IconTileSize } from './IconTile';
@@ -426,6 +427,16 @@ export {
   type NoticeSize,
   type NoticeTone,
 } from './Notice';
+export {
+  Toaster,
+  toast,
+  type ToastAction,
+  type ToastId,
+  type ToastOptions,
+  type ToastPromiseMessages,
+  type ToastTone,
+  type ToasterProps,
+} from './Toast';
 export {
   DetailItem,
   DetailList,

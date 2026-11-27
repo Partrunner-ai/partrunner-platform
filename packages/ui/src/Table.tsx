@@ -5,7 +5,7 @@ import {
   type RefAttributes,
 } from 'react';
 import { EmptyState, Spinner } from './Feedback';
-import { TableRoot, type TableRootProps } from './TablePrimitives';
+import { TableRoot, densityClass, type TableRootProps } from './TablePrimitives';
 
 export {
   TableBody,
@@ -35,8 +35,15 @@ export type TableAlign = 'start' | 'left' | 'center' | 'end' | 'right';
  * same component with different data: a nested table at page-level padding pushes
  * the card it sits in off the screen. It is also the migration-friendly choice for
  * existing dense tables that use compact type and short rows.
+ *
+ * `ledger` is for a full-page operational table that a person scans row by row and
+ * compares across: a settlement, a route reconciliation, a penalty list. Rows are
+ * 36px with 13px text, the header is 32px, even rows carry a faint stripe, and a
+ * selected row (`data-state="selected"`) gets an accent bar on its start edge. Pair
+ * it with `maxHeight` to pin the header. It is not for a nested breakdown (that is
+ * `compact`) or a short list (that is `default`).
  */
-export type TableDensity = 'default' | 'compact';
+export type TableDensity = 'default' | 'compact' | 'ledger';
 
 export interface TableColumn<T> {
   /** Identity of the column, and the fallback for reading the cell out of the row. */
@@ -78,6 +85,12 @@ export interface TableProps<T> {
    * escape hatch: if a whole table needs different rows, that is `className`.
    */
   getRowClassName?: (row: T, index: number) => string | undefined;
+  /**
+   * Marks the row the person has open or picked (`data-state="selected"`): a tinted
+   * row, and with `density="ledger"` an accent bar on the start edge. Pair it with
+   * a visible signal in the row (an open panel, a bold id), not colour alone.
+   */
+  isRowSelected?: (row: T, index: number) => boolean;
   /**
    * What a row announces to a screen reader. Only used with `onRowClick`, because
    * a row that does nothing has nothing to announce.
@@ -153,6 +166,7 @@ export function DataTable<T>({
   onRowFocus,
   onRowMouseEnter,
   getRowClassName,
+  isRowSelected,
   getRowAriaLabel,
   loading = false,
   empty = 'Sin datos',
@@ -198,7 +212,8 @@ export function DataTable<T>({
   }
 
   const sticky = stickyFirstColumn ? ' pr-table--sticky-first' : '';
-  const dense = density === 'compact' ? ' pr-table--compact' : '';
+  const densityModifier = densityClass(density);
+  const dense = densityModifier ? ` ${densityModifier}` : '';
 
   return (
     <div className={shell}>
@@ -257,6 +272,7 @@ export function DataTable<T>({
                 ]
                   .filter(Boolean)
                   .join(' ')}
+                data-state={isRowSelected?.(row, i) ? 'selected' : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
                 aria-label={onRowClick ? getRowAriaLabel?.(row) : undefined}
                 onFocus={onRowFocus ? () => onRowFocus(row, i) : undefined}

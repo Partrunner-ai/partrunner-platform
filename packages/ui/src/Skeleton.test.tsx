@@ -52,3 +52,20 @@ describe('Skeleton', () => {
     expect(box.style.width).toBe('2.5rem');
   });
 });
+
+describe('Skeleton traps', () => {
+  it('puts groupClassName on the group and className on each bar', () => {
+    const { container } = render(<Skeleton lines={3} className="bar" groupClassName="group" />);
+    const group = container.querySelector('[data-slot="skeleton-group"]')!;
+    expect(group.classList.contains('group')).toBe(true);
+    expect(group.classList.contains('bar')).toBe(false);
+    expect(container.querySelectorAll('.bar')).toHaveLength(3);
+  });
+
+  it('does not hide a single bar that the caller names', () => {
+    const { container } = render(<Skeleton role="status" aria-label="Cargando rutas" />);
+    expect(container.firstElementChild?.getAttribute('aria-hidden')).toBeNull();
+    const { container: plain } = render(<Skeleton />);
+    expect(plain.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+  });
+});

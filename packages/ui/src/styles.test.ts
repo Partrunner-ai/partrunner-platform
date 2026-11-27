@@ -69,6 +69,9 @@ const PUBLIC_COMPONENT_SELECTORS = [
   '.pr-segmented__count',
   '.pr-filter-chip__count',
   '.pr-avatar__image',
+  '.pr-toast',
+  '.pr-toaster',
+  '.pr-table--ledger .pr-table__td',
 ] as const;
 
 describe('the published cascade contract', () => {
