@@ -5049,8 +5049,11 @@ button.pr-stepper__dot:focus-visible {
 /* The result of an action the person just did. `sonner` owns placement, stacking,
    swipe and timers (its own small layout sheet); every visual rule is here, over
    `--pr-*`, so a toast follows the theme in light and dark like every other part. */
+/* One width for every toast, so an error with an action wraps in two lines, not four.
+   sonner sets its own `--width` (356px) inline on the region, so the width is set on the
+   toast itself. On a narrow screen sonner's own rule (`width: 100% - 2 × mobileOffset`)
+   is more specific and wins, which keeps a 16px gutter on each side. */
 .pr-toaster {
-  --width: 380px;
   font-family: var(--pr-font-body, inherit);
 }
 .pr-toast {
@@ -5058,7 +5061,7 @@ button.pr-stepper__dot:focus-visible {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  width: var(--width);
+  width: min(440px, calc(100vw - 32px));
   padding: 12px 12px 12px 14px;
   border: 1px solid color-mix(in srgb, var(--pr-toast-tone) 30%, var(--pr-border));
   border-radius: var(--pr-radius-md, 0.75rem);
