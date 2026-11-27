@@ -18,3 +18,8 @@ validated or matched, and `normalizeTargeting` (so `parseTargetingResult` and
 `mergeTargetingIntoValueJson` drops `admin_roles` from the row. The `roles` and
 `role` actor fields and `FEATURE_FLAG_ADMIN_ROLES` stay for compatibility and
 are deprecated.
+
+This ships as a minor on purpose, like the 1.5.0 behaviour change. Production
+has one row with `admin_roles` (`portal_fleet_opportunity_offers`) and its mode
+is `all`, so no live flag changes. nexus-portal and Supply move to
+`admin_permissions` in the same rollout.

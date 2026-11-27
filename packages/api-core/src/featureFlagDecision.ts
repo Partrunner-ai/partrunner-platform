@@ -196,7 +196,9 @@ function holdsAnyPermission(
 ): boolean {
   if (!listed?.length || !held?.length) return false;
   return held.some(
-    code => code?.trim() === FEATURE_FLAG_WILDCARD_PERMISSION || listIncludes(listed, code)
+    code =>
+      typeof code === 'string' &&
+      (code.trim() === FEATURE_FLAG_WILDCARD_PERMISSION || listIncludes(listed, code))
   );
 }
 
