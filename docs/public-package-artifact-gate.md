@@ -90,7 +90,7 @@ pnpm packages:published-check
 The check asks Changesets which packages the pending Changesets will version,
 including dependents that Changesets bumps on its own. For each other package
 whose current version is already on npm, it packs the workspace and compares
-the tar contents with the published tarball, after it checks the download
+the tar streams with the published tarball, after it checks the download
 against the registry integrity. Any difference fails with the changed paths and
 the packages that need a Changeset. This catches changes that look inert but
 still ship, such as a changed dependency range in `package.json`, or token CSS
@@ -103,33 +103,38 @@ changes the build output still fails the check and needs a version. The check
 logs `matches the published tarball apart from devDependencies` for a package
 that differs in nothing else.
 
-The rule is exact. The two tarballs must differ only in that one field of the
-root `package.json`, and the field must really differ. Every other file, and
-every other field of `package.json`, is compared by its bytes and its execute
-bit. Every directory, also an empty one, is compared too. A formatting
-difference alone in the root `package.json` fails. A nested `package.json`
-gets no special rule. A `package.json` that does not parse is compared by its
-raw bytes.
+The rule compares bytes. It does not read the published tarball as a tar
+archive. Both tarballs are gunzipped, so the gzip header is not compared. The
+published stream may not be much longer than the rebuilt one. The two tar
+streams must then be equal byte for byte, except inside the one entry
+`package/package.json` of the rebuilt stream. In that entry only these may
+differ:
 
-The tar entries of both tarballs are checked from the tar headers before
-anything is unpacked. Every entry must be a regular file or a directory, under
-`package/`, with no `..` segment and no second entry of the same path. Any other
-entry (a hard link, a symbolic link, a FIFO, a device, an absolute path, a path
-outside `package/`) is an error that names the entry, and nothing is unpacked.
-The reader is strict: a bad header checksum, a size that is not plain octal, a
-second name header for one entry, or a byte after the end of the archive is an
-error.
-After the unpack, the tree must hold only the directory `package/`, and only
-regular files and directories. A link is never read.
+- the size field of the header;
+- the checksum field of the header;
+- the content, and only its top-level `devDependencies`.
 
-When `devDependencies` really differ, these are not compared:
+The size and checksum fields must have the shape the rebuilt header has. The
+padding after the content must be zero. Everything before and after that entry
+must be equal. So every other file, header, execute bit, modification time,
+owner, directory entry, the order of entries and the end of the archive must be
+equal. The rebuilt stream must be plain: one root `package.json`, only files
+and directories, and a valid end of archive. If it is not, the result is a
+difference.
 
-- the formatting of the root `package.json`. It is compared as parsed JSON, and
-  an invalid UTF-8 byte is read as U+FFFD;
-- permission bits other than the execute bit. npm sets file modes on install and
-  keeps only the execute bit;
-- the modification time and the owner of an entry;
-- the order of tar entries.
+The root `package.json` of both streams must be strict UTF-8 JSON in the
+format of the rebuilt file: two-space indentation, with or without a final
+newline. The published bytes must be exactly what that format gives for the
+parsed published object. The two objects must be equal without
+`devDependencies`, and their `devDependencies` must differ. The only thing not
+compared is the position of the `devDependencies` key inside `package.json`.
+
+The result is `identical`, `devDependencies` or a difference. For a difference,
+the check unpacks both tarballs only to write the report. It lists the added,
+removed and modified files. When no file differs, it says that the entry
+metadata (modification time, owner, permission bits) or the entry order
+differs. This report never changes the decision. An error while it is written
+still fails the check for that package.
 
 The check also fails when a package keeps its version but names a versioned
 workspace package in `dependencies`, `optionalDependencies`, or
@@ -138,7 +143,7 @@ workspace package in `dependencies`, `optionalDependencies`, or
 `devDependencies` does not count.
 
 The release step (`pnpm run release`) uses the same comparison, but it accepts
-only the `devDependencies` status. When a version is already on npm and its
+only the `devDependencies` status. It unpacks nothing. When a version is already on npm and its
 integrity differs from the retained tarball, the step downloads the published
 tarball from the registry (the URL must start with
 `https://registry.npmjs.org/`, no redirect, 60 second limit), checks it against

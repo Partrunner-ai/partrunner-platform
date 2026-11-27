@@ -1,61 +1,7 @@
 import { Buffer } from 'node:buffer';
-import { execFileSync } from 'node:child_process';
-import { chmod, mkdir, readdir, symlink, utimes, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-
-/**
- * `tar -czf` for tests. COPYFILE_DISABLE keeps bsdtar on macOS from adding
- * AppleDouble `._` entries for extended attributes.
- */
-export function packDirectory(file, source, names) {
-  execFileSync('tar', ['-czf', file, '-C', source, ...names], {
-    env: { ...process.env, COPYFILE_DISABLE: '1' },
-  });
-}
-
-const FIXED_TIME = new Date('2026-01-01T00:00:00Z');
-
-/**
- * Build a small real tarball with `tar`, for tests.
- * - `files`: path inside `package/` to text, or to `{ content, mode }`;
- * - `dirs`: empty directories inside `package/`;
- * - `links`: path inside `package/` to a link target (written as is);
- * - `outside`: path beside `package/` to text (a top-level entry).
- */
-export async function buildTarball(
-  directory,
-  name,
-  { files = {}, dirs = [], links = {}, outside = {}, time = FIXED_TIME } = {},
-) {
-  const source = join(directory, `${name}-source`);
-  await mkdir(join(source, 'package'), { recursive: true });
-  for (const [path, value] of Object.entries(files)) {
-    const { content, mode = 0o644 } =
-      typeof value === 'string' ? { content: value } : value;
-    const target = join(source, 'package', path);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, content);
-    await chmod(target, mode);
-    await utimes(target, time, time);
-  }
-  for (const path of dirs) {
-    await mkdir(join(source, 'package', path), { recursive: true });
-  }
-  for (const [path, target] of Object.entries(links)) {
-    await symlink(target, join(source, 'package', path));
-  }
-  for (const [path, content] of Object.entries(outside)) {
-    const target = join(source, path);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, content);
-    await utimes(target, time, time);
-  }
-  const file = join(directory, `${name}.tgz`);
-  const names = await readdir(source);
-  packDirectory(file, source, names);
-  return file;
-}
 
 const field = (value, length) => {
   const bytes = Buffer.alloc(length);
@@ -66,40 +12,96 @@ const field = (value, length) => {
 const octal = (value, length) =>
   Buffer.from(`${value.toString(8).padStart(length - 1, '0')}\0`);
 
+/** The header block of one entry, written the way `pnpm pack` writes it. */
+export function tarHeader({
+  path,
+  type = '0',
+  size = 0,
+  linkname = '',
+  mode = 0o644,
+  mtime = 0,
+  uid = 0,
+  prefix = '',
+  magic = 'ustar\0',
+}) {
+  const header = Buffer.alloc(512);
+  field(path, 100).copy(header, 0);
+  octal(mode, 8).copy(header, 100);
+  octal(uid, 8).copy(header, 108);
+  octal(0, 8).copy(header, 116);
+  Buffer.from(`${size.toString(8).padStart(11, '0')} `).copy(header, 124);
+  octal(mtime, 12).copy(header, 136);
+  header.fill(0x20, 148, 156);
+  header.write(type, 156);
+  field(linkname, 100).copy(header, 157);
+  header.write(magic, 257, 6, 'latin1');
+  header.write('00', 263);
+  field(prefix, 155).copy(header, 345);
+  const sum = header.reduce((total, byte) => total + byte, 0);
+  header.write(`${sum.toString(8).padStart(6, '0')} \0`, 148);
+  return header;
+}
+
 /**
- * Write a gzipped tar stream by hand, so the same bytes come out on macOS and
- * Linux. Each entry is `{ path, type, content, linkname, mode }`. `type` is a
- * tar type flag: '0' file (default), '5' directory, '1' hard link, '2' symbolic
- * link, '6' FIFO. A path is written as given, so `..` and absolute paths work.
- * Only a path of up to 100 bytes fits; use an 'x' or 'L' entry for a longer
- * one. `sizeField` and `checksum` write a raw header field. `trailer` adds
- * bytes after the end of the archive.
+ * Tar blocks written by hand, so the same bytes come out on macOS and Linux.
+ * Each entry is `{ path, type, content, linkname, mode, mtime, uid, prefix,
+ * magic }`. `type` is a tar type flag: '0' file (default), '5' directory, '1'
+ * hard link, '2' symbolic link, '6' FIFO. `content` is text or a Buffer. A path
+ * is written as given. Only a path of up to 100 bytes fits.
  */
-export async function buildRawTarball(directory, name, entries, { trailer = null } = {}) {
-  const blocks = [];
-  for (const entry of entries) {
-    const { path, type = '0', content = '', linkname = '', mode = 0o644, sizeField = null, checksum = null } = entry;
-    const data = Buffer.from(content);
-    const header = Buffer.alloc(512);
-    field(path, 100).copy(header, 0);
-    octal(mode, 8).copy(header, 100);
-    octal(0, 8).copy(header, 108);
-    octal(0, 8).copy(header, 116);
-    (sizeField === null ? octal(data.length, 12) : field(sizeField, 12)).copy(header, 124);
-    octal(0, 12).copy(header, 136);
-    header.fill(0x20, 148, 156);
-    header.write(type, 156);
-    field(linkname, 100).copy(header, 157);
-    header.write('ustar\0', 257);
-    header.write('00', 263);
-    const sum = header.reduce((total, byte) => total + byte, 0);
-    (checksum === null ? octal(sum, 7) : field(checksum, 7)).copy(header, 148);
-    header[155] = 0x20;
-    blocks.push(header, data, Buffer.alloc((512 - (data.length % 512)) % 512));
-  }
-  blocks.push(Buffer.alloc(1024));
-  if (trailer !== null) blocks.push(Buffer.from(trailer));
+export function tarBlocks(entries) {
+  return Buffer.concat(
+    entries.flatMap(({ content = '', ...entry }) => {
+      const data = Buffer.from(content);
+      return [
+        tarHeader({ ...entry, size: data.length }),
+        data,
+        Buffer.alloc((512 - (data.length % 512)) % 512),
+      ];
+    }),
+  );
+}
+
+/** A whole tar stream: the entries and the end-of-archive blocks. */
+export const tarStream = (entries) =>
+  Buffer.concat([tarBlocks(entries), Buffer.alloc(1024)]);
+
+/** A gzipped tar stream written to `<directory>/<name>.tgz`. */
+export async function buildRawTarball(directory, name, entries) {
   const file = join(directory, `${name}.tgz`);
-  await writeFile(file, gzipSync(Buffer.concat(blocks)));
+  await writeFile(file, gzipSync(tarStream(entries)));
   return file;
+}
+
+const FIXED_MTIME = Date.parse('2026-01-01T00:00:00Z') / 1000;
+
+/**
+ * Build a small tarball of the shape `pnpm pack` writes, for tests.
+ * - `files`: path inside `package/` to text, or to `{ content, mode }`;
+ * - `dirs`: empty directories inside `package/`;
+ * - `links`: path inside `package/` to a symbolic link target;
+ * - `outside`: path beside `package/` to text (a top-level entry);
+ * - `mtime`: the modification time of every entry, in seconds.
+ */
+export function buildTarball(
+  directory,
+  name,
+  { files = {}, dirs = [], links = {}, outside = {}, mtime = FIXED_MTIME } = {},
+) {
+  const entries = [
+    { path: 'package/', type: '5', mode: 0o755 },
+    ...dirs.map((path) => ({ path: `package/${path}/`, type: '5', mode: 0o755 })),
+    ...Object.entries(files).map(([path, value]) => {
+      const { content, mode = 0o644 } =
+        typeof value === 'string' ? { content: value } : value;
+      return { path: `package/${path}`, content, mode };
+    }),
+    ...Object.entries(links).map(([path, linkname]) => ({
+      path: `package/${path}`,
+      type: '2',
+      linkname,
+    })),
+    ...Object.entries(outside).map(([path, content]) => ({ path, content })),
+  ].map((entry) => ({ mtime, ...entry }));
+  return buildRawTarball(directory, name, entries);
 }

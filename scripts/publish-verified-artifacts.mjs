@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { compareTarballs, removeTree } from './packed-contents.mjs';
+import { compareTarballBytes } from './packed-contents.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
@@ -106,13 +105,14 @@ export function verifyRegistryIntegrity(packageInfo, metadata) {
 
 /**
  * An existing version whose integrity differs from the retained tarball is
- * accepted only when the two differ in the root `devDependencies` alone. The
- * comparison is the one `verify-published-contents.mjs` uses, but this step
- * accepts ONLY the `devDependencies` status. Equal tar streams with other
- * compressed bytes (a different gzip header) still fail here, as before. The
- * version is not published again. Anything else keeps the integrity error. A
- * missing `dist.tarball`, a non-200 answer, a stalled download (60 seconds) and
- * a download that does not match `dist.integrity` all throw before any publish.
+ * accepted only when the two tar streams are equal byte for byte, except for
+ * the root `devDependencies` (see `packed-contents.mjs`). This step accepts
+ * ONLY the `devDependencies` status. Equal tar streams with other compressed
+ * bytes (a different gzip header) still fail here, as before. The version is
+ * not published again. Anything else keeps the integrity error. A missing
+ * `dist.tarball`, a non-200 answer, a stalled download (60 seconds), a download
+ * that does not match `dist.integrity` and a published stream that is far
+ * longer than the retained one all throw before any publish.
  */
 export async function verifyExistingVersion(
   directory,
@@ -145,19 +145,13 @@ export async function verifyExistingVersion(
     metadata.dist.integrity,
     `${label} download does not match its registry integrity`,
   );
-  const work = await mkdtemp(join(tmpdir(), 'partrunner-existing-'));
-  try {
-    const { status } = await compareTarballs({
-      publishedBytes: bytes,
-      localTarball: join(directory, packageInfo.filename),
-      directory: work,
-    });
-    if (status !== 'devDependencies') {
-      // Equal tar streams with other bytes (gzip header) stay rejected too.
-      verifyRegistryIntegrity(packageInfo, metadata);
-    }
-  } finally {
-    await removeTree(work);
+  const status = compareTarballBytes(
+    bytes,
+    await readFile(join(directory, packageInfo.filename)),
+  );
+  if (status !== 'devDependencies') {
+    // Equal tar streams with other bytes (gzip header) stay rejected too.
+    verifyRegistryIntegrity(packageInfo, metadata);
   }
   log(`Existing ${label} differs from the retained tarball only in devDependencies`);
 }

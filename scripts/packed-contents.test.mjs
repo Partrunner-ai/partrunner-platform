@@ -1,420 +1,320 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
-import { readFileSync } from 'node:fs';
-import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { test } from 'node:test';
-import { gunzipSync } from 'node:zlib';
+import { gzipSync } from 'node:zlib';
 
-import {
-  assertSafeTarEntries,
-  compareTarballs,
-  hashTree,
-  removeTree,
-  unpackTarball,
-} from './packed-contents.mjs';
-import { buildRawTarball, buildTarball, packDirectory } from './test-tarballs.mjs';
+import { compareTarballBytes, compareTarStreams } from './packed-contents.mjs';
+import { tarBlocks, tarStream } from './test-tarballs.mjs';
 
-const pkg = (fields) =>
-  JSON.stringify({ name: 'x', version: '1.0.0', ...fields }, null, 2);
-
-async function workspace(t) {
-  const directory = await mkdtemp(join(tmpdir(), 'packed-contents-test-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  const compare = async (published, local) =>
-    compareTarballs({
-      publishedBytes: await readFile(published),
-      localTarball: local,
-      directory: await mkdtemp(join(directory, 'work-')),
-    });
-  return { directory, compare };
-}
-
-test('accepts a change in the root devDependencies alone', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const published = await buildTarball(directory, 'a', {
-    files: { 'package.json': pkg({ devDependencies: { vite: '5' } }), 'index.js': 'a' },
-  });
-  const local = await buildTarball(directory, 'b', {
-    files: { 'package.json': pkg({ devDependencies: { vite: '6' } }), 'index.js': 'a' },
-  });
-  assert.deepEqual(await compare(published, local), {
-    status: 'devDependencies',
-    files: [],
-    tarOnly: false,
-  });
+const pretty = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const manifest = (fields = {}) => ({
+  name: 'x',
+  version: '1.0.0',
+  dependencies: { a: '^1.0.0' },
+  ...fields,
 });
+const pkg = (fields, format = pretty) => format(manifest(fields));
+const dev = (version) => ({ devDependencies: { vite: version } });
 
-test('accepts devDependencies added or removed', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const without = await buildTarball(directory, 'a', {
-    files: { 'package.json': pkg({}) },
-  });
-  const withDev = await buildTarball(directory, 'b', {
-    files: { 'package.json': pkg({ devDependencies: { vite: '6' } }) },
-  });
-  assert.equal((await compare(without, withDev)).status, 'devDependencies');
-  assert.equal((await compare(withDev, without)).status, 'devDependencies');
-});
+const ROOT = 'package/package.json';
 
-test('does not accept devDependencies next to an execute bit change', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const published = await buildTarball(directory, 'a', {
-    files: { 'package.json': pkg({ devDependencies: { v: '1' } }), 'bin.js': 'a' },
-  });
-  const local = await buildTarball(directory, 'b', {
-    files: {
-      'package.json': pkg({ devDependencies: { v: '2' } }),
-      'bin.js': { content: 'a', mode: 0o755 },
-    },
-  });
-  assert.deepEqual(await compare(published, local), {
-    status: 'drift',
-    files: [{ path: 'bin.js', change: 'modified' }],
-    tarOnly: false,
-  });
-});
-
-test('does not accept devDependencies next to an added empty directory', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const published = await buildTarball(directory, 'a', {
-    files: { 'package.json': pkg({ devDependencies: { v: '1' } }) },
-  });
-  const local = await buildTarball(directory, 'b', {
-    files: { 'package.json': pkg({ devDependencies: { v: '2' } }) },
-    dirs: ['empty'],
-  });
-  assert.deepEqual(await compare(published, local), {
-    status: 'drift',
-    files: [{ path: 'empty/', change: 'added' }],
-    tarOnly: false,
-  });
-});
-
-test('reports a formatting difference alone as drift', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const fields = { dependencies: { a: '1' }, devDependencies: { v: '1' } };
-  const published = await buildTarball(directory, 'a', {
-    files: { 'package.json': JSON.stringify({ name: 'x', ...fields }, null, 2) },
-  });
-  const local = await buildTarball(directory, 'b', {
-    files: { 'package.json': JSON.stringify({ name: 'x', ...fields }) },
-  });
-  assert.deepEqual(await compare(published, local), {
-    status: 'drift',
-    files: [{ path: 'package.json', change: 'modified' }],
-    tarOnly: false,
-  });
-});
-
-test('reports devDependencies that are not objects as drift', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const published = await buildTarball(directory, 'a', {
-    files: { 'package.json': '[1]' },
-  });
-  const local = await buildTarball(directory, 'b', {
-    files: { 'package.json': '[2]' },
-  });
-  assert.equal((await compare(published, local)).status, 'drift');
-});
-
-test('gives a nested package.json no devDependencies rule', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const published = await buildTarball(directory, 'a', {
-    files: {
-      'package.json': pkg({}),
-      'dist/package.json': pkg({ devDependencies: { v: '1' } }),
-    },
-  });
-  const local = await buildTarball(directory, 'b', {
-    files: {
-      'package.json': pkg({}),
-      'dist/package.json': pkg({ devDependencies: { v: '2' } }),
-    },
-  });
-  assert.deepEqual(await compare(published, local), {
-    status: 'drift',
-    files: [{ path: 'dist/package.json', change: 'modified' }],
-    tarOnly: false,
-  });
-});
-
-test('reports a tar-only difference when no file differs', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const published = await buildTarball(directory, 'a', {
-    files: { 'index.js': 'a' },
-  });
-  const local = await buildTarball(directory, 'b', {
-    files: { 'index.js': 'a' },
-    time: new Date('2026-02-02T00:00:00Z'),
-  });
-  assert.deepEqual(await compare(published, local), {
-    status: 'drift',
-    files: [],
-    tarOnly: true,
-  });
-});
-
-test('rejects a top-level entry beside package/', async (t) => {
-  const { directory } = await workspace(t);
-  for (const outside of [{ 'extra/file.txt': 'x' }, { 'extra.txt': 'x' }]) {
-    const file = await buildTarball(directory, 'a', {
-      files: { 'index.js': 'a' },
-      outside,
-    });
-    await assert.rejects(
-      unpackTarball(file, join(directory, 'out')),
-      /unsafe path: extra/,
-    );
-    await rm(join(directory, 'out'), { recursive: true, force: true });
-  }
-});
-
-test('rejects a tarball without package/', async (t) => {
-  const { directory } = await workspace(t);
-  await mkdir(join(directory, 'src/other'), { recursive: true });
-  await writeFile(join(directory, 'src/other/file.txt'), 'x');
-  const file = join(directory, 'no-package.tgz');
-  packDirectory(file, join(directory, 'src'), ['other']);
-  await assert.rejects(
-    unpackTarball(file, join(directory, 'out')),
-    /unsafe path: other/,
-  );
-});
-
-test('names the top-level entries in sorted order after the unpack', async (t) => {
-  const { directory } = await workspace(t);
-  await mkdir(join(directory, 'out/zeta'), { recursive: true });
-  await mkdir(join(directory, 'out/alpha'), { recursive: true });
-  // A tarball cannot reach this barrier, so unpack an empty one into a
-  // destination that already holds two directories.
-  const empty = await buildRawTarball(directory, 'empty', []);
-  await assert.rejects(
-    unpackTarball(empty, join(directory, 'out')),
-    /found: alpha, zeta/,
-  );
-});
-
-test('rejects a symbolic link by name and never reads its target', async (t) => {
-  const { directory } = await workspace(t);
-  const file = await buildTarball(directory, 'a', {
-    files: { 'index.js': 'a' },
-    links: { 'dangling-link': '/nonexistent/target-that-must-not-be-read' },
-  });
-  await assert.rejects(
-    unpackTarball(file, join(directory, 'out')),
-    (error) =>
-      /symbolic link.*: package\/dangling-link/.test(error.message) &&
-      !/ENOENT/.test(error.message),
-  );
-});
-
-test('hashTree still rejects a link in an unpacked tree', async (t) => {
-  const { directory } = await workspace(t);
-  await mkdir(join(directory, 'tree'));
-  await symlink('/nonexistent', join(directory, 'tree/link'));
-  await assert.rejects(
-    hashTree(join(directory, 'tree')),
-    /not a regular file or a directory: link/,
-  );
-});
-
-const rawFile = (path, content, extra = {}) => ({ path, content, ...extra });
-const rawPackage = [
-  { path: 'package/', type: '5', mode: 0o755 },
-  rawFile('package/package.json', '{"name":"x"}'),
-];
-
-test('rejects a hard link, names it, and unpacks nothing', async (t) => {
-  const { directory } = await workspace(t);
-  const file = await buildRawTarball(directory, 'a', [
-    ...rawPackage,
-    { path: 'package/dist/', type: '5', mode: 0o755 },
-    rawFile('package/dist/a.js', 'a'),
-    rawFile('package/dist/b.js', 'other'),
-    { path: 'package/dist/b.js', type: '1', linkname: 'package/dist/a.js' },
-  ]);
-  const out = join(directory, 'out');
-  await assert.rejects(
-    unpackTarball(file, out),
-    /hard link.*: package\/dist\/b\.js/,
-  );
-  await assert.rejects(readFile(join(out, 'package/package.json')), /ENOENT/);
-});
-
-test('rejects each kind of bad entry and names it', async (t) => {
-  const { directory } = await workspace(t);
-  const cases = [
-    [{ path: 'package/s', type: '2', linkname: 'x' }, /symbolic link.*package\/s/],
-    [{ path: 'package/f', type: '6' }, /FIFO.*package\/f/],
-    [{ path: 'package/c', type: '3' }, /character device.*package\/c/],
-    [{ path: 'package/d', type: '4' }, /block device.*package\/d/],
-    [rawFile('/etc/passwd', 'x'), /unsafe path: \/etc\/passwd/],
-    [rawFile('package/../evil.js', 'x'), /unsafe path: package\/\.\.\/evil\.js/],
-    [rawFile('package/a/../b.js', 'x'), /unsafe path: package\/a\/\.\.\/b\.js/],
-    [rawFile('other/file.js', 'x'), /unsafe path: other\/file\.js/],
-    [rawFile('packages/file.js', 'x'), /unsafe path: packages\/file\.js/],
+/**
+ * The entries of a small package tarball. The root `package.json` is entry
+ * `1 + before.length`; `mid` goes between `index.js` and `README.md`.
+ */
+const layout = ({ root, before = [], mid = [], after = [], swap = false }) => {
+  const files = [
+    { path: 'package/index.js', content: 'a' },
+    ...mid,
+    { path: 'package/README.md', content: '# readme\n' },
   ];
-  for (const [entry, pattern] of cases) {
-    const file = await buildRawTarball(directory, 'bad', [...rawPackage, entry]);
-    await assert.rejects(unpackTarball(file, join(directory, 'out')), pattern);
-    await assert.rejects(readFile(join(directory, 'out/package/package.json')));
-  }
-});
-
-test('rejects two entries with the same path', async (t) => {
-  const { directory } = await workspace(t);
-  const file = await buildRawTarball(directory, 'dup', [
-    ...rawPackage,
-    rawFile('package/a.js', '1'),
-    rawFile('./package/a.js', '2'),
-  ]);
-  await assert.rejects(
-    unpackTarball(file, join(directory, 'out')),
-    /same path: \.\/package\/a\.js/,
-  );
-  const dir = await buildRawTarball(directory, 'dupdir', [
-    ...rawPackage,
-    { path: 'package/', type: '5' },
-  ]);
-  await assert.rejects(unpackTarball(dir, join(directory, 'out')), /same path/);
-});
-
-test('accepts a valid tarball with a space and a long path', async (t) => {
-  const { directory } = await workspace(t);
-  const file = await buildTarball(directory, 'ok', {
-    files: { 'my file.js': 'a', 'package.json': '{}', [`${'d'.repeat(60)}/${'e'.repeat(60)}.js`]: 'b' },
-    dirs: ['empty dir'],
-  });
-  const tar = gunzipSync(await readFile(file));
-  assert.doesNotThrow(() => assertSafeTarEntries(tar));
-});
-
-test('rejects a tarball cut short', () => {
-  assert.throws(() => assertSafeTarEntries(Buffer.alloc(100, 1)), /truncated|malformed/);
-});
-
-test('rejects a root package.json that is a symbolic link and never reads it', async (t) => {
-  const { directory } = await workspace(t);
-  const secret = join(directory, 'secret.json');
-  await writeFile(secret, '{"devDependencies":{"leak":"1"}}');
-  const file = await buildTarball(directory, 'link', {
-    links: { 'package.json': secret },
-  });
-  await assert.rejects(
-    unpackTarball(file, join(directory, 'out')),
-    (error) =>
-      /symbolic link.*package\/package\.json/.test(error.message) &&
-      !error.message.includes('leak'),
-  );
-});
-
-test('a hard link next to a devDependencies change is not accepted', async (t) => {
-  const { directory, compare } = await workspace(t);
-  const local = await buildRawTarball(directory, 'local', [
-    ...rawPackage.slice(0, 1),
-    rawFile('package/package.json', pkg({ devDependencies: { v: '2' } })),
-    rawFile('package/a.js', 'a'),
-    rawFile('package/b.js', 'a'),
-  ]);
-  const published = await buildRawTarball(directory, 'published', [
-    ...rawPackage.slice(0, 1),
-    rawFile('package/package.json', pkg({ devDependencies: { v: '1' } })),
-    rawFile('package/a.js', 'a'),
-    rawFile('package/b.js', 'other'),
-    { path: 'package/b.js', type: '1', linkname: 'package/a.js' },
-  ]);
-  await assert.rejects(compare(published, local), /hard link.*package\/b\.js/);
-});
-
-test('cleans up a tree with a read-only directory, and never throws', async (t) => {
-  const { directory } = await workspace(t);
-  const file = await buildTarball(directory, 'ro', {
-    files: { 'sub/file.js': 'a', 'package.json': '{}' },
-  });
-  const out = join(directory, 'out');
-  await unpackTarball(file, out);
-  await chmod(join(out, 'package/sub'), 0o555);
-  await removeTree(out);
-  await assert.rejects(readFile(join(out, 'package/package.json')), /ENOENT/);
-  await assert.doesNotReject(removeTree(join(directory, 'never-existed')));
-});
-
-const pax = (key, value) => {
-  let length = key.length + value.length + 3;
-  while (`${length} ${key}=${value}\n`.length !== length) length += 1;
-  return `${length} ${key}=${value}\n`;
+  return [
+    { path: 'package/', type: '5', mode: 0o755 },
+    ...before,
+    { path: ROOT, content: root },
+    ...(swap ? files.reverse() : files),
+    ...after,
+  ];
 };
 
-async function rejectsRaw(t, entries, pattern, options) {
-  const { directory } = await workspace(t);
-  const file = await buildRawTarball(directory, 'strict', entries, options);
-  await assert.rejects(unpackTarball(file, join(directory, 'out')), pattern);
-  await assert.rejects(readFile(join(directory, 'out/package/package.json')));
-}
+const blocks = (length) => Math.ceil(length / 512) * 512;
+const offsetOf = (entries, index) =>
+  entries
+    .slice(0, index)
+    .reduce((total, { content = '' }) => total + 512 + blocks(Buffer.byteLength(content)), 0);
 
-test('rejects a header with a bad checksum', async (t) => {
-  await rejectsRaw(
-    t,
-    [...rawPackage, rawFile('package/a.js', 'a', { checksum: '0000001' })],
-    /bad checksum/,
+const restamp = (header) => {
+  header.fill(0x20, 148, 156);
+  const sum = header.reduce((total, byte) => total + byte, 0);
+  header.write(`${sum.toString(8).padStart(6, '0')} \0`, 148);
+};
+
+/** A copy of `stream` with the header at `at` changed by `edit`. */
+const tamper = (stream, at, edit, { stamp = true } = {}) => {
+  const copy = Buffer.from(stream);
+  const header = copy.subarray(at, at + 512);
+  edit(header);
+  if (stamp) restamp(header);
+  return copy;
+};
+
+const local = layout({ root: pkg(dev('^5.0.0')) });
+const localStream = tarStream(local);
+const publishedRoot = (root) => tarStream(layout({ root }));
+const published = publishedRoot(pkg(dev('^6.0.0')));
+const verdict = (candidate, base = localStream) => compareTarStreams(candidate, base);
+const ROOT_AT = offsetOf(local, 1);
+
+test('accepts a change in devDependencies alone: changed, added, removed', () => {
+  assert.equal(verdict(published), 'devDependencies');
+  const without = tarStream(layout({ root: pkg({}) }));
+  assert.equal(verdict(published, without), 'devDependencies');
+  assert.equal(verdict(without, localStream), 'devDependencies');
+});
+
+test('accepts a root package.json without a final newline', () => {
+  const plain = (value) => JSON.stringify(value, null, 2);
+  const base = tarStream(layout({ root: pkg(dev('^5.0.0'), plain) }));
+  assert.equal(
+    compareTarStreams(publishedRoot(pkg(dev('^6.0.0'), plain)), base),
+    'devDependencies',
   );
 });
 
-test('rejects a size field that is not plain octal', async (t) => {
-  for (const sizeField of ['18', '1x', '-1', '']) {
-    await rejectsRaw(
-      t,
-      [...rawPackage, rawFile('package/a.js', 'a', { sizeField })],
-      /malformed tar header/,
+test('accepts devDependencies in another position inside package.json', () => {
+  const moved = pretty({ devDependencies: { vite: '^6.0.0' }, ...manifest() });
+  assert.equal(verdict(publishedRoot(moved)), 'devDependencies');
+});
+
+test('accepts a change that moves every later block', () => {
+  const many = Object.fromEntries(
+    Array.from({ length: 40 }, (_, index) => [`tool-${index}`, '^1.0.0']),
+  );
+  const big = publishedRoot(pkg({ devDependencies: many }));
+  assert.ok(big.length > localStream.length);
+  assert.equal(verdict(big), 'devDependencies');
+  assert.equal(verdict(localStream, big), 'devDependencies');
+});
+
+test('reports equal streams as identical', () => {
+  assert.equal(verdict(Buffer.from(localStream)), 'identical');
+});
+
+test('reports a different other field as drift, also next to devDependencies', () => {
+  assert.equal(verdict(publishedRoot(pkg({ ...dev('^6.0.0'), version: '1.0.1' }))), 'drift');
+  assert.equal(
+    verdict(publishedRoot(pkg({ ...dev('^6.0.0'), dependencies: { a: '^2.0.0' } }))),
+    'drift',
+  );
+});
+
+test('reports other formatting as drift even when devDependencies are equal', () => {
+  const compact = pkg(dev('^5.0.0'), JSON.stringify);
+  assert.equal(verdict(publishedRoot(compact)), 'drift');
+  assert.equal(verdict(publishedRoot(pkg(dev('^5.0.0')).trimEnd())), 'drift');
+  assert.equal(verdict(publishedRoot(pkg(dev('^6.0.0'), (v) => JSON.stringify(v, null, 4)))), 'drift');
+});
+
+test('reports a duplicate key in the published package.json as drift', () => {
+  const text = pkg(dev('^6.0.0')).replace('  "name": "x",\n', '  "name": "x",\n  "name": "x",\n');
+  assert.notEqual(text, pkg(dev('^6.0.0')));
+  assert.equal(verdict(publishedRoot(text)), 'drift');
+});
+
+test('reports a byte order mark as drift', () => {
+  const bom = Buffer.from([0xef, 0xbb, 0xbf]);
+  const text = Buffer.concat([bom, Buffer.from(pkg(dev('^6.0.0')))]);
+  assert.equal(verdict(publishedRoot(text)), 'drift');
+});
+
+test('reports invalid UTF-8 as drift', () => {
+  const bytes = Buffer.from(pkg(dev('^6.0.0')));
+  bytes[bytes.indexOf('"x"') + 1] = 0xff;
+  assert.equal(verdict(publishedRoot(bytes)), 'drift');
+});
+
+test('reports a different other file as drift', () => {
+  const entries = layout({ root: pkg(dev('^6.0.0')) });
+  entries[2] = { path: 'package/index.js', content: 'b' };
+  assert.equal(verdict(tarStream(entries)), 'drift');
+});
+
+test('reports a byte that differs in another header as drift', () => {
+  for (const [index, edit] of [
+    [0, (header) => header.write('0000700', 100)],
+    [2, (header) => header.write('00000000001\0', 136)],
+    [3, (header) => header.write('0000001\0', 108)],
+  ]) {
+    assert.equal(verdict(tamper(published, offsetOf(local, index), edit)), 'drift', `entry ${index}`);
+  }
+});
+
+test('reports a root header that differs outside size and checksum as drift', () => {
+  for (const edit of [
+    (header) => header.write('0000755\0', 100),
+    (header) => header.write('00000000001\0', 136),
+    (header) => header.write('\0', 156),
+    (header) => header.write('x', 157),
+    (header) => header.write('0000001\0', 108),
+  ]) {
+    assert.equal(verdict(tamper(published, ROOT_AT, edit)), 'drift');
+  }
+});
+
+test('reports a size field in another shape as drift', () => {
+  const size = published.subarray(ROOT_AT + 124, ROOT_AT + 136).toString('latin1');
+  assert.match(size, /^\d{11} $/);
+  for (const other of [`${size.slice(0, 11)}\0`, `${size.slice(1, 11)}  `, `${size.slice(0, 11)}0`]) {
+    assert.equal(verdict(tamper(published, ROOT_AT, (header) => header.write(other, 124, 'latin1'))), 'drift');
+  }
+});
+
+test('reports a wrong checksum as drift', () => {
+  const wrong = tamper(published, ROOT_AT, (header) => header.write('0000001 \0', 148), { stamp: false });
+  assert.equal(verdict(wrong), 'drift');
+});
+
+test('reports a checksum field in another shape as drift', () => {
+  const sum = (header) => header.reduce((total, byte, index) => total + (index >= 148 && index < 156 ? 0x20 : byte), 0);
+  for (const shape of [
+    (value) => value.toString(8).padStart(8, '0'),
+    (value) => `${value.toString(8).padStart(6, '0')}\0 `,
+    (value) => `${value.toString(8).padStart(6, '0')}\0\0`,
+    (value) => `${value.toString(8).padStart(7, '0')}\0`,
+  ]) {
+    const changed = tamper(
+      published,
+      ROOT_AT,
+      (header) => header.write(shape(sum(header)), 148, 'latin1'),
+      { stamp: false },
     );
+    assert.equal(verdict(changed), 'drift');
   }
 });
 
-test('rejects data after the end of the archive', async (t) => {
-  await rejectsRaw(t, rawPackage, /data after the end of the archive/, {
-    trailer: 'x',
-  });
+test('reports non-zero padding after the content as drift', () => {
+  const copy = Buffer.from(published);
+  const size = Buffer.byteLength(pkg(dev('^6.0.0')));
+  assert.ok(size % 512 !== 0);
+  copy[ROOT_AT + 512 + size] = 1;
+  assert.equal(verdict(copy), 'drift');
 });
 
-test('rejects two sources for one path, repeated name headers, and a lone one', async (t) => {
-  const long = (path) => ({ path: 'long', type: 'L', content: `${path}\0` });
-  const px = (path) => ({ path: 'pax', type: 'x', content: pax('path', path) });
-  const file = rawFile('package/a.js', 'a');
-  await rejectsRaw(t, [...rawPackage, long('package/b.js'), px('package/c.js'), file], /both a GNU long name and a PAX path|two name headers/);
-  await rejectsRaw(t, [...rawPackage, long('package/b.js'), long('package/c.js'), file], /two name headers/);
-  await rejectsRaw(t, [...rawPackage, px('package/b.js'), px('package/c.js'), file], /two name headers/);
-  await rejectsRaw(t, [...rawPackage, long('package/b.js')], /no entry after it/);
-  await rejectsRaw(t, [...rawPackage, px('package/b.js')], /no entry after it/);
+test('reports an extra entry before or after the root entry as drift', () => {
+  const extra = { path: 'package/extra.js', content: 'x' };
+  assert.equal(verdict(tarStream(layout({ root: pkg(dev('^6.0.0')), before: [extra] }))), 'drift');
+  assert.equal(verdict(tarStream(layout({ root: pkg(dev('^6.0.0')), after: [extra] }))), 'drift');
 });
 
-test('rejects a PAX record without an equals sign', async (t) => {
-  await rejectsRaw(
-    t,
-    [
-      ...rawPackage,
-      { path: 'pax', type: 'x', content: '9 nokeyv\n' },
-      rawFile('package/a.js', 'a'),
-    ],
-    /malformed PAX header/,
-  );
+test('reports an entry hidden after the end of the archive as drift', () => {
+  const hidden = tarBlocks([{ path: 'package/dist/hidden.js', content: 'evil' }]);
+  assert.equal(verdict(Buffer.concat([published, hidden, Buffer.alloc(1024)])), 'drift');
+  assert.equal(verdict(Buffer.concat([published, Buffer.alloc(512, 1)])), 'drift');
 });
 
-test('accepts a PAX path and a GNU long name over 100 characters', async (t) => {
-  const { directory } = await workspace(t);
-  const longPath = `package/${'d'.repeat(60)}/${'e'.repeat(60)}.js`;
-  const withPax = await buildRawTarball(directory, 'pax', [
-    ...rawPackage,
-    { path: 'pax', type: 'x', content: pax('path', longPath) },
-    rawFile('package/short.js', 'a'),
-  ]);
-  const withLong = await buildRawTarball(directory, 'gnu', [
-    ...rawPackage,
-    { path: 'long', type: 'L', content: `${longPath}\0` },
-    rawFile('package/short.js', 'a'),
-  ]);
-  for (const file of [withPax, withLong]) {
-    assert.doesNotThrow(() => assertSafeTarEntries(gunzipSync(readFileSync(file))));
+test('reports a different entry order as drift', () => {
+  assert.equal(verdict(tarStream(layout({ root: pkg(dev('^6.0.0')), swap: true }))), 'drift');
+});
+
+test('reports a nested package.json that differs as drift', () => {
+  const nested = (version) => ({ path: 'package/dist/package.json', content: pkg(dev(version)) });
+  const base = tarStream(layout({ root: pkg(dev('^5.0.0')), after: [nested('1')] }));
+  assert.equal(verdict(tarStream(layout({ root: pkg(dev('^6.0.0')), after: [nested('2')] })), base), 'drift');
+  assert.equal(verdict(tarStream(layout({ root: pkg(dev('^5.0.0')), after: [nested('2')] })), base), 'drift');
+  assert.equal(verdict(tarStream(layout({ root: pkg(dev('^6.0.0')), after: [nested('1')] })), base), 'devDependencies');
+});
+
+test('reports drift when the local stream is not plain', () => {
+  const cases = {
+    'two root entries': { after: [{ path: ROOT, content: pkg({}) }] },
+    'a PAX header': { before: [{ path: 'PaxHeader/x', type: 'x', content: '20 mtime=1700000000\n' }] },
+    'a GNU long name header': { before: [{ path: 'long', type: 'L', content: 'package/long\0' }] },
+    'a symbolic link': { after: [{ path: 'package/l', type: '2', linkname: 'x' }] },
+  };
+  for (const [name, options] of Object.entries(cases)) {
+    const build = (version) => tarStream(layout({ root: pkg(dev(version)), ...options }));
+    assert.equal(verdict(build('^6.0.0'), build('^5.0.0')), 'drift', name);
   }
+  const noRoot = tarStream(layout({ root: '' }).filter(({ path }) => path !== ROOT));
+  assert.equal(verdict(published, noRoot), 'drift');
+});
+
+test('reports drift when the local stream has a bad header or no end', () => {
+  const badSum = tamper(localStream, ROOT_AT, (header) => header.write('0000001 \0', 148), { stamp: false });
+  assert.equal(verdict(published, badSum), 'drift');
+  // A bad checksum on an entry before the root entry, in both streams.
+  const edit = (header) => header.write('0000001 \0', 148);
+  const badFirst = tamper(localStream, 0, edit, { stamp: false });
+  const badFirstPublished = tamper(published, 0, edit, { stamp: false });
+  assert.equal(verdict(badFirstPublished, badFirst), 'drift');
+  const badSize = tamper(localStream, ROOT_AT, (header) => header.write('0000000012x ', 124, 'latin1'));
+  assert.equal(verdict(published, badSize), 'drift');
+  assert.equal(verdict(published, localStream.subarray(0, localStream.length - 1024)), 'drift');
+});
+
+test('reports drift when the local package.json is not in a canonical format', () => {
+  const compact = (version) => tarStream(layout({ root: pkg(dev(version), JSON.stringify) }));
+  assert.equal(verdict(compact('^6.0.0'), compact('^5.0.0')), 'drift');
+  const tabs = (version) => tarStream(layout({ root: pkg(dev(version), (v) => JSON.stringify(v, null, '\t')) }));
+  assert.equal(verdict(tabs('^6.0.0'), tabs('^5.0.0')), 'drift');
+});
+
+test('reports drift when package.json is not an object', () => {
+  const array = (text) => tarStream(layout({ root: text }));
+  assert.equal(verdict(array('[2]'), array('[1]')), 'drift');
+  assert.equal(verdict(array('{"devDependencies": 2,'), array('{"devDependencies": 1,')), 'drift');
+});
+
+test('reports the five hand-made carrier shapes as drift', () => {
+  const evil = tarBlocks([{ path: 'package/dist/index.js', content: 'EVIL' }]);
+  const root = pkg(dev('^6.0.0'));
+  const shapes = {
+    'a carrier with an alias path and a linkname': {
+      mid: [{ path: 'package/./README.md', linkname: 'x', content: evil }],
+    },
+    'a carrier with an 8 digit checksum': {
+      mid: [{ path: 'package/./README.md', content: evil }],
+      edit: (header) =>
+        header.write(
+          header.reduce((total, byte, index) => total + (index >= 148 && index < 156 ? 0x20 : byte), 0).toString(8).padStart(8, '0'),
+          148,
+          'latin1',
+        ),
+    },
+    'a directory entry with a body that holds a hard link': {
+      mid: [
+        {
+          path: 'package/dist/',
+          type: '5',
+          mode: 0o755,
+          content: tarBlocks([{ path: 'package/dist/l', type: '1', linkname: 'package/index.js' }]),
+        },
+      ],
+    },
+    'an empty name with a prefix': {
+      mid: [{ path: '', prefix: 'package/dist', type: '5', mode: 0o755 }],
+    },
+    'a prefix without the ustar magic': {
+      mid: [{ path: 'package/./README.md', magic: '\0\0\0\0\0\0', prefix: 'package/dist/x', content: 'EVIL' }],
+    },
+  };
+  for (const [name, { mid, edit }] of Object.entries(shapes)) {
+    const entries = layout({ root, mid });
+    let stream = tarStream(entries);
+    if (edit) stream = tamper(stream, offsetOf(entries, 3), edit, { stamp: false });
+    assert.equal(verdict(stream), 'drift', name);
+  }
+});
+
+test('compares tar streams, not compressed bytes', () => {
+  const again = gzipSync(localStream, { level: 1 });
+  assert.equal(compareTarballBytes(again, gzipSync(localStream, { level: 9 })), 'identical');
+  assert.equal(compareTarballBytes(gzipSync(published), gzipSync(localStream)), 'devDependencies');
+});
+
+test('throws when the published stream is far longer than the local one', () => {
+  const bomb = gzipSync(Buffer.concat([published, Buffer.alloc(2 * 1024 * 1024)]));
+  assert.throws(() => compareTarballBytes(bomb, gzipSync(localStream)), RangeError);
+  const fine = gzipSync(Buffer.concat([published, Buffer.alloc(512 * 1024)]));
+  assert.equal(compareTarballBytes(fine, gzipSync(localStream)), 'drift');
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -15,7 +15,7 @@ import {
   verifyExistingVersion,
   verifyRegistryIntegrity,
 } from './publish-verified-artifacts.mjs';
-import { buildRawTarball, buildTarball, packDirectory } from './test-tarballs.mjs';
+import { buildRawTarball, buildTarball } from './test-tarballs.mjs';
 
 const source = {
   commit: 'a'.repeat(40),
@@ -206,14 +206,8 @@ const integrityOf = (bytes) =>
 async function tarballFixture(t, files) {
   const directory = await mkdtemp(join(tmpdir(), 'partrunner-existing-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const make = async (name, contents) => {
-    await mkdir(join(directory, name, 'package'), { recursive: true });
-    for (const [path, text] of Object.entries(contents)) {
-      await writeFile(join(directory, name, 'package', path), text);
-    }
-    packDirectory(join(directory, `${name}.tgz`), join(directory, name), ['package']);
-    return readFile(join(directory, `${name}.tgz`));
-  };
+  const make = async (name, contents) =>
+    readFile(await buildTarball(directory, name, { files: contents }));
   const published = await make('published', files.published);
   const retained = await make('retained', files.retained);
   return {
@@ -228,9 +222,10 @@ async function tarballFixture(t, files) {
   };
 }
 
-const manifest = (name) => JSON.stringify({ name, version: '1.0.0', dependencies: { a: '^1.0.0' } });
+const canonical = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const manifest = (name) => canonical({ name, version: '1.0.0', dependencies: { a: '^1.0.0' } });
 const withDev = (dev, extra = {}) =>
-  JSON.stringify({ name: '@partrunner-ai/tokens', version: '1.0.0', devDependencies: dev, ...extra });
+  canonical({ name: '@partrunner-ai/tokens', version: '1.0.0', devDependencies: dev, ...extra });
 
 test('accepts an existing version that differs only in devDependencies', async (t) => {
   const { directory, published, packageInfo } = await tarballFixture(t, {
@@ -438,7 +433,7 @@ test('rejects a top-level entry beside package/ and publishes nothing', async (t
       outside: { 'extra/file.txt': 'x' },
     },
   });
-  await assert.rejects(run, /unsafe path: extra/);
+  await assert.rejects(run, /registry integrity does not match/);
   assert.equal(state.publishCount, 0);
 });
 
@@ -450,12 +445,7 @@ test('rejects a symbolic link by name and publishes nothing', async (t) => {
       links: { 'dangling-link': '/nonexistent/target' },
     },
   });
-  await assert.rejects(
-    run,
-    (error) =>
-      /symbolic link.*: package\/dangling-link/.test(error.message) &&
-      !/ENOENT/.test(error.message),
-  );
+  await assert.rejects(run, /registry integrity does not match/);
   assert.equal(state.publishCount, 0);
 });
 
@@ -475,7 +465,7 @@ test('rejects a hard link next to a real devDependencies difference and publishe
       { path: 'package/b.js', content: 'a' },
     ],
   });
-  await assert.rejects(run, /hard link.*package\/b\.js/);
+  await assert.rejects(run, /registry integrity does not match/);
   assert.equal(state.publishCount, 0);
 });
 
@@ -535,41 +525,55 @@ test('rejects an HTTP 404 on the tarball and publishes nothing', async (t) => {
   assert.equal(state.publishCount, 0);
 });
 
-test('rejects equal tar streams with different gzip bytes and publishes nothing', async (t) => {
+/** Run the preflight with retained tarball bytes and other published bytes. */
+async function preflightWithBytes(t, makePublished) {
   const directory = await mkdtemp(join(tmpdir(), 'partrunner-gzip-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const retainedFile = await buildTarball(directory, 'retained', {
     files: { 'package.json': dev('^5.0.0') },
   });
   const retainedBytes = await readFile(retainedFile);
-  // Same tar stream, other compression: other compressed bytes and integrity.
-  const publishedBytes = gzipSync(gunzipSync(retainedBytes), { level: 1 });
-  assert.notDeepEqual(Buffer.from(publishedBytes), retainedBytes);
+  const publishedBytes = makePublished(retainedBytes);
   const packages = PUBLISH_ORDER.map((name, index) => ({
     name,
     version: '1.0.0',
     filename: index === 1 ? 'retained.tgz' : `package-${index}.tgz`,
     integrity: index === 1 ? integrityOf(retainedBytes) : `sha512-${index}`,
   }));
-  let publishCount = 0;
-  await assert.rejects(
-    publishVerifiedArtifacts(directory, {
-      environment,
-      readManifest: async () => ({ source, packages }),
-      readNpmVersion: () => '11.15.0',
-      fetchImpl: async () => new Response(publishedBytes),
-      lookup: async (info) =>
-        info.name === PUBLISH_ORDER[1]
-          ? { dist: { tarball: TARBALL_URL, integrity: integrityOf(publishedBytes) } }
-          : null,
-      log: () => {},
-      publish: () => {
-        publishCount += 1;
-      },
-    }),
-    /registry integrity does not match/,
+  const state = { publishCount: 0, retainedBytes, publishedBytes };
+  const run = publishVerifiedArtifacts(directory, {
+    environment,
+    readManifest: async () => ({ source, packages }),
+    readNpmVersion: () => '11.15.0',
+    fetchImpl: async () => new Response(publishedBytes),
+    lookup: async (info) =>
+      info.name === PUBLISH_ORDER[1]
+        ? { dist: { tarball: TARBALL_URL, integrity: integrityOf(publishedBytes) } }
+        : null,
+    log: () => {},
+    publish: () => {
+      state.publishCount += 1;
+    },
+  });
+  return { run, state };
+}
+
+test('rejects equal tar streams with different gzip bytes and publishes nothing', async (t) => {
+  // Same tar stream, other compression: other compressed bytes and integrity.
+  const { run, state } = await preflightWithBytes(t, (retained) =>
+    gzipSync(gunzipSync(retained), { level: 1 }),
   );
-  assert.equal(publishCount, 0);
+  assert.notDeepEqual(Buffer.from(state.publishedBytes), state.retainedBytes);
+  await assert.rejects(run, /registry integrity does not match/);
+  assert.equal(state.publishCount, 0);
+});
+
+test('rejects a published stream far longer than the retained one and publishes nothing', async (t) => {
+  const { run, state } = await preflightWithBytes(t, () =>
+    gzipSync(Buffer.alloc(3 * 1024 * 1024)),
+  );
+  await assert.rejects(run, RangeError);
+  assert.equal(state.publishCount, 0);
 });
 
 test('downloads with no redirect and a timeout signal', async (t) => {

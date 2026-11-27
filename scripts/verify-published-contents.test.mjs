@@ -1,21 +1,25 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { gzipSync } from 'node:zlib';
 
 import {
   decideCheck,
   describeError,
   diffFileHashes,
   formatDriftError,
+  hashTree,
   predictVersioning,
   readVersioning,
+  removeTree,
   verifyPublishedContents,
 } from './verify-published-contents.mjs';
-import { buildRawTarball, buildTarball, packDirectory } from './test-tarballs.mjs';
+import { buildRawTarball, buildTarball } from './test-tarballs.mjs';
 
 const { Response } = globalThis;
 
@@ -103,25 +107,18 @@ test('includes the cause of a failed request', () => {
   assert.match(describeError(error), /caused by: getaddrinfo ENOTFOUND/);
 });
 
-const FIXED_TIME = new Date('2026-01-01T00:00:00Z');
-
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'published-contents-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const tarball = async (name, files, modes = {}) => {
-    const source = join(directory, name);
-    await mkdir(join(source, 'package'), { recursive: true });
-    for (const [path, contents] of Object.entries(files)) {
-      await writeFile(join(source, 'package', path), contents);
-      await chmod(join(source, 'package', path), modes[path] ?? 0o644);
-      await utimes(join(source, 'package', path), FIXED_TIME, FIXED_TIME);
-    }
-    // Fixed mtimes leave file modes as the only tar metadata that can differ.
-    await utimes(join(source, 'package'), FIXED_TIME, FIXED_TIME);
-    const file = join(directory, `${name}.tgz`);
-    packDirectory(file, source, ['package']);
-    return file;
-  };
+  const tarball = (name, files, modes = {}) =>
+    buildTarball(directory, name, {
+      files: Object.fromEntries(
+        Object.entries(files).map(([path, content]) => [
+          path,
+          { content, mode: modes[path] ?? 0o644 },
+        ]),
+      ),
+    });
   return { directory, tarball };
 }
 
@@ -256,7 +253,7 @@ test('reports a change in tar entry metadata alone', async (t) => {
   const published = await buildTarball(directory, 'published', { files: { 'bin.js': 'a' } });
   const local = await buildTarball(directory, 'local', {
     files: { 'bin.js': 'a' },
-    time: new Date('2026-02-02T00:00:00Z'),
+    mtime: Date.parse('2026-02-02T00:00:00Z') / 1000,
   });
   const { fetchImpl } = registry([await publishedEntry(published)]);
   await assert.rejects(
@@ -277,6 +274,49 @@ test('reports an execute bit change as a modified file', async (t) => {
 });
 
 const pkg = (fields) => JSON.stringify({ name: 'x', version: '1.0.0', ...fields }, null, 2);
+
+test('fails when the published stream is far longer than the local one', async (t) => {
+  const { tarball } = await fixture(t);
+  const local = await tarball('local', { 'package.json': pkg({}) });
+  const bomb = gzipSync(Buffer.alloc(3 * 1024 * 1024));
+  const entry = await publishedEntry(local);
+  entry.bytes = bomb;
+  entry.metadata.dist.integrity = `sha512-${createHash('sha512').update(bomb).digest('base64')}`;
+  const { fetchImpl } = registry([entry]);
+  const lines = [];
+  await assert.rejects(
+    verifyPublishedContents({
+      ...inputs(),
+      log: (line) => lines.push(line),
+      fetchImpl,
+      pack: () => local,
+    }),
+    (error) =>
+      /@partrunner-ai\/example@1\.0\.0 could not be compared/.test(error.message) &&
+      error.cause instanceof RangeError,
+  );
+  assert.deepEqual(lines, []);
+});
+
+test('hashTree rejects a link in an unpacked tree and never reads it', async (t) => {
+  const { directory } = await fixture(t);
+  await mkdir(join(directory, 'tree'));
+  await symlink('/nonexistent', join(directory, 'tree/link'));
+  await assert.rejects(
+    hashTree(join(directory, 'tree')),
+    /not a regular file or a directory: link/,
+  );
+});
+
+test('removeTree cleans a tree with a read-only directory and never throws', async (t) => {
+  const { directory } = await fixture(t);
+  await mkdir(join(directory, 'out/sub'), { recursive: true });
+  await writeFile(join(directory, 'out/sub/file.js'), 'a');
+  await chmod(join(directory, 'out/sub'), 0o555);
+  await removeTree(join(directory, 'out'));
+  await assert.rejects(readFile(join(directory, 'out/sub/file.js')), /ENOENT/);
+  await assert.doesNotReject(removeTree(join(directory, 'never-existed')));
+});
 
 test('passes and says so when only devDependencies differ', async (t) => {
   const { tarball } = await fixture(t);
@@ -333,7 +373,8 @@ test('fails when another file differs next to a devDependencies change', async (
       const changed = error.message
         .split('\n')
         .filter((line) => /^ {2}(added|removed|modified): /.test(line));
-      assert.deepEqual(changed, ['  modified: index.js']);
+      // The report lists exact file differences.
+      assert.deepEqual(changed, ['  modified: index.js', '  modified: package.json']);
       return true;
     },
   );
@@ -353,8 +394,8 @@ async function rejectsWith(t, { published, local, pattern, notPattern }) {
       pack: () => localFile,
     }),
     (error) => {
-      assert.match(error.message, pattern);
-      if (notPattern) assert.doesNotMatch(error.message, notPattern);
+      assert.match(describeError(error), pattern);
+      if (notPattern) assert.doesNotMatch(describeError(error), notPattern);
       return true;
     },
   );
@@ -391,7 +432,7 @@ test('fails on a top-level entry beside package/', async (t) => {
   await rejectsWith(t, {
     published: { files: { 'package.json': pkg({}) } },
     local: { files: { 'package.json': pkg({}) }, outside: { 'extra/file.txt': 'x' } },
-    pattern: /unsafe path: extra/,
+    pattern: /modified: tar entry metadata/,
   });
 });
 
@@ -402,12 +443,12 @@ test('fails on a symbolic link and names it', async (t) => {
       files: { 'package.json': pkg({}) },
       links: { 'dangling-link': '/nonexistent/target' },
     },
-    pattern: /symbolic link.*: package\/dangling-link/,
+    pattern: /could not be compared[\s\S]*not a regular file or a directory: dangling-link/,
     notPattern: /ENOENT/,
   });
 });
 
-test('fails on a hard link next to a real devDependencies difference', async (t) => {
+test('fails on a hard link entry next to a real devDependencies difference', async (t) => {
   const { directory } = await fixture(t);
   const published = await buildRawTarball(directory, 'published', [
     { path: 'package/', type: '5', mode: 0o755 },
@@ -425,7 +466,7 @@ test('fails on a hard link next to a real devDependencies difference', async (t)
   const { fetchImpl } = registry([await publishedEntry(published)]);
   await assert.rejects(
     verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
-    /hard link.*package\/b\.js/,
+    /modified: package\.json/,
   );
 });
 

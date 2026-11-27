@@ -1,8 +1,17 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp } from 'node:fs/promises';
+import {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -13,13 +22,13 @@ import { readPreState } from '@changesets/pre';
 import { readChangesets } from '@changesets/read';
 import { getPackages } from '@manypkg/get-packages';
 
-import { compareTarballs, diffFileHashes, removeTree } from './packed-contents.mjs';
+import { compareTarballBytes } from './packed-contents.mjs';
 import { readReleaseInputs } from './release-plan.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
-// `devDependencies` is not compared (see packed-contents.mjs), so a rewrite
-// there does not change the compared contents.
+// `devDependencies` is not listed: `pnpm pack` leaves it as written, and a
+// change there is the one difference packed-contents.mjs accepts.
 const DEPENDENCY_FIELDS = [
   'dependencies',
   'optionalDependencies',
@@ -72,7 +81,21 @@ export async function readVersioning(root = ROOT) {
   return predictVersioning(plan.releases, packages.packages);
 }
 
-export { diffFileHashes };
+/** Paths whose value differs, or that exist on only one side. */
+export function diffFileHashes(published, local) {
+  const paths = new Set([...published.keys(), ...local.keys()]);
+  return [...paths]
+    .filter((path) => published.get(path) !== local.get(path))
+    .sort()
+    .map((path) => ({
+      path,
+      change: !published.has(path)
+        ? 'added'
+        : !local.has(path)
+          ? 'removed'
+          : 'modified',
+    }));
+}
 
 /**
  * A published version is immutable, so its contents may only change when
@@ -92,7 +115,7 @@ export function formatDriftError(drifted) {
       }:`,
       ...files.map(({ path, change }) => `  ${change}: ${path}`),
       ...(tarOnly
-        ? ['  modified: tar entry metadata (modification time, owner, other permission bits) or entry order']
+        ? ['  modified: tar entry metadata (modification time, owner, permission bits) or entry order']
         : []),
       ...(rewrittenBy.length > 0
         ? [
@@ -127,6 +150,81 @@ function run(command, args, options = {}) {
     stdio: ['ignore', 'pipe', 'inherit'],
     ...options,
   });
+}
+
+/**
+ * Remove a directory tree, also when it holds a directory without owner
+ * permissions. Never throws: a failed cleanup must not replace the result or
+ * the error of the work it follows.
+ */
+export async function removeTree(directory) {
+  const restore = async (path) => {
+    let info;
+    try {
+      info = await lstat(path);
+    } catch {
+      return;
+    }
+    if (!info.isDirectory()) return;
+    await chmod(path, 0o700).catch(() => {});
+    for (const name of await readdir(path).catch(() => [])) {
+      await restore(join(path, name));
+    }
+  };
+  try {
+    await restore(directory);
+    await rm(directory, { recursive: true, force: true });
+  } catch {
+    // The temp directory stays; the caller's result is what counts.
+  }
+}
+
+/**
+ * Hashes of an unpacked tree, by path relative to `base`. A file maps to
+ * `<sha256>:x` (an execute bit is set) or `<sha256>:-`. A directory maps to
+ * `dir`, under its path with a trailing `/`. Throws on any other entry type, so
+ * a link is never read.
+ */
+export async function hashTree(directory, base = directory, hashes = new Map()) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    const name = relative(base, path).split('\\').join('/');
+    if (entry.isDirectory()) {
+      hashes.set(`${name}/`, 'dir');
+      await hashTree(path, base, hashes);
+      continue;
+    }
+    if (!entry.isFile()) {
+      throw new Error(
+        `Tarball entry is not a regular file or a directory: ${name}`,
+      );
+    }
+    const hash = createHash('sha256').update(await readFile(path)).digest('hex');
+    const executable = (await lstat(path)).mode & 0o111 ? 'x' : '-';
+    hashes.set(name, `${hash}:${executable}`);
+  }
+  return hashes;
+}
+
+async function unpack(tarball, destination) {
+  await mkdir(destination, { recursive: true });
+  run('tar', ['-xzf', tarball, '-C', destination]);
+  return hashTree(join(destination, 'package'));
+}
+
+/**
+ * The report for a person, built after the decision is `drift`. It unpacks
+ * both tarballs with the system `tar` and lists the files that differ. It never
+ * decides anything. `tarOnly` is true when no file differs.
+ */
+async function reportDrift(publishedBytes, localTarball, directory) {
+  const publishedTarball = join(directory, 'published.tgz');
+  await writeFile(publishedTarball, publishedBytes);
+  const files = diffFileHashes(
+    await unpack(publishedTarball, join(directory, 'published')),
+    await unpack(localTarball, join(directory, 'local')),
+  );
+  return { files, tarOnly: files.length === 0 };
 }
 
 function assertIntegrity(bytes, metadata) {
@@ -280,12 +378,16 @@ export async function verifyPublishedContents({
       assertIntegrity(publishedBytes, metadata);
       const localTarball = pack(join(root, packageInfo.directory), packageDirectory);
       const rewrittenBy = rewritten.get(packageInfo.name) ?? [];
-      // Equal tar streams are the fast path inside compareTarballs.
-      const { status, files, tarOnly } = await compareTarballs({
-        publishedBytes,
-        localTarball,
-        directory: packageDirectory,
-      });
+      let status;
+      let report = { files: [], tarOnly: false };
+      try {
+        status = compareTarballBytes(publishedBytes, await readFile(localTarball));
+        if (status === 'drift') {
+          report = await reportDrift(publishedBytes, localTarball, packageDirectory);
+        }
+      } catch (error) {
+        throw new Error(`${label} could not be compared`, { cause: error });
+      }
       if (rewrittenBy.length === 0) {
         if (status === 'identical') {
           log(`${label}: matches the published tarball`);
@@ -296,7 +398,7 @@ export async function verifyPublishedContents({
           continue;
         }
       }
-      drifted.push({ ...packageInfo, files, tarOnly, rewrittenBy });
+      drifted.push({ ...packageInfo, ...report, rewrittenBy });
     }
   } finally {
     await removeTree(workDirectory);
