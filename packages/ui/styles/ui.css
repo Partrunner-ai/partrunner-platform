@@ -2554,9 +2554,11 @@
   flex: 1;
   height: 12px;
   border-radius: 4px;
-  background: var(--pr-border);
+  /* Same fill as .pr-skeleton. */
+  background: color-mix(in srgb, var(--pr-fg) 17%, transparent);
   animation: pr-table-pulse 1.4s ease-in-out infinite;
 }
+.dark .pr-table__skeleton-cell { background: color-mix(in srgb, var(--pr-fg) 14%, transparent); }
 @keyframes pr-table-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
@@ -2808,11 +2810,15 @@
 
 /* ─────────────────────── Skeleton ─────────────────────── */
 
+/* The fill is a translucent mix of the text colour, so it reads as 1.4:1 to 1.6:1 on
+   the page, card and elevated surfaces. The border colour gave only about 1.2:1.
+   Light needs 17% and dark 14%: one value would pass 1.6:1 on the dark surfaces. */
 .pr-skeleton {
-  background: var(--pr-border);
+  background: color-mix(in srgb, var(--pr-fg) 17%, transparent);
   border-radius: var(--pr-radius-sm, 0.625rem);
   animation: pr-skeleton-pulse 1600ms var(--pr-ease, ease) infinite;
 }
+.dark .pr-skeleton { background: color-mix(in srgb, var(--pr-fg) 14%, transparent); }
 .pr-skeleton--block { min-height: 16px; }
 .pr-skeleton--text {
   height: 0.85em;
@@ -2835,11 +2841,12 @@
 }
 
 /* A placeholder that never resolves is worse than a static one: it is a permanent
-   animation on a page a user may be stuck on. Reduced motion gets the mid tone. */
+   animation on a page a user may be stuck on. Reduced motion gets a fixed tone: at 0.9
+   the fill holds at least 1.3:1 in both themes (0.7 gave about 1.2:1). */
 @media (prefers-reduced-motion: reduce) {
   .pr-skeleton {
     animation: none;
-    opacity: 0.7;
+    opacity: 0.9;
   }
 }
 
