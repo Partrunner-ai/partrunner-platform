@@ -6,8 +6,8 @@ updates:
   # package folder (manifest only, no lockfile). If one arrives, close it; the root PR is the good one.
   - package-ecosystem: npm
     directory: /
-    # Version updates: at most two pull requests each week, one for development dependencies
-    # and one for production dependencies, minor and patch versions only.
+    # Version updates: minor and patch versions only, in two grouped pull requests each week,
+    # one for development dependencies and one for production dependencies.
     # Security updates do not follow this schedule (they have their own fixed limit of 10 open PRs).
     schedule:
       interval: weekly
@@ -18,8 +18,8 @@ updates:
     cooldown:
       default-days: 7
     # Keep a version range that already allows the new release: then only the lockfile changes.
-    # This option also applies to security updates: a fix inside the current range changes
-    # only the lockfile, and the published package keeps its range.
+    # The GitHub docs mark this option for security updates too: a security fix inside the
+    # current range changes only the lockfile, and the published package keeps its range.
     versioning-strategy: increase-if-necessary
     groups:
       # Group security alerts into one PR where Dependabot allows it.
@@ -28,7 +28,8 @@ updates:
         patterns:
           - "*"
       # packages:published-check accepts a change of only devDependencies in a published package.
-      # If this PR fails that check, the update changed the built files: add a Changeset.
+      # If this PR fails that check, an update changed the built files (a build tool, for example):
+      # add a Changeset to the PR, or do that update by hand.
       npm-development:
         applies-to: version-updates
         dependency-type: development
@@ -43,12 +44,21 @@ updates:
         update-types:
           - minor
           - patch
-    # Version updates do not propose a major version; do those by hand.
-    # This rule does not change security updates: a security fix can still be a major version.
+    # No automatic version update for these. The rules do not change security updates: for a
+    # security update Dependabot uses only the `versions` list of an ignore rule, and these rules
+    # have none (dependabot-core, common/lib/dependabot/config/ignore_condition.rb).
+    # The GitHub docs do not say this.
     ignore:
+      # Major versions: do them by hand.
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+      # The tokens package ships the font files of these packages (packages/tokens/src/emit.ts),
+      # so a new version always changes the published files. Update them by hand, with a Changeset.
+      - dependency-name: "@fontsource/*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
     commit-message:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
