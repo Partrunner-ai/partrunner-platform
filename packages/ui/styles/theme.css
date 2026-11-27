@@ -5335,11 +5335,25 @@ button.pr-stepper__dot:focus-visible {
   cursor: pointer;
   transition: background-color 160ms var(--pr-ease, ease);
 }
+/* Compact: the dense work-queue rhythm. Three text lines are 59 px, with fixed line heights. */
 .pr-item-list--compact .pr-item-row__main {
   --pr-item-min: 36px;
-  gap: 8px;
-  padding: 6px 12px;
+  align-items: flex-start;
+  gap: 10px;
+  padding-block: 5px;
+  padding-inline: 14px 12px;
 }
+.pr-item-list--compact .pr-item-row__leading { padding-block-start: 2px; }
+.pr-item-list--compact .pr-item-row__trailing { align-self: center; }
+.pr-item-list--compact .pr-item-row__body { gap: 0; align-self: center; }
+.pr-item-list--compact .pr-item-row__top { align-items: center; }
+.pr-item-list--compact .pr-item-row__title { line-height: 18px; }
+.pr-item-list--compact .pr-item-row__description { line-height: 16px; }
+.pr-item-list--compact .pr-item-row__meta,
+.pr-item-list--compact .pr-item-row__footer { line-height: 15px; }
+.pr-item-list--compact .pr-item-row__dot--overlay { inset-block-start: 0; }
+/* A footer that starts with a badge is as tall as the badge: 18 px with a sm badge. */
+.pr-item-list--compact .pr-item-row__footer .pr-badge { margin-block: 0; line-height: 14px; }
 .pr-item-row__main:hover:not(:disabled):not([aria-disabled='true']) {
   --pr-item-bg: var(--pr-elevated);
   background: var(--pr-elevated);
@@ -5418,7 +5432,8 @@ button.pr-stepper__dot:focus-visible {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--pr-accent);
+  /* The accent darkened toward the text colour: at least 3:1 on the row in both themes. */
+  background: color-mix(in srgb, var(--pr-accent-deep) 55%, var(--pr-fg));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--pr-fg) 25%, transparent);
 }
 .pr-item-row__dot--overlay {
@@ -5444,6 +5459,10 @@ button.pr-stepper__dot:focus-visible {
   color: var(--pr-fg-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.pr-item-row__description strong {
+  color: var(--pr-fg);
+  font-weight: 600;
 }
 .pr-item-row__footer {
   display: block;
