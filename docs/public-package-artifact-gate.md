@@ -81,7 +81,7 @@ source review and the repository test suite.
 
 A published npm version is immutable, and the publish preflight refuses to
 release while any already-published version no longer matches its rebuilt
-tarball. CI therefore also runs, after the build:
+tarball, apart from `devDependencies` (below). CI therefore also runs, after the build:
 
 ```bash
 pnpm packages:published-check
@@ -93,14 +93,30 @@ whose current version is already on npm, it packs the workspace and compares
 the tar contents with the published tarball, after it checks the download
 against the registry integrity. Any difference fails with the changed paths and
 the packages that need a Changeset. This catches changes that look inert but
-still ship, such as a devDependency bump in `package.json`, or token CSS that
-`shell` rebundles when only `tokens` was named.
+still ship, such as a changed dependency range in `package.json`, or token CSS
+that `shell` rebundles when only `tokens` was named.
 
-It also fails when a package keeps its version but names a versioned workspace
-package in any dependency field. `pnpm pack` writes that exact version into the
-packed `package.json`, so the file changes at version time. For example, a
-`tokens` release always changes the packed `package.json` of `shell`, which
-names `tokens` only as a devDependency.
+One field is not compared: the top-level `devDependencies` of the root
+`package.json`. Consumers never install it, so a change there (for example a
+Dependabot bump of a dev tool) needs no Changeset and no new version. The
+check logs `matches the published tarball apart from devDependencies` for such
+a package. Every other file, and every other field of `package.json`, is
+compared exactly. A `package.json` that does not parse is compared by its raw
+bytes. Tar entry metadata that differs alone (file modes or order) still fails.
+
+The check also fails when a package keeps its version but names a versioned
+workspace package in `dependencies`, `optionalDependencies`, or
+`peerDependencies`. `pnpm pack` writes that exact version into the packed
+`package.json`, so the file changes at version time. A `workspace:` entry in
+`devDependencies` does not count.
+
+The release step (`pnpm run release`) applies the same rule. When a version is
+already on npm and its integrity differs from the retained tarball, the step
+downloads the published tarball from the registry (the URL must start with
+`https://registry.npmjs.org/`), checks it against `dist.integrity`, and accepts
+the version only when it differs in `devDependencies` alone. It does not
+publish that version again. The check after a publish stays byte-exact. The
+rule lives in `scripts/packed-contents.mjs`.
 
 Unpublished versions, such as a merged version PR awaiting release, are
 skipped. The check needs network access to the public registry. Each registry

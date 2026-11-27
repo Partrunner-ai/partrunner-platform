@@ -22,7 +22,9 @@ must work across the supported React and build-tool generations.
 
 - Open a focused pull request against `main`.
 - Add or update tests for behavior changes.
-- Add a Changeset for any publishable package change.
+- Add a Changeset for any publishable package change. A change to a package's
+  `devDependencies` alone is not one: `pnpm packages:published-check` ignores
+  that field, because consumers never install it.
 - Treat a token meaning change, removed export, or removed interface as a major.
 - Do not commit credentials, local registry configuration, generated reports,
   or private operational data.

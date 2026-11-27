@@ -99,7 +99,7 @@ allowlist, and API keys are accepted only through `X-API-Key`.
 pnpm install --frozen-lockfile
 pnpm build
 pnpm packages:check
-pnpm packages:published-check # needs network access
+pnpm packages:published-check # needs network access; ignores devDependencies
 pnpm typecheck
 pnpm lint
 pnpm test

@@ -1,12 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as delay } from 'node:timers/promises';
-import { gunzipSync } from 'node:zlib';
 
 import { assembleReleasePlan } from '@changesets/assemble-release-plan';
 import { readConfig } from '@changesets/config';
@@ -14,13 +13,15 @@ import { readPreState } from '@changesets/pre';
 import { readChangesets } from '@changesets/read';
 import { getPackages } from '@manypkg/get-packages';
 
+import { compareTarballs, diffFileHashes } from './packed-contents.mjs';
 import { readReleaseInputs } from './release-plan.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
+// `devDependencies` is not compared (see packed-contents.mjs), so a rewrite
+// there does not change the compared contents.
 const DEPENDENCY_FIELDS = [
   'dependencies',
-  'devDependencies',
   'optionalDependencies',
   'peerDependencies',
 ];
@@ -71,21 +72,7 @@ export async function readVersioning(root = ROOT) {
   return predictVersioning(plan.releases, packages.packages);
 }
 
-/** Paths whose bytes differ, or that exist on only one side. */
-export function diffFileHashes(published, local) {
-  const paths = new Set([...published.keys(), ...local.keys()]);
-  return [...paths]
-    .filter((path) => published.get(path) !== local.get(path))
-    .sort()
-    .map((path) => ({
-      path,
-      change: !published.has(path)
-        ? 'added'
-        : !local.has(path)
-          ? 'removed'
-          : 'modified',
-    }));
-}
+export { diffFileHashes };
 
 /**
  * A published version is immutable, so its contents may only change when
@@ -120,8 +107,8 @@ export function formatDriftError(drifted) {
     '',
     `Add a Changeset for ${names}.`,
     'The publish preflight rejects any release while a published version no longer',
-    'matches its rebuilt tarball, including devDependency-only package.json changes',
-    'and CSS a package rebundles from tokens.',
+    'matches its rebuilt tarball, such as a changed dependency range or CSS a',
+    'package rebundles from tokens. A change to devDependencies alone is allowed.',
   ].join('\n');
 }
 
@@ -140,35 +127,6 @@ function run(command, args, options = {}) {
     stdio: ['ignore', 'pipe', 'inherit'],
     ...options,
   });
-}
-
-async function hashTree(directory, base = directory, hashes = new Map()) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      await hashTree(path, base, hashes);
-    } else {
-      hashes.set(
-        relative(base, path).split('\\').join('/'),
-        createHash('sha256').update(await readFile(path)).digest('hex'),
-      );
-    }
-  }
-  return hashes;
-}
-
-async function unpack(tarball, destination) {
-  await mkdir(destination, { recursive: true });
-  run('tar', ['-xzf', tarball, '-C', destination]);
-  return hashTree(join(destination, 'package'));
-}
-
-/**
- * The gzip header records the packing OS, so compressed bytes differ between
- * macOS and Linux. The tar stream inside is deterministic.
- */
-function tarStreamHash(bytes) {
-  return createHash('sha256').update(gunzipSync(bytes)).digest('hex');
 }
 
 function assertIntegrity(bytes, metadata) {
@@ -322,27 +280,23 @@ export async function verifyPublishedContents({
       assertIntegrity(publishedBytes, metadata);
       const localTarball = pack(join(root, packageInfo.directory), packageDirectory);
       const rewrittenBy = rewritten.get(packageInfo.name) ?? [];
-      if (tarStreamHash(publishedBytes) === tarStreamHash(await readFile(localTarball))) {
-        if (rewrittenBy.length === 0) {
-          log(`${label}: matches the published tarball`);
-        } else {
-          drifted.push({ ...packageInfo, rewrittenBy });
-        }
-        continue;
-      }
-
-      const publishedTarball = join(packageDirectory, 'published.tgz');
-      await writeFile(publishedTarball, publishedBytes);
-      const files = diffFileHashes(
-        await unpack(publishedTarball, join(packageDirectory, 'published')),
-        await unpack(localTarball, join(packageDirectory, 'local')),
-      );
-      drifted.push({
-        ...packageInfo,
-        files,
-        tarOnly: files.length === 0,
-        rewrittenBy,
+      // Equal tar streams are the fast path inside compareTarballs.
+      const { status, files, tarOnly } = await compareTarballs({
+        publishedBytes,
+        localTarball,
+        directory: packageDirectory,
       });
+      if (rewrittenBy.length === 0) {
+        if (status === 'identical') {
+          log(`${label}: matches the published tarball`);
+          continue;
+        }
+        if (status === 'devDependencies') {
+          log(`${label}: matches the published tarball apart from devDependencies`);
+          continue;
+        }
+      }
+      drifted.push({ ...packageInfo, files, tarOnly, rewrittenBy });
     }
   } finally {
     await rm(workDirectory, { recursive: true, force: true });

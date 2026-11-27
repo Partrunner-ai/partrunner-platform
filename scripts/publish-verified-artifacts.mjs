@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { compareTarballs } from './packed-contents.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
@@ -99,6 +102,57 @@ export function verifyRegistryIntegrity(packageInfo, metadata) {
     packageInfo.integrity,
     `${packageInfo.name}@${packageInfo.version} registry integrity does not match the retained tarball`,
   );
+}
+
+/**
+ * An existing version whose integrity differs from the retained tarball is
+ * accepted only when it differs in the root `devDependencies` alone, the same
+ * rule `verify-published-contents.mjs` applies. The version is not published
+ * again. Anything else keeps the integrity error.
+ */
+export async function verifyExistingVersion(
+  directory,
+  packageInfo,
+  metadata,
+  { fetchImpl = globalThis.fetch, log = console.log } = {},
+) {
+  if (metadata?.dist?.integrity === packageInfo.integrity) return;
+  const label = `${packageInfo.name}@${packageInfo.version}`;
+  const url = metadata?.dist?.tarball;
+  if (url === undefined) {
+    // Nothing to download: fail with the integrity error.
+    verifyRegistryIntegrity(packageInfo, metadata);
+  }
+  if (typeof url !== 'string' || !url.startsWith(`${REGISTRY}/`)) {
+    throw new Error(
+      `${label} tarball URL is not on ${REGISTRY}/: ${String(url)}`,
+    );
+  }
+  const response = await fetchImpl(url, { redirect: 'error' });
+  if (response.status !== 200) {
+    throw new Error(`npm registry returned ${response.status} for ${url}`);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  assert.equal(
+    `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
+    metadata.dist.integrity,
+    `${label} download does not match its registry integrity`,
+  );
+  const work = await mkdtemp(join(tmpdir(), 'partrunner-existing-'));
+  try {
+    const { status } = await compareTarballs({
+      publishedBytes: bytes,
+      localTarball: join(directory, packageInfo.filename),
+      directory: work,
+    });
+    if (status !== 'devDependencies') {
+      // Equal tar streams with other bytes (gzip header) stay rejected too.
+      verifyRegistryIntegrity(packageInfo, metadata);
+    }
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+  log(`Existing ${label} differs from the retained tarball only in devDependencies`);
 }
 
 async function registryVersion(packageInfo, fetchImpl = globalThis.fetch) {
@@ -220,7 +274,10 @@ export async function publishVerifiedArtifacts(
     const packageInfo = packages.get(name);
     const existing = await lookup(packageInfo);
     if (existing) {
-      verifyRegistryIntegrity(packageInfo, existing);
+      await verifyExistingVersion(directory, packageInfo, existing, {
+        fetchImpl,
+        log,
+      });
       log(
         `Preflight verified existing ${packageInfo.name}@${packageInfo.version}`,
       );

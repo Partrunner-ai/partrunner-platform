@@ -150,7 +150,9 @@ or failed package:
 4. Resume only with a new short-lived token. Re-query every exact version:
    skip an existing version only when its integrity matches the retained
    ledger, publish missing versions in dependency order, and abort to a
-   forward-fix version if any integrity differs.
+   forward-fix version if any integrity differs. The only exception is an
+   existing version whose published tarball differs from the retained one in
+   `devDependencies` alone (see `docs/public-package-artifact-gate.md`).
 
 At every live step, verify the exact npm organization, package, version,
 dist-tag, GitHub repository, workflow, environment, and commit before mutation.

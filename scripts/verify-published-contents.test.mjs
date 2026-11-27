@@ -43,11 +43,15 @@ test('versions only real bumps and flags dependents whose pins change', () => {
       workspace('@partrunner-ai/seamless', {
         dependencies: { '@partrunner-ai/tokens': '^2.0.0' },
       }),
+      workspace('@partrunner-ai/api-core', {
+        peerDependencies: { '@partrunner-ai/tokens': 'workspace:*' },
+      }),
     ],
   );
   assert.deepEqual([...versioned], ['@partrunner-ai/tokens', '@partrunner-ai/ui']);
+  // The shell devDependency does not count; the api-core peer dependency does.
   assert.deepEqual([...rewritten], [
-    ['@partrunner-ai/shell', ['@partrunner-ai/tokens']],
+    ['@partrunner-ai/api-core', ['@partrunner-ai/tokens']],
   ]);
 });
 
@@ -257,6 +261,89 @@ test('reports a change in tar entry metadata alone', async (t) => {
   );
 });
 
+const pkg = (fields) => JSON.stringify({ name: 'x', version: '1.0.0', ...fields }, null, 2);
+
+test('passes and says so when only devDependencies differ', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', {
+    'package.json': pkg({ dependencies: { a: '^1.0.0' }, devDependencies: { vite: '^5.0.0' } }),
+    'index.js': 'a',
+  });
+  const local = await tarball('local', {
+    'package.json': pkg({ dependencies: { a: '^1.0.0' }, devDependencies: { vite: '^6.0.0', vitest: '^2.0.0' } }),
+    'index.js': 'a',
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  const lines = [];
+  await verifyPublishedContents({
+    ...inputs(),
+    log: (line) => lines.push(line),
+    fetchImpl,
+    pack: () => local,
+  });
+  assert.deepEqual(lines, [
+    '@partrunner-ai/example@1.0.0: matches the published tarball apart from devDependencies',
+  ]);
+});
+
+test('fails when dependencies differ, even next to a devDependencies change', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', {
+    'package.json': pkg({ dependencies: { a: '^1.0.0' }, devDependencies: { vite: '^5.0.0' } }),
+  });
+  const local = await tarball('local', {
+    'package.json': pkg({ dependencies: { a: '^2.0.0' }, devDependencies: { vite: '^6.0.0' } }),
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: package\.json/,
+  );
+});
+
+test('fails when another file differs next to a devDependencies change', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', {
+    'package.json': pkg({ devDependencies: { vite: '^5.0.0' } }),
+    'index.js': 'a',
+  });
+  const local = await tarball('local', {
+    'package.json': pkg({ devDependencies: { vite: '^6.0.0' } }),
+    'index.js': 'b',
+  });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    (error) => /modified: index\.js/.test(error.message) && !/package\.json/.test(error.message.split('\n')[1]),
+  );
+});
+
+test('compares a package.json that does not parse by its raw bytes', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', { 'package.json': '{"devDependencies": 1,' });
+  const local = await tarball('local', { 'package.json': '{"devDependencies": 2,' });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: package\.json/,
+  );
+});
+
+test('still fails when a devDependencies-only drift also has a pending pin rewrite', async (t) => {
+  const { tarball } = await fixture(t);
+  const published = await tarball('published', { 'package.json': pkg({ devDependencies: { v: '1' } }) });
+  const local = await tarball('local', { 'package.json': pkg({ devDependencies: { v: '2' } }) });
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({
+      ...inputs({ rewritten: new Map([[example.name, ['@partrunner-ai/tokens']]]) }),
+      fetchImpl,
+      pack: () => local,
+    }),
+    /will pin new versions of @partrunner-ai\/tokens/,
+  );
+});
+
 test('retries a request that times out, then fails closed', async () => {
   let calls = 0;
   const hang = (_url, { signal }) => {
@@ -347,7 +434,7 @@ test('predicts versioning from a real Changesets workspace', async (t) => {
 
   const { versioned, rewritten } = await readVersioning(root);
   assert.deepEqual([...versioned].sort(), ['tokens', 'ui']);
-  assert.deepEqual([...rewritten], [['shell', ['tokens']]]);
+  assert.deepEqual([...rewritten], []);
 });
 
 test('uses the same Changesets libraries as the Changesets CLI', () => {
