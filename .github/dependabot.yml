@@ -1,0 +1,38 @@
+version: 2
+updates:
+  # One npm entry at the root: pnpm uses the root pnpm-lock.yaml for all packages/*.
+  # An update made from the root changes the package manifest and the lockfile together.
+  # Not confirmed by the GitHub docs: that this entry stops a security PR made from a
+  # package folder (manifest only, no lockfile). If one arrives, close it; the root PR is the good one.
+  - package-ecosystem: npm
+    directory: /
+    # 0 turns off version updates. Security updates stay on (they have their own fixed limit of 10 open PRs).
+    # A version bump of a published package needs a Changeset (packages:published-check),
+    # so weekly version PRs would be red. Turn this on only with a plan for Changesets.
+    open-pull-requests-limit: 0
+    schedule:
+      interval: weekly
+    # Group security alerts into one PR where Dependabot allows it.
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+  # Workflow action versions: one grouped PR each week.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: America/Mexico_City
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(ci)"
