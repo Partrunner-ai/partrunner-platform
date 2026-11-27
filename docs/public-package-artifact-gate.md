@@ -81,7 +81,7 @@ source review and the repository test suite.
 
 A published npm version is immutable, and the publish preflight refuses to
 release while any already-published version no longer matches its rebuilt
-tarball. CI therefore also runs, after the build:
+tarball, apart from `devDependencies` (below). CI therefore also runs, after the build:
 
 ```bash
 pnpm packages:published-check
@@ -90,17 +90,69 @@ pnpm packages:published-check
 The check asks Changesets which packages the pending Changesets will version,
 including dependents that Changesets bumps on its own. For each other package
 whose current version is already on npm, it packs the workspace and compares
-the tar contents with the published tarball, after it checks the download
+the tar streams with the published tarball, after it checks the download
 against the registry integrity. Any difference fails with the changed paths and
 the packages that need a Changeset. This catches changes that look inert but
-still ship, such as a devDependency bump in `package.json`, or token CSS that
-`shell` rebundles when only `tokens` was named.
+still ship, such as a changed dependency range in `package.json`, or token CSS
+that `shell` rebundles when only `tokens` was named.
 
-It also fails when a package keeps its version but names a versioned workspace
-package in any dependency field. `pnpm pack` writes that exact version into the
-packed `package.json`, so the file changes at version time. For example, a
-`tokens` release always changes the packed `package.json` of `shell`, which
-names `tokens` only as a devDependency.
+One field is not compared: the top-level `devDependencies` of the root
+`package.json`. Consumers never install it. A change to it needs no Changeset
+and no new version when the built files do not change. A dev tool update that
+changes the build output still fails the check and needs a version. The check
+logs `matches the published tarball apart from devDependencies` for a package
+that differs in nothing else.
+
+The rule compares bytes. It does not read the published tarball as a tar
+archive. Both tarballs are gunzipped, so the gzip header is not compared. The
+published stream may not be much longer than the rebuilt one. The two tar
+streams must then be equal byte for byte, except inside the one entry
+`package/package.json` of the rebuilt stream. In that entry only these may
+differ:
+
+- the size field of the header;
+- the checksum field of the header;
+- the content, and only its top-level `devDependencies`.
+
+The size and checksum fields must have the shape the rebuilt header has. The
+padding after the content must be zero. Everything before and after that entry
+must be equal. So every other file, header, execute bit, modification time,
+owner, directory entry, the order of entries and the end of the archive must be
+equal. The rebuilt stream must be plain: one root `package.json`, only files
+and directories, and a valid end of archive. If it is not, the result is a
+difference.
+
+The root `package.json` of both streams must be strict UTF-8 JSON in the
+format of the rebuilt file: two-space indentation, with or without a final
+newline. The published bytes must be exactly what that format gives for the
+parsed published object. The two objects must be equal without
+`devDependencies`, and their `devDependencies` must differ. The only thing not
+compared is the position of the `devDependencies` key inside `package.json`.
+
+The result is `identical`, `devDependencies` or a difference. For a difference,
+the check unpacks both tarballs only to write the report. It lists the added,
+removed and modified files. When no file differs, it says that the entry
+metadata (modification time, owner, permission bits) or the entry order
+differs. This report never changes the decision. An error while it is written
+still fails the check for that package.
+
+The check also fails when a package keeps its version but names a versioned
+workspace package in `dependencies`, `optionalDependencies`, or
+`peerDependencies`. `pnpm pack` writes that exact version into the packed
+`package.json`, so the file changes at version time. A `workspace:` entry in
+`devDependencies` does not count.
+
+The release step (`pnpm run release`) uses the same comparison, but it accepts
+only the `devDependencies` status. It unpacks nothing. When a version is already on npm and its
+integrity differs from the retained tarball, the step downloads the published
+tarball from the registry (the URL must start with
+`https://registry.npmjs.org/`, no redirect, 60 second limit), checks it against
+`dist.integrity`, and accepts the version only when it differs in
+`devDependencies` alone. Equal tar streams with different compressed bytes
+still fail there, as before. A missing tarball URL or a non-200 answer fails
+before any publish. The step does not publish that version again. The check
+after a publish stays byte-exact. The rule lives in
+`scripts/packed-contents.mjs`.
 
 Unpublished versions, such as a merged version PR awaiting release, are
 skipped. The check needs network access to the public registry. Each registry
