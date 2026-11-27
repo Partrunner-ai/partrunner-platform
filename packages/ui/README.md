@@ -30,6 +30,26 @@ import {
 The package works with React 18 and 19 and does not require a Tailwind runtime.
 Styles use semantic `--pr-*` tokens.
 
+## Server Components (`@partrunner-ai/ui/server`)
+
+The main entry is one `"use client"` bundle. A Next Server Component that renders
+`StatTile` or `EmptyState` with `icon={Truck}`, or a list of `Card asChild`, must
+import those parts from `@partrunner-ai/ui/server` instead. That entry has no
+directive, renders on the server, and gives the same markup and classes. There,
+`icon` is an element (`icon={<Truck />}`):
+
+```tsx
+import { Truck } from 'lucide-react';
+import { StatTile, StatTileGrid } from '@partrunner-ai/ui/server';
+
+<StatTileGrid columns={4}>
+  <StatTile label="Colocadas del mes" value={42} icon={<Truck />} />
+</StatTileGrid>;
+```
+
+It exports `Card` (and its parts), `Slot`, `StatTile`, `StatTileGrid` and
+`EmptyState`. The rules are in section 10 of `DESIGN.md`.
+
 ## Build a screen
 
 Read [`DESIGN.md`](./DESIGN.md) before you write or change a screen. It ships in this package

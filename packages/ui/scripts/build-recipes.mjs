@@ -57,6 +57,12 @@ const RECIPES = [
     title: 'State helpers',
     use: 'The error, no-permission and no-results blocks that the recipes share.',
   },
+  {
+    file: 'server-summary.md',
+    source: 'ServerSummaryRecipe.tsx',
+    title: 'Server summary',
+    use: 'A Server Component shows KPI tiles, an empty state and a list of linked cards, with no client code.',
+  },
 ];
 
 function render({ title, use, source }) {

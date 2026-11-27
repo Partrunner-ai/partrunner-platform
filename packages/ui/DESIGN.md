@@ -335,7 +335,8 @@ Do not store class names in a map.
 ### Props that surprise
 
 - `IconButton icon` is an element (`<MoreHorizontal size={16} aria-hidden />`). `EmptyState icon`
-  is a component (`icon={Inbox}`).
+  is a component (`icon={Inbox}`). From `@partrunner-ai/ui/server`, `StatTile icon` and
+  `EmptyState icon` are elements (`icon={<Inbox />}`): see section 10.
 - The data-driven `Table` needs its row type: `<Table<Row> … getRowKey={(row) => row.id} />`.
   Its `label` names the table for a screen reader.
 - `TableFrame count` shows a number; `countLabel={(count) => `${count} planes`}` changes its text.
@@ -488,3 +489,59 @@ If no release has it, do not build it in the app. Open an issue or a pull reques
 `partrunner-platform` when the pattern is presentation only and at least two screens need it.
 Until it is released, compose the nearest package components and mark the place with
 `// TODO(ui): <component name>`.
+
+## 10. Server Components
+
+The main entry, `@partrunner-ai/ui`, is one `"use client"` bundle. In a Next Server Component
+each of its parts is a Client Component, and its props must cross the boundary to the client.
+Two things fail there:
+
+- A function prop. `icon={Truck}` on `StatTile` or `EmptyState` is a component function, and
+  React cannot send a function to the client. The page fails to render.
+- `Card asChild` in a list. On the Flight path, Next can drop one of the cards. The HTML then
+  has one card less than the data.
+
+`@partrunner-ai/ui/server` has no `"use client"` directive. Its parts render on the server, so
+nothing crosses the boundary. They give the same markup and the same classes as the main entry,
+so the screen looks the same.
+
+| Part | From `/server` |
+|---|---|
+| `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent` | the same components as the main entry, `asChild` included |
+| `StatTile` | `icon` is an element: `icon={<Truck />}` |
+| `StatTileGrid` | the same component as the main entry |
+| `EmptyState` | `icon` is an element: `icon={<Inbox />}` |
+
+Rules:
+
+1. In a file without `"use client"` (a Server Component), import `Card`, `StatTile`,
+   `StatTileGrid` and `EmptyState` from `@partrunner-ai/ui/server`.
+2. In a file with `"use client"`, import everything from `@partrunner-ai/ui`. Do not mix the
+   two entries in one client file.
+3. Other parts of the main entry are allowed in a Server Component when every prop is plain data
+   or an element: `Page`, `PageHeader`, `SectionHeading`, `Stack`, `Notice`, `Badge`,
+   `Skeleton`, `Button asChild` around a link. A function prop (`onClick`, `onChange`,
+   `render`, `columns` with `render`, `icon={Truck}`) needs a client file.
+4. The icon element takes the same defaults as the component form (`strokeWidth` 2.25 in a
+   `StatTile`, `size` 22 in an `EmptyState`). Props that you set on the element win.
+5. No event handlers on a `/server` part. `StatTile` and `EmptyState` do not accept `on*`
+   props. `Card` is the client component, so its type still accepts `onClick`, but a Server
+   Component cannot pass it. For a clickable card, use `Card asChild` around a link.
+
+```tsx
+// app/(admin)/resumen/page.tsx: a Server Component
+import { Truck } from 'lucide-react';
+import { EmptyState, StatTile, StatTileGrid } from '@partrunner-ai/ui/server';
+
+export default async function Resumen() {
+  const stats = await getStats();
+  if (stats == null) return <EmptyState icon={<Truck />} title="Sin colocadas este mes" />;
+  return (
+    <StatTileGrid columns={4}>
+      <StatTile label="Colocadas del mes" value={stats.total} icon={<Truck />} />
+    </StatTileGrid>
+  );
+}
+```
+
+The full example with all four states is `recipes/server-summary.md`.
