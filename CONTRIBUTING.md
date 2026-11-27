@@ -29,7 +29,8 @@ must work across the supported React and build-tool generations.
   still fails the check and needs a version. The check rejects any other
   difference, also a formatting change in `package.json`, an execute bit, or an
   empty directory. It rejects tarball entries that are not regular files or
-  directories, and anything outside `package/`.
+  directories (a hard link, a symbolic link, a duplicate path), and anything
+  outside `package/`.
 - Treat a token meaning change, removed export, or removed interface as a major.
 - Do not commit credentials, local registry configuration, generated reports,
   or private operational data.

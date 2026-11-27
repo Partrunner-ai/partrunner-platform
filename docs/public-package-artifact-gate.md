@@ -109,14 +109,24 @@ every other field of `package.json`, is compared by its bytes and its execute
 bit. Every directory, also an empty one, is compared too. A formatting
 difference alone in the root `package.json` fails. A nested `package.json`
 gets no special rule. A `package.json` that does not parse is compared by its
-raw bytes. The unpacked tarball must hold only the directory `package/`, and
-only regular files and directories. Any other entry (a symbolic link, a FIFO,
-a device) or any top-level entry beside `package/` is an error. A link is never
-read.
+raw bytes.
 
-Two limits remain. When `devDependencies` really differ, the rest of the root
-`package.json` is compared as parsed JSON, so a formatting difference in the
-same file is not seen. The order of tar entries is not compared.
+The tar entries of both tarballs are checked from the tar headers before
+anything is unpacked. Every entry must be a regular file or a directory, under
+`package/`, with no `..` segment and no second entry of the same path. Any other
+entry (a hard link, a symbolic link, a FIFO, a device, an absolute path, a path
+outside `package/`) is an error that names the entry, and nothing is unpacked.
+After the unpack, the tree must hold only the directory `package/`, and only
+regular files and directories. A link is never read.
+
+When `devDependencies` really differ, these are not compared:
+
+- the formatting of the root `package.json`. It is compared as parsed JSON, and
+  an invalid UTF-8 byte is read as U+FFFD;
+- permission bits other than the execute bit. npm sets file modes on install and
+  keeps only the execute bit;
+- the modification time and the owner of an entry;
+- the order of tar entries.
 
 The check also fails when a package keeps its version but names a versioned
 workspace package in `dependencies`, `optionalDependencies`, or

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,7 +15,7 @@ import {
   verifyExistingVersion,
   verifyRegistryIntegrity,
 } from './publish-verified-artifacts.mjs';
-import { buildTarball } from './test-tarballs.mjs';
+import { buildRawTarball, buildTarball, packDirectory } from './test-tarballs.mjs';
 
 const source = {
   commit: 'a'.repeat(40),
@@ -212,7 +211,7 @@ async function tarballFixture(t, files) {
     for (const [path, text] of Object.entries(contents)) {
       await writeFile(join(directory, name, 'package', path), text);
     }
-    execFileSync('tar', ['-czf', join(directory, `${name}.tgz`), '-C', join(directory, name), 'package']);
+    packDirectory(join(directory, `${name}.tgz`), join(directory, name), ['package']);
     return readFile(join(directory, `${name}.tgz`));
   };
   const published = await make('published', files.published);
@@ -373,8 +372,13 @@ test('continues to publish after a devDependencies-only existing version', async
 async function preflight(t, { published, retained, fetchImpl, metadata }) {
   const directory = await mkdtemp(join(tmpdir(), 'partrunner-preflight-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const publishedFile = await buildTarball(directory, 'published', published);
-  const retainedFile = await buildTarball(directory, 'retained', retained);
+  // An array is a list of raw tar entries; an object is a buildTarball input.
+  const build = (name, spec) =>
+    Array.isArray(spec)
+      ? buildRawTarball(directory, name, spec)
+      : buildTarball(directory, name, spec);
+  const publishedFile = await build('published', published);
+  const retainedFile = await build('retained', retained);
   const publishedBytes = await readFile(publishedFile);
   const retainedBytes = await readFile(retainedFile);
   const packages = PUBLISH_ORDER.map((name, index) => ({
@@ -434,7 +438,7 @@ test('rejects a top-level entry beside package/ and publishes nothing', async (t
       outside: { 'extra/file.txt': 'x' },
     },
   });
-  await assert.rejects(run, /only the directory package\/, found: extra, package/);
+  await assert.rejects(run, /unsafe path: extra/);
   assert.equal(state.publishCount, 0);
 });
 
@@ -449,10 +453,46 @@ test('rejects a symbolic link by name and publishes nothing', async (t) => {
   await assert.rejects(
     run,
     (error) =>
-      /not a regular file or a directory: dangling-link/.test(error.message) &&
+      /symbolic link.*: package\/dangling-link/.test(error.message) &&
       !/ENOENT/.test(error.message),
   );
   assert.equal(state.publishCount, 0);
+});
+
+test('rejects a hard link next to a real devDependencies difference and publishes nothing', async (t) => {
+  const { run, state } = await preflight(t, {
+    published: [
+      { path: 'package/', type: '5', mode: 0o755 },
+      { path: 'package/package.json', content: dev('^5.0.0') },
+      { path: 'package/a.js', content: 'a' },
+      { path: 'package/b.js', content: 'other' },
+      { path: 'package/b.js', type: '1', linkname: 'package/a.js' },
+    ],
+    retained: [
+      { path: 'package/', type: '5', mode: 0o755 },
+      { path: 'package/package.json', content: dev('^6.0.0') },
+      { path: 'package/a.js', content: 'a' },
+      { path: 'package/b.js', content: 'a' },
+    ],
+  });
+  await assert.rejects(run, /hard link.*package\/b\.js/);
+  assert.equal(state.publishCount, 0);
+});
+
+test('reports the real result for a tarball with a read-only directory', async (t) => {
+  const entries = (devVersion) => [
+    { path: 'package/', type: '5', mode: 0o755 },
+    { path: 'package/package.json', content: dev(devVersion) },
+    { path: 'package/ro/', type: '5', mode: 0o555 },
+    { path: 'package/ro/file.js', content: 'a' },
+  ];
+  const { run, state } = await preflight(t, {
+    published: entries('^5.0.0'),
+    retained: entries('^6.0.0'),
+  });
+  await run;
+  // The existing version is accepted and skipped; the other packages publish.
+  assert.equal(state.publishCount, PUBLISH_ORDER.length - 1);
 });
 
 test('rejects a formatting difference alone in the root package.json', async (t) => {

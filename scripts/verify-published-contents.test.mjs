@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -16,7 +15,7 @@ import {
   readVersioning,
   verifyPublishedContents,
 } from './verify-published-contents.mjs';
-import { buildTarball } from './test-tarballs.mjs';
+import { buildRawTarball, buildTarball, packDirectory } from './test-tarballs.mjs';
 
 const { Response } = globalThis;
 
@@ -120,7 +119,7 @@ async function fixture(t) {
     // Fixed mtimes leave file modes as the only tar metadata that can differ.
     await utimes(join(source, 'package'), FIXED_TIME, FIXED_TIME);
     const file = join(directory, `${name}.tgz`);
-    execFileSync('tar', ['-czf', file, '-C', source, 'package']);
+    packDirectory(file, source, ['package']);
     return file;
   };
   return { directory, tarball };
@@ -392,7 +391,7 @@ test('fails on a top-level entry beside package/', async (t) => {
   await rejectsWith(t, {
     published: { files: { 'package.json': pkg({}) } },
     local: { files: { 'package.json': pkg({}) }, outside: { 'extra/file.txt': 'x' } },
-    pattern: /only the directory package\/, found: extra, package/,
+    pattern: /unsafe path: extra/,
   });
 });
 
@@ -403,9 +402,48 @@ test('fails on a symbolic link and names it', async (t) => {
       files: { 'package.json': pkg({}) },
       links: { 'dangling-link': '/nonexistent/target' },
     },
-    pattern: /not a regular file or a directory: dangling-link/,
+    pattern: /symbolic link.*: package\/dangling-link/,
     notPattern: /ENOENT/,
   });
+});
+
+test('fails on a hard link next to a real devDependencies difference', async (t) => {
+  const { directory } = await fixture(t);
+  const published = await buildRawTarball(directory, 'published', [
+    { path: 'package/', type: '5', mode: 0o755 },
+    { path: 'package/package.json', content: pkg({ devDependencies: { v: '1' } }) },
+    { path: 'package/a.js', content: 'a' },
+    { path: 'package/b.js', content: 'other' },
+    { path: 'package/b.js', type: '1', linkname: 'package/a.js' },
+  ]);
+  const local = await buildRawTarball(directory, 'local', [
+    { path: 'package/', type: '5', mode: 0o755 },
+    { path: 'package/package.json', content: pkg({ devDependencies: { v: '2' } }) },
+    { path: 'package/a.js', content: 'a' },
+    { path: 'package/b.js', content: 'a' },
+  ]);
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /hard link.*package\/b\.js/,
+  );
+});
+
+test('reports the drift of a tarball that holds a read-only directory', async (t) => {
+  const { directory } = await fixture(t);
+  const entries = (content) => [
+    { path: 'package/', type: '5', mode: 0o755 },
+    { path: 'package/package.json', content: pkg({}) },
+    { path: 'package/ro/', type: '5', mode: 0o555 },
+    { path: 'package/ro/file.js', content },
+  ];
+  const published = await buildRawTarball(directory, 'published', entries('a'));
+  const local = await buildRawTarball(directory, 'local', entries('b'));
+  const { fetchImpl } = registry([await publishedEntry(published)]);
+  await assert.rejects(
+    verifyPublishedContents({ ...inputs(), fetchImpl, pack: () => local }),
+    /modified: ro\/file\.js/,
+  );
 });
 
 test('fails on a formatting difference alone and does not say devDependencies', async (t) => {

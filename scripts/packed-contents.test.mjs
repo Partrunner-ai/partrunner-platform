@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { Buffer } from 'node:buffer';
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { gunzipSync } from 'node:zlib';
 
-import { compareTarballs, unpackTarball } from './packed-contents.mjs';
-import { buildTarball } from './test-tarballs.mjs';
+import {
+  assertSafeTarEntries,
+  compareTarballs,
+  hashTree,
+  removeTree,
+  unpackTarball,
+} from './packed-contents.mjs';
+import { buildRawTarball, buildTarball, packDirectory } from './test-tarballs.mjs';
 
 const pkg = (fields) =>
   JSON.stringify({ name: 'x', version: '1.0.0', ...fields }, null, 2);
@@ -157,7 +164,7 @@ test('rejects a top-level entry beside package/', async (t) => {
     });
     await assert.rejects(
       unpackTarball(file, join(directory, 'out')),
-      /only the directory package\/, found: extra/,
+      /unsafe path: extra/,
     );
     await rm(join(directory, 'out'), { recursive: true, force: true });
   }
@@ -168,10 +175,23 @@ test('rejects a tarball without package/', async (t) => {
   await mkdir(join(directory, 'src/other'), { recursive: true });
   await writeFile(join(directory, 'src/other/file.txt'), 'x');
   const file = join(directory, 'no-package.tgz');
-  execFileSync('tar', ['-czf', file, '-C', join(directory, 'src'), 'other']);
+  packDirectory(file, join(directory, 'src'), ['other']);
   await assert.rejects(
     unpackTarball(file, join(directory, 'out')),
-    /only the directory package\/, found: other/,
+    /unsafe path: other/,
+  );
+});
+
+test('names the top-level entries in sorted order after the unpack', async (t) => {
+  const { directory } = await workspace(t);
+  await mkdir(join(directory, 'out/zeta'), { recursive: true });
+  await mkdir(join(directory, 'out/alpha'), { recursive: true });
+  // A tarball cannot reach this barrier, so unpack an empty one into a
+  // destination that already holds two directories.
+  const empty = await buildRawTarball(directory, 'empty', []);
+  await assert.rejects(
+    unpackTarball(empty, join(directory, 'out')),
+    /found: alpha, zeta/,
   );
 });
 
@@ -184,7 +204,138 @@ test('rejects a symbolic link by name and never reads its target', async (t) => 
   await assert.rejects(
     unpackTarball(file, join(directory, 'out')),
     (error) =>
-      /not a regular file or a directory: dangling-link/.test(error.message) &&
+      /symbolic link.*: package\/dangling-link/.test(error.message) &&
       !/ENOENT/.test(error.message),
   );
+});
+
+test('hashTree still rejects a link in an unpacked tree', async (t) => {
+  const { directory } = await workspace(t);
+  await mkdir(join(directory, 'tree'));
+  await symlink('/nonexistent', join(directory, 'tree/link'));
+  await assert.rejects(
+    hashTree(join(directory, 'tree')),
+    /not a regular file or a directory: link/,
+  );
+});
+
+const rawFile = (path, content, extra = {}) => ({ path, content, ...extra });
+const rawPackage = [
+  { path: 'package/', type: '5', mode: 0o755 },
+  rawFile('package/package.json', '{"name":"x"}'),
+];
+
+test('rejects a hard link, names it, and unpacks nothing', async (t) => {
+  const { directory } = await workspace(t);
+  const file = await buildRawTarball(directory, 'a', [
+    ...rawPackage,
+    { path: 'package/dist/', type: '5', mode: 0o755 },
+    rawFile('package/dist/a.js', 'a'),
+    rawFile('package/dist/b.js', 'other'),
+    { path: 'package/dist/b.js', type: '1', linkname: 'package/dist/a.js' },
+  ]);
+  const out = join(directory, 'out');
+  await assert.rejects(
+    unpackTarball(file, out),
+    /hard link.*: package\/dist\/b\.js/,
+  );
+  await assert.rejects(readFile(join(out, 'package/package.json')), /ENOENT/);
+});
+
+test('rejects each kind of bad entry and names it', async (t) => {
+  const { directory } = await workspace(t);
+  const cases = [
+    [{ path: 'package/s', type: '2', linkname: 'x' }, /symbolic link.*package\/s/],
+    [{ path: 'package/f', type: '6' }, /FIFO.*package\/f/],
+    [{ path: 'package/c', type: '3' }, /character device.*package\/c/],
+    [{ path: 'package/d', type: '4' }, /block device.*package\/d/],
+    [rawFile('/etc/passwd', 'x'), /unsafe path: \/etc\/passwd/],
+    [rawFile('package/../evil.js', 'x'), /unsafe path: package\/\.\.\/evil\.js/],
+    [rawFile('package/a/../b.js', 'x'), /unsafe path: package\/a\/\.\.\/b\.js/],
+    [rawFile('other/file.js', 'x'), /unsafe path: other\/file\.js/],
+    [rawFile('packages/file.js', 'x'), /unsafe path: packages\/file\.js/],
+  ];
+  for (const [entry, pattern] of cases) {
+    const file = await buildRawTarball(directory, 'bad', [...rawPackage, entry]);
+    await assert.rejects(unpackTarball(file, join(directory, 'out')), pattern);
+    await assert.rejects(readFile(join(directory, 'out/package/package.json')));
+  }
+});
+
+test('rejects two entries with the same path', async (t) => {
+  const { directory } = await workspace(t);
+  const file = await buildRawTarball(directory, 'dup', [
+    ...rawPackage,
+    rawFile('package/a.js', '1'),
+    rawFile('./package/a.js', '2'),
+  ]);
+  await assert.rejects(
+    unpackTarball(file, join(directory, 'out')),
+    /same path: \.\/package\/a\.js/,
+  );
+  const dir = await buildRawTarball(directory, 'dupdir', [
+    ...rawPackage,
+    { path: 'package/', type: '5' },
+  ]);
+  await assert.rejects(unpackTarball(dir, join(directory, 'out')), /same path/);
+});
+
+test('accepts a valid tarball with a space and a long path', async (t) => {
+  const { directory } = await workspace(t);
+  const file = await buildTarball(directory, 'ok', {
+    files: { 'my file.js': 'a', 'package.json': '{}', [`${'d'.repeat(60)}/${'e'.repeat(60)}.js`]: 'b' },
+    dirs: ['empty dir'],
+  });
+  const tar = gunzipSync(await readFile(file));
+  assert.doesNotThrow(() => assertSafeTarEntries(tar));
+});
+
+test('rejects a tarball cut short', () => {
+  assert.throws(() => assertSafeTarEntries(Buffer.alloc(100, 1)), /truncated|malformed/);
+});
+
+test('rejects a root package.json that is a symbolic link and never reads it', async (t) => {
+  const { directory } = await workspace(t);
+  const secret = join(directory, 'secret.json');
+  await writeFile(secret, '{"devDependencies":{"leak":"1"}}');
+  const file = await buildTarball(directory, 'link', {
+    links: { 'package.json': secret },
+  });
+  await assert.rejects(
+    unpackTarball(file, join(directory, 'out')),
+    (error) =>
+      /symbolic link.*package\/package\.json/.test(error.message) &&
+      !error.message.includes('leak'),
+  );
+});
+
+test('a hard link next to a devDependencies change is not accepted', async (t) => {
+  const { directory, compare } = await workspace(t);
+  const local = await buildRawTarball(directory, 'local', [
+    ...rawPackage.slice(0, 1),
+    rawFile('package/package.json', pkg({ devDependencies: { v: '2' } })),
+    rawFile('package/a.js', 'a'),
+    rawFile('package/b.js', 'a'),
+  ]);
+  const published = await buildRawTarball(directory, 'published', [
+    ...rawPackage.slice(0, 1),
+    rawFile('package/package.json', pkg({ devDependencies: { v: '1' } })),
+    rawFile('package/a.js', 'a'),
+    rawFile('package/b.js', 'other'),
+    { path: 'package/b.js', type: '1', linkname: 'package/a.js' },
+  ]);
+  await assert.rejects(compare(published, local), /hard link.*package\/b\.js/);
+});
+
+test('cleans up a tree with a read-only directory, and never throws', async (t) => {
+  const { directory } = await workspace(t);
+  const file = await buildTarball(directory, 'ro', {
+    files: { 'sub/file.js': 'a', 'package.json': '{}' },
+  });
+  const out = join(directory, 'out');
+  await unpackTarball(file, out);
+  await chmod(join(out, 'package/sub'), 0o555);
+  await removeTree(out);
+  await assert.rejects(readFile(join(out, 'package/package.json')), /ENOENT/);
+  await assert.doesNotReject(removeTree(join(directory, 'never-existed')));
 });

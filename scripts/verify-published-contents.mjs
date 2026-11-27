@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -13,7 +13,7 @@ import { readPreState } from '@changesets/pre';
 import { readChangesets } from '@changesets/read';
 import { getPackages } from '@manypkg/get-packages';
 
-import { compareTarballs, diffFileHashes } from './packed-contents.mjs';
+import { compareTarballs, diffFileHashes, removeTree } from './packed-contents.mjs';
 import { readReleaseInputs } from './release-plan.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -92,7 +92,7 @@ export function formatDriftError(drifted) {
       }:`,
       ...files.map(({ path, change }) => `  ${change}: ${path}`),
       ...(tarOnly
-        ? ['  modified: tar entry metadata (file modes or order)']
+        ? ['  modified: tar entry metadata (modification time, owner, other permission bits) or entry order']
         : []),
       ...(rewrittenBy.length > 0
         ? [
@@ -299,7 +299,7 @@ export async function verifyPublishedContents({
       drifted.push({ ...packageInfo, files, tarOnly, rewrittenBy });
     }
   } finally {
-    await rm(workDirectory, { recursive: true, force: true });
+    await removeTree(workDirectory);
   }
   if (drifted.length > 0) throw new Error(formatDriftError(drifted));
 }

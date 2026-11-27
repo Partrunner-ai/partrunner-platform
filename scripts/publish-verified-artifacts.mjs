@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { compareTarballs } from './packed-contents.mjs';
+import { compareTarballs, removeTree } from './packed-contents.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY = 'https://registry.npmjs.org';
@@ -157,7 +157,7 @@ export async function verifyExistingVersion(
       verifyRegistryIntegrity(packageInfo, metadata);
     }
   } finally {
-    await rm(work, { recursive: true, force: true });
+    await removeTree(work);
   }
   log(`Existing ${label} differs from the retained tarball only in devDependencies`);
 }
